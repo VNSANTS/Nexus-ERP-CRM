@@ -1,0 +1,116 @@
+#nota fundo branco nao da pra ler na tela de pagar
+quero ao inves do numero ex:001 indentificando o produto do cliente quero que seja o nome na tela de selecionar o pagamento quero um campo de como devemos te chamar dessa forma quando ficar ronto sera chamado pelo nome e tera um filtro para que nao coloquem nomes improprios ou com teor meramente improprio para ser chamado.
+Reproduza esse dashboard seguindo o design e layout desta imagem. Aqui estão os detalhes funcionais: Os alertas automáticos que devem aparecer (estoque crítico, pedido atrasado, tarefa pendente)
+A saudação "Bom dia, Administrador 👋" e o status "🟢 Operação normal"
+A lista completa de métricas obrigatórias (financeiro, vendas, estoque, funcionários)
+corrijir a aba de crm que nao da pra excluir ver relatorio nao serve pra nada o crm ali quero 100% funcional 
+
+Crie para mim um sistema completo de pedidos via WhatsApp, 100% gratuito, usando Node.js + Express + SQLite + Baileys (biblioteca não-oficial do WhatsApp).
+
+## REQUISITOS OBRIGATÓRIOS:
+
+### 1. CONEXÃO WHATSAPP (GRATUITA)
+- Usar a biblioteca @whiskeysockets/baileys (versão mais recente)
+- Ao iniciar o servidor, gerar um QR Code no terminal para eu escanear com meu celular
+- Salvar a sessão em arquivo (auth_info_baileys) para não precisar escanear toda vez
+- Mostrar no console quando conectar: "WhatsApp conectado como [nome]"
+
+### 2. RECEBER E PROCESSAR MENSAGENS
+- Escutar mensagens recebidas em tempo real
+- Ignorar mensagens de grupos e do próprio bot
+- Processar apenas mensagens de texto
+
+### 3. LÓGICA DE PEDIDOS (interpretação de mensagens)
+Criar um parser inteligente que entenda padrões como:
+- "1 X-Tudo e 1 Refrigerante"
+- "Quero 2 Bacon Burger"
+- "Pizza Grande e 1 suco de laranja"
+- "Pedido: 1x Frango Empanado, 2x Batata Frita"
+
+Regras do parser:
+- Extrair quantidade (número antes do item, padrão 1 se não houver)
+- Identificar o nome do produto
+- Ignorar palavras irrelevantes ("quero", "pedido", "por favor", etc.)
+- Se não entender a mensagem, responder: "Não entendi seu pedido. Envie algo como: 1 X-Tudo e 1 Refrigerante"
+
+### 4. BANCO DE DADOS (SQLite)
+Criar as tabelas:
+- produtos (id, nome, preco, categoria, disponivel)
+- pedidos (id, numero_cliente, nome_cliente, status, total, created_at)
+- itens_pedido (id, pedido_id, produto_id, quantidade, preco_unitario, subtotal)
+
+Popular a tabela produtos com dados de exemplo:
+- X-Tudo (R$ 25,00)
+- Bacon Burger (R$ 22,00)
+- Pizza Grande (R$ 45,00)
+- Frango Empanado (R$ 20,00)
+- Batata Frita (R$ 15,00)
+- Refrigerante (R$ 8,00)
+- Suco de Laranja (R$ 10,00)
+
+### 5. FLUXO DE PEDIDO
+Ao receber uma mensagem válida:
+1. Buscar produtos no banco que correspondam aos itens
+2. Calcular o total do pedido
+3. Criar o pedido no banco com status "recebido"
+4. Responder no WhatsApp com confirmação:
+   "✅ Pedido #1029 recebido!
+   📋 Itens:
+   • 1x X-Tudo - R$ 25,00
+   • 1x Refrigerante - R$ 8,00
+   💰 Total: R$ 33,00
+   ⏰ Tempo estimado: 15 min"
+
+Se algum item não existir no cardápio, responder: "Desculpe, não temos [item] no cardápio. Itens disponíveis: X-Tudo, Bacon Burger..."
+
+### 6. API REST (para integrar com meu dashboard)
+Criar endpoints:
+- GET /api/pedidos → lista todos os pedidos (com itens)
+- GET /api/pedidos/:id → detalhes de um pedido
+- PUT /api/pedidos/:id/status → atualizar status (recebido, em_preparo, pronto, entregue)
+- GET /api/produtos → lista de produtos
+- GET /api/estatisticas → total de pedidos hoje, faturamento, itens mais vendidos
+
+### 7. FRONTEND SIMPLES (painel web)
+Criar uma página em /painel com:
+- Lista de pedidos recebidos em tempo real (atualizar a cada 10 segundos)
+- Mostrar: número do pedido, nome/telefone do cliente, itens, total, status
+- Botões para mudar status: "Em preparo", "Pronto", "Entregue"
+- Destacar pedidos novos com cor diferente
+- Mostrar estatísticas do dia no topo
+
+### 8. ESTRUTURA DE PASTAS/whatsapp-pedidos
+/src
+/config
+database.js
+/controllers
+pedidoController.js
+produtoController.js
+/services
+whatsappService.js
+pedidoService.js
+parserService.js
+/routes
+api.js
+/public
+index.html (painel)
+server.js
+package.json
+### 9. CONFIGURAÇÕES
+- Usar dotenv para variáveis de ambiente
+- Porta padrão: 3000
+- CORS habilitado para o frontend
+- SQLite salvo em ./database.sqlite
+
+### 10. COMANDOS
+- Crie um README.md explicando:
+  - Como instalar dependências (npm install)
+  - Como iniciar (npm start)
+  - Como escanear o QR Code
+  - Como funciona o parser de pedidos
+
+## IMPORTANTE:
+- TUDO deve ser gratuito. NÃO usar Twilio, API oficial do Meta, ou qualquer serviço pago.
+- O Baileys é gratuito e usa WhatsApp Web.
+- O SQLite é gratuito e não precisa de servidor externo.
+- O frontend pode ser HTML puro com JavaScript vanilla, sem frameworks pesados.

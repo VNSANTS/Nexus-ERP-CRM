@@ -19,10 +19,31 @@ export const corsHeaders = {
 };
 
 export function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
+  return new Response(JSON.stringify(camelizeKeys(body)), {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
+}
+
+/**
+ * Converte recursivamente chaves snake_case (como vêm do Postgres) para
+ * camelCase (como o frontend espera). Aplicado automaticamente em toda
+ * resposta enviada via jsonResponse.
+ */
+function toCamel(s: string): string {
+  return s.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
+}
+
+function camelizeKeys(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(camelizeKeys);
+  if (value !== null && typeof value === 'object' && value.constructor === Object) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[toCamel(k)] = camelizeKeys(v);
+    }
+    return out;
+  }
+  return value;
 }
 
 export function errorResponse(message: string, status = 400): Response {

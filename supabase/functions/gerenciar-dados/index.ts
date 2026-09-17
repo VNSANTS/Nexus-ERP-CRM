@@ -8,7 +8,7 @@
 // Body esperado: { action: '...', ... }
 //   - 'create-product' | 'update-product' | 'delete-product'
 //   - 'report-daily' | 'report-products' | 'report-hourly' |
-//     'report-transactions' | 'report-waste' | 'report-loyalty'
+//     'report-transactions' | 'report-waste' | 'report-loyalty' | 'report-stock-history'
 //   - 'clear-sales'
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -145,6 +145,12 @@ Deno.serve(async (req: Request) => {
         map.set(e.product_id, r);
       }
       return jsonResponse({ summary: Array.from(map.values()).sort((a, b) => b.quantidade - a.quantidade), log: rows ?? [] });
+    }
+
+    if (action === 'report-stock-history') {
+      const { data, error } = await supabase.from('stock_history').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      return jsonResponse(data ?? []);
     }
 
     if (action === 'report-loyalty') {

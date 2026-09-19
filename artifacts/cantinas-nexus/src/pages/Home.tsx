@@ -25,24 +25,24 @@ import { motion, AnimatePresence } from 'framer-motion';
 const REFERENCE_ASSET = '/reference/';
 
 const CATEGORY_TABS: Array<{ key: 'todos' | 'lanche' | 'bebida' | 'combo' | 'sazonal'; label: string; icon: string }> = [
-  { key: 'todos', label: 'Todos', icon: 'icon-all.png' },
-  { key: 'lanche', label: CATEGORY_LABELS.lanche, icon: 'icon-lanche.png' },
-  { key: 'bebida', label: CATEGORY_LABELS.bebida, icon: 'icon-bebida.png' },
-  { key: 'combo', label: CATEGORY_LABELS.combo, icon: 'icon-combo.png' },
-  { key: 'sazonal', label: 'Sazonais', icon: 'icon-sazonal.png' },
+  { key: 'todos', label: 'Todos', icon: 'icon-all.webp' },
+  { key: 'lanche', label: CATEGORY_LABELS.lanche, icon: 'icon-lanche.webp' },
+  { key: 'bebida', label: CATEGORY_LABELS.bebida, icon: 'icon-bebida.webp' },
+  { key: 'combo', label: CATEGORY_LABELS.combo, icon: 'icon-combo.webp' },
+  { key: 'sazonal', label: 'Sazonais', icon: 'icon-sazonal.webp' },
 ];
 
 const ADMIN_HOLD_MS = 5000;
 
 function referenceFoodImage(product: ApiProduct) {
   const name = product.name.toLocaleLowerCase('pt-BR');
-  if (name.includes('combo')) return 'food-combo.png';
-  if (name.includes('coxinha')) return 'food-coxinha.png';
-  if (name.includes('pastel')) return 'food-pastel.png';
-  if (name.includes('refrigerante') || name.includes('refri')) return 'food-refrigerante.png';
-  if (name.includes('uva')) return 'food-uva.png';
-  if (name.includes('canjica')) return 'food-canjica.png';
-  if (name.includes('suco')) return 'food-suco.png';
+  if (name.includes('combo')) return 'food-combo.webp';
+  if (name.includes('coxinha')) return 'food-coxinha.webp';
+  if (name.includes('pastel')) return 'food-pastel.webp';
+  if (name.includes('refrigerante') || name.includes('refri')) return 'food-refrigerante.webp';
+  if (name.includes('uva')) return 'food-uva.webp';
+  if (name.includes('canjica')) return 'food-canjica.webp';
+  if (name.includes('suco')) return 'food-suco.webp';
   return null;
 }
 
@@ -186,10 +186,10 @@ export function Home() {
                   strokeDasharray={`${holdProgress * 100.53} 100.53`} strokeLinecap="round" />
               </svg>
             )}
-            <img src={`${REFERENCE_ASSET}logo.png`} alt="StarNexus" className="w-full h-full object-contain" />
+            <img src={`${REFERENCE_ASSET}logo.webp`} alt="StarNexus" className="w-full h-full object-contain" />
           </button>
           <img
-            src={`${REFERENCE_ASSET}greeting.png`}
+            src={`${REFERENCE_ASSET}greeting.webp`}
             alt="Olá! O que você vai pedir hoje?"
             className="w-[9rem] sm:w-[20rem] h-[6rem] sm:h-[9.5rem] object-contain object-left"
           />
@@ -335,7 +335,7 @@ export function Home() {
            </motion.div>
            <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .18 }} className="mt-5 sm:mt-7 rounded-[1.5rem] bg-[#FFF0DC] border border-[#F8D8B1] overflow-hidden relative">
              <button onClick={() => setCategoryFilter('combo')} className="absolute inset-0 z-10 cursor-pointer" aria-label="Ver combos" />
-             <img src={`${REFERENCE_ASSET}combo-banner.png`} alt="Combos que cabem no seu fome. Mais sabor por um preço especial." className="w-full h-auto object-cover" />
+             <img src={`${REFERENCE_ASSET}combo-banner.webp`} alt="Combos que cabem no seu fome. Mais sabor por um preço especial." className="w-full h-auto object-cover" />
            </motion.section>
            </>
         )}

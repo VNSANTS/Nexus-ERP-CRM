@@ -22,7 +22,7 @@ import {
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const REFERENCE_ASSET = '/reference/';
+const REFERENCE_ASSET = `${import.meta.env.BASE_URL}reference/`;
 
 const CATEGORY_TABS: Array<{ key: 'todos' | 'lanche' | 'bebida' | 'combo' | 'sazonal'; label: string; icon: string }> = [
   { key: 'todos', label: 'Todos', icon: 'icon-all.webp' },

@@ -101,6 +101,7 @@ export interface ApiProduct {
   categoria: string;
   sazonal: boolean;
   disponivel: boolean;
+  imageUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -113,6 +114,18 @@ export const api = {
     update: (id: string, data: Partial<ApiProduct>) =>
       callFn<ApiProduct>('gerenciar-dados', { action: 'update-product', id, ...data }),
     remove: (id: string) => callFn<{ ok: boolean }>('gerenciar-dados', { action: 'delete-product', id }),
+    // Envia a imagem (já convertida para WebP) direto para o Supabase Storage.
+    // Requer sessão autenticada (login da cozinha) — não passa por Edge Function.
+    uploadImage: async (productId: string, file: File): Promise<string> => {
+      const path = `${productId}/${Date.now()}.webp`;
+      const { error } = await supabase.storage.from('product-images').upload(path, file, {
+        contentType: 'image/webp',
+        upsert: true,
+      });
+      if (error) throw new Error(error.message);
+      const { data } = supabase.storage.from('product-images').getPublicUrl(path);
+      return data.publicUrl;
+    },
   },
 
   // ---------------------------------------------------------------------------
@@ -178,11 +191,20 @@ export const api = {
         'cozinha-login',
         { username, password },
       );
-      if (result.ok && result.token) setSession(result.token, result.refreshToken);
+      if (result.ok && result.token) {
+        setSession(result.token, result.refreshToken);
+        // Sincroniza o client Supabase com a sessão, necessário para operações
+        // que passam direto pelo client (ex: upload de imagem no Storage) em
+        // vez de por uma Edge Function.
+        if (result.refreshToken) {
+          await supabase.auth.setSession({ access_token: result.token, refresh_token: result.refreshToken });
+        }
+      }
       return result;
     },
     logout: () => {
       clearSession();
+      supabase.auth.signOut();
     },
     create: (data: ApiEmployeeCreate) => callFn<ApiEmployee>('gerenciar-funcionarios', { action: 'create', ...data }),
     update: (id: string, data: ApiEmployeeUpdate) =>
@@ -195,6 +217,9 @@ export const api = {
   // ---------------------------------------------------------------------------
 
   promotions: {
+    // Leitura pública (usada pelo totem para calcular preço com desconto) — via RLS, sem login.
+    listActive: () => publicSelect<ApiPromotion[]>('promotions', (q) => q.eq('ativo', true)),
+    // Listagem completa (inclusive inativas) — painel da cozinha, requer login.
     list: () => callFn<ApiPromotion[]>('promocoes', { action: 'list' }),
     create: (data: Omit<ApiPromotion, 'id' | 'createdAt'>) => callFn<ApiPromotion>('promocoes', { action: 'create', ...data }),
     update: (id: string, data: Partial<ApiPromotion>) => callFn<ApiPromotion>('promocoes', { action: 'update', id, ...data }),
@@ -209,6 +234,13 @@ export const api = {
     list: () => callFn<ApiCustomer[]>('clientes', { action: 'list' }),
     interactions: () => callFn<ApiCustomerInteraction[]>('clientes', { action: 'list-interactions' }),
     loyalty: () => callFn<ApiLoyaltyRecord[]>('clientes', { action: 'list-loyalty' }),
+    // Leitura pública de UM registro por telefone — usada pelo totem, via RLS, sem login.
+    // Não expõe a lista completa de clientes (privacidade).
+    loyaltyByPhone: async (telefone: string) => {
+      const { data, error } = await supabase.from('loyalty').select('*').eq('telefone', telefone).maybeSingle();
+      if (error) throw new Error(error.message);
+      return camelizeKeys<ApiLoyaltyRecord | null>(data);
+    },
     get: (telefone: string) => callFn<ApiCustomer & { interactions: ApiCustomerInteraction[] }>('clientes', { action: 'get', telefone }),
     upsert: (telefone: string, data: Partial<ApiCustomer>) =>
       callFn<ApiCustomer>('clientes', { action: 'upsert', telefone, ...data }),

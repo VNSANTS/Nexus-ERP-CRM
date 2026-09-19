@@ -1,22 +1,90 @@
 /**
- * Cantinas Nexus — cliente da API REST
+ * Nexus-ERP-CRM — cliente da API
  * Todas as chamadas ao backend passam por aqui.
+ *
+ * Leitura pública (totem, acompanhamento) -> direto no Supabase via RLS.
+ * Escrita e tudo que exige login da cozinha -> Edge Functions.
  */
+import { supabase } from './supabase';
 
-const BASE = '/api';
+const TOKEN_KEY = 'nexus-erp-crm:employee-token';
+const REFRESH_KEY = 'nexus-erp-crm:employee-refresh-token';
 
-async function req<T>(path: string, options?: RequestInit): Promise<T> {
-  // Remove leading slash if BASE already has trailing content
-  const url = `${BASE}${path.startsWith('/') ? path : `/${path}`}`;
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
+function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+function setSession(token: string, refreshToken?: string) {
+  localStorage.setItem(TOKEN_KEY, token);
+  if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
+}
+
+function clearSession() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_KEY);
+}
+
+/** Chama uma Edge Function autenticada (painel da cozinha). */
+async function callFn<T>(fn: string, body: Record<string, unknown>): Promise<T> {
+  const token = getToken();
+  const { data, error } = await supabase.functions.invoke(fn, {
+    body,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
-  if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new Error(`API error ${res.status}: ${text}`);
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    if (context) {
+      const payload = await context.json().catch(() => null);
+      throw new Error(payload?.error ?? error.message);
+    }
+    throw new Error(error.message);
   }
-  return res.json();
+  if (data?.error) throw new Error(data.error);
+  return data as T; // já vem em camelCase — as Edge Functions convertem antes de responder
+}
+
+/** Chama uma Edge Function pública (totem — sem login). */
+async function callPublicFn<T>(fn: string, body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(fn, { body });
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    if (context) {
+      const payload = await context.json().catch(() => null);
+      throw new Error(payload?.error ?? error.message);
+    }
+    throw new Error(error.message);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data as T; // já vem em camelCase — as Edge Functions convertem antes de responder
+}
+
+// ---------------------------------------------------------------------------
+// snake_case (Postgres) <-> camelCase (frontend)
+// ---------------------------------------------------------------------------
+
+function toCamel(s: string): string {
+  return s.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
+}
+
+function camelizeKeys<T>(obj: unknown): T {
+  if (Array.isArray(obj)) return obj.map((v) => camelizeKeys(v)) as unknown as T;
+  if (obj !== null && typeof obj === 'object' && !(obj instanceof Date)) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) out[toCamel(k)] = camelizeKeys(v);
+    return out as T;
+  }
+  return obj as T;
+}
+
+async function publicSelect<T>(
+  table: string,
+  build?: (q: any) => any,
+): Promise<T> {
+  let query: any = supabase.from(table).select('*');
+  if (build) query = build(query);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return camelizeKeys<T>(data ?? []);
 }
 
 // ---------------------------------------------------------------------------
@@ -39,12 +107,12 @@ export interface ApiProduct {
 
 export const api = {
   products: {
-    list: () => req<ApiProduct[]>('/products'),
+    list: () => publicSelect<ApiProduct[]>('products'),
     create: (data: Omit<ApiProduct, 'createdAt' | 'updatedAt'>) =>
-      req<ApiProduct>('/products', { method: 'POST', body: JSON.stringify(data) }),
+      callFn<ApiProduct>('gerenciar-dados', { action: 'create-product', ...data }),
     update: (id: string, data: Partial<ApiProduct>) =>
-      req<ApiProduct>(`/products/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-    remove: (id: string) => req<{ ok: boolean }>(`/products/${id}`, { method: 'DELETE' }),
+      callFn<ApiProduct>('gerenciar-dados', { action: 'update-product', id, ...data }),
+    remove: (id: string) => callFn<{ ok: boolean }>('gerenciar-dados', { action: 'delete-product', id }),
   },
 
   // ---------------------------------------------------------------------------
@@ -52,27 +120,32 @@ export const api = {
   // ---------------------------------------------------------------------------
 
   orders: {
-    list: () => req<ApiOrder[]>('/orders'),
-    byCode: (code: string) => req<ApiOrder>(`/orders/by-code/${code}`),
+    list: () => publicSelect<ApiOrder[]>('orders', (q) => q.order('created_at', { ascending: false })),
+    byCode: async (code: string) => {
+      const { data, error } = await supabase.from('orders').select('*').eq('code', code).maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) throw new Error('Pedido não encontrado.');
+      const { data: items } = await supabase.from('order_items').select('*').eq('order_id', data.id);
+      return camelizeKeys<ApiOrder>({ ...data, items: items ?? [] });
+    },
     checkout: (data: {
       cartItems: Array<{ productId: string; qty: number }>;
       paymentMethod: string;
       observacoes: string;
       telefone: string;
-    }) => req<ApiOrder>('/orders/checkout', { method: 'POST', body: JSON.stringify(data) }),
+    }) => callPublicFn<ApiOrder>('pedidos', { action: 'checkout', ...data }),
     manual: (data: {
       items: Array<{ productId: string; qty: number }>;
       paymentMethod: string;
       telefone: string;
       observacoes: string;
-    }) => req<ApiOrder>('/orders/manual', { method: 'POST', body: JSON.stringify(data) }),
-    updateStatus: (id: string, status: string) =>
-      req<ApiOrder>(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-    advance: (id: string) => req<ApiOrder>(`/orders/${id}/advance`, { method: 'POST' }),
+    }) => callFn<ApiOrder>('pedidos', { action: 'manual', ...data }),
+    updateStatus: (id: string, status: string) => callFn<ApiOrder>('pedidos', { action: 'set-status', id, status }),
+    advance: (id: string) => callFn<ApiOrder>('pedidos', { action: 'advance', id }),
     updateObservacoes: (id: string, observacoes: string) =>
-      req<ApiOrder>(`/orders/${id}/observacoes`, { method: 'PATCH', body: JSON.stringify({ observacoes }) }),
+      callFn<ApiOrder>('pedidos', { action: 'observacoes', id, observacoes }),
     confirmPickup: (code: string) =>
-      req<{ ok: boolean; message: string }>('/orders/confirm-pickup', { method: 'POST', body: JSON.stringify({ code }) }),
+      callPublicFn<{ ok: boolean; message: string }>('pedidos', { action: 'confirm-pickup', code }),
   },
 
   // ---------------------------------------------------------------------------
@@ -80,15 +153,18 @@ export const api = {
   // ---------------------------------------------------------------------------
 
   stock: {
-    list: () => req<ApiStockItem[]>('/stock'),
-    history: () => req<ApiStockMovement[]>('/stock/history'),
-    waste: () => req<ApiWasteEntry[]>('/stock/waste'),
+    list: () => publicSelect<ApiStockItem[]>('stock'),
+    history: () => callFn<ApiStockMovement[]>('gerenciar-dados', { action: 'report-stock-history' }),
+    waste: async () => {
+      const report = await callFn<ApiWasteReport>('gerenciar-dados', { action: 'report-waste' });
+      return report.log;
+    },
     addEntry: (productId: string, quantidade: number, motivo: string) =>
-      req(`/stock/${productId}/entry`, { method: 'POST', body: JSON.stringify({ quantidade, motivo }) }),
+      callFn('estoque', { action: 'entry', productId, quantidade, motivo }),
     setMinimo: (productId: string, minimo: number) =>
-      req(`/stock/${productId}/minimo`, { method: 'PATCH', body: JSON.stringify({ minimo }) }),
+      callFn('estoque', { action: 'set-minimo', productId, minimo }),
     addWaste: (productId: string, quantidade: number, motivo: string) =>
-      req(`/stock/${productId}/waste`, { method: 'POST', body: JSON.stringify({ quantidade, motivo }) }),
+      callFn('estoque', { action: 'waste', productId, quantidade, motivo }),
   },
 
   // ---------------------------------------------------------------------------
@@ -96,17 +172,22 @@ export const api = {
   // ---------------------------------------------------------------------------
 
   employees: {
-    list: () => req<ApiEmployee[]>('/employees'),
-    login: (username: string, password: string) =>
-      req<{ ok: boolean; employee?: ApiEmployee; message?: string }>('/employees/login', {
-        method: 'POST',
-        body: JSON.stringify({ username, password }),
-      }),
-    create: (data: ApiEmployeeCreate) =>
-      req<ApiEmployee>('/employees', { method: 'POST', body: JSON.stringify(data) }),
+    list: () => callFn<ApiEmployee[]>('gerenciar-funcionarios', { action: 'list' }),
+    login: async (username: string, password: string) => {
+      const result = await callPublicFn<{ ok: boolean; token?: string; refreshToken?: string; employee?: ApiEmployee; message?: string }>(
+        'cozinha-login',
+        { username, password },
+      );
+      if (result.ok && result.token) setSession(result.token, result.refreshToken);
+      return result;
+    },
+    logout: () => {
+      clearSession();
+    },
+    create: (data: ApiEmployeeCreate) => callFn<ApiEmployee>('gerenciar-funcionarios', { action: 'create', ...data }),
     update: (id: string, data: ApiEmployeeUpdate) =>
-      req<ApiEmployee>(`/employees/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-    remove: (id: string) => req<{ ok: boolean; message?: string }>(`/employees/${id}`, { method: 'DELETE' }),
+      callFn<ApiEmployee>('gerenciar-funcionarios', { action: 'update', id, ...data }),
+    remove: (id: string) => callFn<{ ok: boolean; message?: string }>('gerenciar-funcionarios', { action: 'delete', id }),
   },
 
   // ---------------------------------------------------------------------------
@@ -114,12 +195,10 @@ export const api = {
   // ---------------------------------------------------------------------------
 
   promotions: {
-    list: () => req<ApiPromotion[]>('/promotions'),
-    create: (data: Omit<ApiPromotion, 'id' | 'createdAt'>) =>
-      req<ApiPromotion>('/promotions', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: Partial<ApiPromotion>) =>
-      req<ApiPromotion>(`/promotions/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-    remove: (id: string) => req<{ ok: boolean }>(`/promotions/${id}`, { method: 'DELETE' }),
+    list: () => callFn<ApiPromotion[]>('promocoes', { action: 'list' }),
+    create: (data: Omit<ApiPromotion, 'id' | 'createdAt'>) => callFn<ApiPromotion>('promocoes', { action: 'create', ...data }),
+    update: (id: string, data: Partial<ApiPromotion>) => callFn<ApiPromotion>('promocoes', { action: 'update', id, ...data }),
+    remove: (id: string) => callFn<{ ok: boolean }>('promocoes', { action: 'delete', id }),
   },
 
   // ---------------------------------------------------------------------------
@@ -127,15 +206,15 @@ export const api = {
   // ---------------------------------------------------------------------------
 
   customers: {
-    list: () => req<ApiCustomer[]>('/customers'),
-    interactions: () => req<ApiCustomerInteraction[]>('/customers/interactions'),
-    loyalty: () => req<ApiLoyaltyRecord[]>('/customers/loyalty'),
-    get: (telefone: string) => req<ApiCustomer & { interactions: ApiCustomerInteraction[] }>(`/customers/${telefone}`),
+    list: () => callFn<ApiCustomer[]>('clientes', { action: 'list' }),
+    interactions: () => callFn<ApiCustomerInteraction[]>('clientes', { action: 'list-interactions' }),
+    loyalty: () => callFn<ApiLoyaltyRecord[]>('clientes', { action: 'list-loyalty' }),
+    get: (telefone: string) => callFn<ApiCustomer & { interactions: ApiCustomerInteraction[] }>('clientes', { action: 'get', telefone }),
     upsert: (telefone: string, data: Partial<ApiCustomer>) =>
-      req<ApiCustomer>(`/customers/${telefone}`, { method: 'PUT', body: JSON.stringify(data) }),
-    remove: (telefone: string) => req<{ ok: boolean }>(`/customers/${telefone}`, { method: 'DELETE' }),
+      callFn<ApiCustomer>('clientes', { action: 'upsert', telefone, ...data }),
+    remove: (telefone: string) => callFn<{ ok: boolean }>('clientes', { action: 'delete', telefone }),
     addInteraction: (telefone: string, tipo: string, nota: string) =>
-      req<ApiCustomerInteraction>(`/customers/${telefone}/interactions`, { method: 'POST', body: JSON.stringify({ tipo, nota }) }),
+      callFn<ApiCustomerInteraction>('clientes', { action: 'add-interaction', telefone, tipo, nota }),
   },
 
   // ---------------------------------------------------------------------------
@@ -143,18 +222,17 @@ export const api = {
   // ---------------------------------------------------------------------------
 
   suppliers: {
-    list: () => req<ApiSupplier[]>('/suppliers'),
-    requests: () => req<ApiSupplyRequest[]>('/suppliers/requests'),
+    list: () => callFn<ApiSupplier[]>('fornecedores', { action: 'list' }),
+    requests: () => callFn<ApiSupplyRequest[]>('fornecedores', { action: 'list-requests' }),
     create: (data: Omit<ApiSupplier, 'id' | 'createdAt' | 'updatedAt'>) =>
-      req<ApiSupplier>('/suppliers', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: Partial<ApiSupplier>) =>
-      req<ApiSupplier>(`/suppliers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-    remove: (id: string) => req<{ ok: boolean }>(`/suppliers/${id}`, { method: 'DELETE' }),
+      callFn<ApiSupplier>('fornecedores', { action: 'create', ...data }),
+    update: (id: string, data: Partial<ApiSupplier>) => callFn<ApiSupplier>('fornecedores', { action: 'update', id, ...data }),
+    remove: (id: string) => callFn<{ ok: boolean }>('fornecedores', { action: 'delete', id }),
     createRequest: (data: { supplierId: string; insumo: string; quantidade: string; observacoes: string }) =>
-      req<ApiSupplyRequest>('/suppliers/requests', { method: 'POST', body: JSON.stringify(data) }),
+      callFn<ApiSupplyRequest>('fornecedores', { action: 'create-request', ...data }),
     updateRequestStatus: (id: string, status: string) =>
-      req<ApiSupplyRequest>(`/suppliers/requests/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-    deleteRequest: (id: string) => req<{ ok: boolean }>(`/suppliers/requests/${id}`, { method: 'DELETE' }),
+      callFn<ApiSupplyRequest>('fornecedores', { action: 'update-request-status', id, status }),
+    deleteRequest: (id: string) => callFn<{ ok: boolean }>('fornecedores', { action: 'delete-request', id }),
   },
 
   // ---------------------------------------------------------------------------
@@ -162,9 +240,12 @@ export const api = {
   // ---------------------------------------------------------------------------
 
   settings: {
-    get: () => req<ApiSettings>('/settings'),
-    update: (data: Partial<ApiSettings>) =>
-      req<ApiSettings>('/settings', { method: 'PATCH', body: JSON.stringify(data) }),
+    get: async () => {
+      const { data, error } = await supabase.from('settings').select('*').eq('id', 1).single();
+      if (error) throw new Error(error.message);
+      return camelizeKeys<ApiSettings>(data);
+    },
+    update: (data: Partial<ApiSettings>) => callFn<ApiSettings>('gerenciar-dados', { action: 'update-settings', ...data }),
   },
 
   // ---------------------------------------------------------------------------
@@ -172,13 +253,13 @@ export const api = {
   // ---------------------------------------------------------------------------
 
   reports: {
-    daily: () => req<ApiDailyReport>('/reports/daily'),
-    products: () => req<ApiProductRanking[]>('/reports/products'),
-    hourly: () => req<ApiHourlyBucket[]>('/reports/hourly'),
-    transactions: () => req<ApiTransaction[]>('/reports/transactions'),
-    waste: () => req<ApiWasteReport>('/reports/waste'),
-    loyalty: () => req<ApiLoyaltyRecord[]>('/reports/loyalty'),
-    clearSales: () => req<{ ok: boolean }>('/reports/clear-sales', { method: 'POST' }),
+    daily: () => callFn<ApiDailyReport>('gerenciar-dados', { action: 'report-daily' }),
+    products: () => callFn<ApiProductRanking[]>('gerenciar-dados', { action: 'report-products' }),
+    hourly: () => callFn<ApiHourlyBucket[]>('gerenciar-dados', { action: 'report-hourly' }),
+    transactions: () => callFn<ApiTransaction[]>('gerenciar-dados', { action: 'report-transactions' }),
+    waste: () => callFn<ApiWasteReport>('gerenciar-dados', { action: 'report-waste' }),
+    loyalty: () => callFn<ApiLoyaltyRecord[]>('gerenciar-dados', { action: 'report-loyalty' }),
+    clearSales: () => callFn<{ ok: boolean }>('gerenciar-dados', { action: 'clear-sales' }),
   },
 };
 

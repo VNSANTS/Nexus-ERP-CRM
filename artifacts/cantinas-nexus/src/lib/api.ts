@@ -195,6 +195,9 @@ export const api = {
   // ---------------------------------------------------------------------------
 
   promotions: {
+    // Leitura pública (usada pelo totem para calcular preço com desconto) — via RLS, sem login.
+    listActive: () => publicSelect<ApiPromotion[]>('promotions', (q) => q.eq('ativo', true)),
+    // Listagem completa (inclusive inativas) — painel da cozinha, requer login.
     list: () => callFn<ApiPromotion[]>('promocoes', { action: 'list' }),
     create: (data: Omit<ApiPromotion, 'id' | 'createdAt'>) => callFn<ApiPromotion>('promocoes', { action: 'create', ...data }),
     update: (id: string, data: Partial<ApiPromotion>) => callFn<ApiPromotion>('promocoes', { action: 'update', id, ...data }),
@@ -209,6 +212,13 @@ export const api = {
     list: () => callFn<ApiCustomer[]>('clientes', { action: 'list' }),
     interactions: () => callFn<ApiCustomerInteraction[]>('clientes', { action: 'list-interactions' }),
     loyalty: () => callFn<ApiLoyaltyRecord[]>('clientes', { action: 'list-loyalty' }),
+    // Leitura pública de UM registro por telefone — usada pelo totem, via RLS, sem login.
+    // Não expõe a lista completa de clientes (privacidade).
+    loyaltyByPhone: async (telefone: string) => {
+      const { data, error } = await supabase.from('loyalty').select('*').eq('telefone', telefone).maybeSingle();
+      if (error) throw new Error(error.message);
+      return camelizeKeys<ApiLoyaltyRecord | null>(data);
+    },
     get: (telefone: string) => callFn<ApiCustomer & { interactions: ApiCustomerInteraction[] }>('clientes', { action: 'get', telefone }),
     upsert: (telefone: string, data: Partial<ApiCustomer>) =>
       callFn<ApiCustomer>('clientes', { action: 'upsert', telefone, ...data }),

@@ -76,13 +76,15 @@ export function Home() {
     refetchInterval: 15_000,
   });
   const { data: promotions = [] } = useQuery({
-    queryKey: ['promotions'],
-    queryFn: api.promotions.list,
+    queryKey: ['promotions-active'],
+    queryFn: api.promotions.listActive,
     refetchInterval: 30_000,
   });
-  const { data: loyaltyData = [] } = useQuery({
-    queryKey: ['loyalty'],
-    queryFn: api.customers.loyalty,
+  const telefoneTrim = telefone.trim();
+  const { data: loyaltyRecord = null } = useQuery({
+    queryKey: ['loyalty', telefoneTrim],
+    queryFn: () => api.customers.loyaltyByPhone(telefoneTrim),
+    enabled: telefoneTrim.length > 0,
     refetchInterval: 60_000,
   });
   const { data: settings } = useQuery({
@@ -158,7 +160,7 @@ export function Home() {
     });
   }, [products, categoryFilter]);
 
-  const loyaltyStatus = telefone.trim() ? computeLoyaltyStatus(telefone.trim(), loyaltyData) : null;
+  const loyaltyStatus = telefoneTrim ? computeLoyaltyStatus(telefoneTrim, loyaltyRecord ? [loyaltyRecord] : []) : null;
 
   const getStock = (productId: string) => stock.find((s) => s.productId === productId)?.quantidade ?? 0;
 

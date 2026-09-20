@@ -21,6 +21,7 @@ import {
   ArrowLeft, ShieldCheck, DollarSign, Activity, Calendar,
 } from 'lucide-react';
 import { downloadCsv } from '../lib/csv';
+import { convertImageToWebp } from '../lib/image-convert';
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -336,13 +337,14 @@ export function Kitchen() {
 
   // ─── Product forms ───────────────────────────────────────────────────────────
 
-  const [productForm, setProductForm] = useState<{ id?: string; name: string; price: string; emoji: string; categoria: string; sazonal: boolean; disponivel: boolean } | null>(null);
+  const [productForm, setProductForm] = useState<{ id?: string; name: string; price: string; emoji: string; categoria: string; sazonal: boolean; disponivel: boolean; imageUrl: string | null } | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const createProductMut = useMutation({
     mutationFn: () => {
       const id = productForm!.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + uid().slice(0, 4);
       return productForm!.id
-        ? api.products.update(productForm!.id, { name: productForm!.name, price: productForm!.price, emoji: productForm!.emoji, categoria: productForm!.categoria, sazonal: productForm!.sazonal, disponivel: productForm!.disponivel })
-        : api.products.create({ id, name: productForm!.name, price: productForm!.price, emoji: productForm!.emoji, categoria: productForm!.categoria, sazonal: productForm!.sazonal, disponivel: productForm!.disponivel });
+        ? api.products.update(productForm!.id, { name: productForm!.name, price: productForm!.price, emoji: productForm!.emoji, categoria: productForm!.categoria, sazonal: productForm!.sazonal, disponivel: productForm!.disponivel, imageUrl: productForm!.imageUrl })
+        : api.products.create({ id, name: productForm!.name, price: productForm!.price, emoji: productForm!.emoji, categoria: productForm!.categoria, sazonal: productForm!.sazonal, disponivel: productForm!.disponivel, imageUrl: productForm!.imageUrl });
     },
     onSuccess: () => { toast.success('Produto salvo!'); setProductForm(null); qc.invalidateQueries({ queryKey: ['products', 'stock'] }); },
   });
@@ -1343,7 +1345,7 @@ export function Kitchen() {
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <h2 className="text-2xl font-display font-black text-gray-900">Cardápio / Produtos</h2>
-              <button onClick={() => setProductForm({ name: '', price: '0', emoji: '', categoria: 'lanche', sazonal: false, disponivel: true })}
+              <button onClick={() => setProductForm({ name: '', price: '0', emoji: '', categoria: 'lanche', sazonal: false, disponivel: true, imageUrl: null })}
                 className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-orange-600 transition-colors flex items-center gap-2">
                 <Plus className="w-4 h-4" /> Novo Produto
               </button>
@@ -1371,7 +1373,7 @@ export function Kitchen() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
-                            <button onClick={() => setProductForm({ id: p.id, name: p.name, price: p.price, emoji: p.emoji, categoria: p.categoria, sazonal: p.sazonal, disponivel: p.disponivel })}
+                            <button onClick={() => setProductForm({ id: p.id, name: p.name, price: p.price, emoji: p.emoji, categoria: p.categoria, sazonal: p.sazonal, disponivel: p.disponivel, imageUrl: p.imageUrl })}
                               className="p-1.5 text-gray-400 hover:text-primary hover:bg-orange-50 rounded-lg transition-colors"><Edit2 className="w-4 h-4" /></button>
                             <button onClick={() => { if (confirm(`Remover "${p.name}"?`)) removeProductMut.mutate(p.id); }}
                               className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
@@ -1400,6 +1402,44 @@ export function Kitchen() {
                         <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Emoji</label>
                         <input value={productForm.emoji} onChange={(e) => setProductForm({ ...productForm, emoji: e.target.value })}
                           className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold text-center text-2xl focus:border-primary focus:outline-none" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Foto do produto</label>
+                      <div className="flex items-center gap-3">
+                        {productForm.imageUrl && (
+                          <img src={productForm.imageUrl} alt="" className="w-14 h-14 rounded-xl object-cover border-2 border-gray-200" />
+                        )}
+                        <label className="flex-1 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl px-3 py-3 text-center font-bold text-sm text-gray-500 hover:border-primary hover:text-primary transition-colors">
+                          {uploadingImage ? (
+                            <span className="flex items-center justify-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</span>
+                          ) : (
+                            productForm.imageUrl ? 'Trocar foto' : 'Escolher foto'
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploadingImage}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = '';
+                              if (!file) return;
+                              setUploadingImage(true);
+                              try {
+                                const webpFile = await convertImageToWebp(file);
+                                const tempId = productForm.id ?? `novo-${uid()}`;
+                                const url = await api.products.uploadImage(tempId, webpFile);
+                                setProductForm((prev) => (prev ? { ...prev, imageUrl: url } : prev));
+                                toast.success('Foto enviada!');
+                              } catch (err) {
+                                toast.error(err instanceof Error ? err.message : 'Erro ao enviar a foto.');
+                              } finally {
+                                setUploadingImage(false);
+                              }
+                            }}
+                          />
+                        </label>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">

@@ -303,7 +303,9 @@ export function Home() {
                        </span>
                         <div className="w-full aspect-[1.15] bg-[#fffaf3] rounded-xl flex items-center justify-center mb-3 shadow-inner overflow-hidden">
                          <motion.div whileHover={disabled ? {} : { rotate: 5, scale: 1.1 }} className="w-full h-full flex items-center justify-center">
-                           {referenceFoodImage(product) ? (
+                           {product.imageUrl ? (
+                             <img src={product.imageUrl} alt="" className="w-full h-full object-cover" />
+                           ) : referenceFoodImage(product) ? (
                              <img src={`${REFERENCE_ASSET}${referenceFoodImage(product)}`} alt="" className="w-[76%] h-[76%] object-contain" />
                            ) : (
                              <span className="text-5xl sm:text-7xl" role="img" aria-label={product.name}>{product.emoji}</span>

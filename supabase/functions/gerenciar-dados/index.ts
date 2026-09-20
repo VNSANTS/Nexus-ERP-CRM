@@ -33,13 +33,13 @@ Deno.serve(async (req: Request) => {
     // Produtos
     // -----------------------------------------------------------------
     if (action === 'create-product') {
-      const { id, name, price, emoji, categoria, sazonal, disponivel } = body;
+      const { id, name, price, emoji, categoria, sazonal, disponivel, imageUrl } = body;
       if (!id || !name || price == null || !emoji || !categoria) {
         return errorResponse('Campos obrigatórios ausentes.', 400);
       }
       const { data: product, error } = await supabase
         .from('products')
-        .insert({ id, name, price, emoji, categoria, sazonal: !!sazonal, disponivel: disponivel !== false })
+        .insert({ id, name, price, emoji, categoria, sazonal: !!sazonal, disponivel: disponivel !== false, image_url: imageUrl ?? null })
         .select()
         .single();
       if (error) throw error;
@@ -50,7 +50,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === 'update-product') {
-      const { id, name, price, emoji, categoria, sazonal, disponivel } = body;
+      const { id, name, price, emoji, categoria, sazonal, disponivel, imageUrl } = body;
       const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
       if (name != null) updates.name = name;
       if (price != null) updates.price = price;
@@ -58,6 +58,7 @@ Deno.serve(async (req: Request) => {
       if (categoria != null) updates.categoria = categoria;
       if (sazonal != null) updates.sazonal = sazonal;
       if (disponivel != null) updates.disponivel = disponivel;
+      if (imageUrl !== undefined) updates.image_url = imageUrl;
 
       const { data: updated, error } = await supabase.from('products').update(updates).eq('id', id).select().maybeSingle();
       if (error) throw error;

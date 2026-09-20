@@ -337,14 +337,14 @@ export function Kitchen() {
 
   // ─── Product forms ───────────────────────────────────────────────────────────
 
-  const [productForm, setProductForm] = useState<{ id?: string; name: string; price: string; emoji: string; categoria: string; sazonal: boolean; disponivel: boolean; imageUrl: string | null } | null>(null);
+  const [productForm, setProductForm] = useState<{ id?: string; name: string; price: string; emoji: string; categoria: string; sazonal: boolean; disponivel: boolean; imageUrl: string | null; quantidadeInicial?: string } | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const createProductMut = useMutation({
     mutationFn: () => {
       const id = productForm!.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + uid().slice(0, 4);
       return productForm!.id
         ? api.products.update(productForm!.id, { name: productForm!.name, price: productForm!.price, emoji: productForm!.emoji, categoria: productForm!.categoria, sazonal: productForm!.sazonal, disponivel: productForm!.disponivel, imageUrl: productForm!.imageUrl })
-        : api.products.create({ id, name: productForm!.name, price: productForm!.price, emoji: productForm!.emoji, categoria: productForm!.categoria, sazonal: productForm!.sazonal, disponivel: productForm!.disponivel, imageUrl: productForm!.imageUrl });
+        : api.products.create({ id, name: productForm!.name, price: productForm!.price, emoji: productForm!.emoji, categoria: productForm!.categoria, sazonal: productForm!.sazonal, disponivel: productForm!.disponivel, imageUrl: productForm!.imageUrl, quantidadeInicial: Number(productForm!.quantidadeInicial ?? 0) });
     },
     onSuccess: () => { toast.success('Produto salvo!'); setProductForm(null); qc.invalidateQueries({ queryKey: ['products', 'stock'] }); },
   });
@@ -1345,7 +1345,7 @@ export function Kitchen() {
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <h2 className="text-2xl font-display font-black text-gray-900">Cardápio / Produtos</h2>
-              <button onClick={() => setProductForm({ name: '', price: '0', emoji: '', categoria: 'lanche', sazonal: false, disponivel: true, imageUrl: null })}
+              <button onClick={() => setProductForm({ name: '', price: '0', emoji: '', categoria: 'lanche', sazonal: false, disponivel: true, imageUrl: null, quantidadeInicial: '0' })}
                 className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-orange-600 transition-colors flex items-center gap-2">
                 <Plus className="w-4 h-4" /> Novo Produto
               </button>
@@ -1399,7 +1399,7 @@ export function Kitchen() {
                           className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none" />
                       </div>
                       <div>
-                        <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Emoji</label>
+                        <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Emoji {productForm.imageUrl && <span className="normal-case font-semibold text-gray-300">(opcional com foto)</span>}</label>
                         <input value={productForm.emoji} onChange={(e) => setProductForm({ ...productForm, emoji: e.target.value })}
                           className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold text-center text-2xl focus:border-primary focus:outline-none" />
                       </div>
@@ -1456,6 +1456,14 @@ export function Kitchen() {
                         </select>
                       </div>
                     </div>
+                    {!productForm.id && (
+                      <div>
+                        <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Estoque inicial</label>
+                        <input type="number" step="1" min="0" value={productForm.quantidadeInicial ?? '0'}
+                          onChange={(e) => setProductForm({ ...productForm, quantidadeInicial: e.target.value })}
+                          className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none" />
+                      </div>
+                    )}
                     <div className="flex items-center gap-6">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" checked={productForm.sazonal} onChange={(e) => setProductForm({ ...productForm, sazonal: e.target.checked })} className="w-4 h-4" />

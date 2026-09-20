@@ -33,18 +33,19 @@ Deno.serve(async (req: Request) => {
     // Produtos
     // -----------------------------------------------------------------
     if (action === 'create-product') {
-      const { id, name, price, emoji, categoria, sazonal, disponivel, imageUrl } = body;
-      if (!id || !name || price == null || !emoji || !categoria) {
-        return errorResponse('Campos obrigatórios ausentes.', 400);
+      const { id, name, price, emoji, categoria, sazonal, disponivel, imageUrl, quantidadeInicial } = body;
+      if (!id || !name || price == null || !categoria || (!emoji && !imageUrl)) {
+        return errorResponse('Nome, preço, categoria e (emoji ou foto) são obrigatórios.', 400);
       }
       const { data: product, error } = await supabase
         .from('products')
-        .insert({ id, name, price, emoji, categoria, sazonal: !!sazonal, disponivel: disponivel !== false, image_url: imageUrl ?? null })
+        .insert({ id, name, price, emoji: emoji ?? '', categoria, sazonal: !!sazonal, disponivel: disponivel !== false, image_url: imageUrl ?? null })
         .select()
         .single();
       if (error) throw error;
 
-      await supabase.from('stock').upsert({ product_id: id, name, quantidade: 0, minimo: 5 }, { onConflict: 'product_id', ignoreDuplicates: true });
+      const quantidade = Number.isFinite(Number(quantidadeInicial)) ? Math.max(0, Number(quantidadeInicial)) : 0;
+      await supabase.from('stock').upsert({ product_id: id, name, quantidade, minimo: 5 }, { onConflict: 'product_id', ignoreDuplicates: true });
 
       return jsonResponse(product, 201);
     }

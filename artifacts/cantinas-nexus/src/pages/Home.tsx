@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Link, useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   api,
@@ -32,8 +31,6 @@ const CATEGORY_TABS: Array<{ key: 'todos' | 'lanche' | 'bebida' | 'combo' | 'saz
   { key: 'sazonal', label: 'Sazonais', icon: 'icon-sazonal.webp' },
 ];
 
-const ADMIN_HOLD_MS = 5000;
-
 function referenceFoodImage(product: ApiProduct) {
   const name = product.name.toLocaleLowerCase('pt-BR');
   if (name.includes('combo')) return 'food-combo.webp';
@@ -57,11 +54,6 @@ export function Home() {
   const [observacoes, setObservacoes] = useState('');
   const [telefone, setTelefone] = useState('');
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
-  const [, setLocation] = useLocation();
-  const [holdProgress, setHoldProgress] = useState(0);
-  const holdTimeoutRef = useRef<number | null>(null);
-  const holdIntervalRef = useRef<number | null>(null);
-
   const cart = useCart();
 
   // Queries
@@ -125,24 +117,6 @@ export function Home() {
     },
   });
 
-  const cancelHold = () => {
-    if (holdTimeoutRef.current) { window.clearTimeout(holdTimeoutRef.current); holdTimeoutRef.current = null; }
-    if (holdIntervalRef.current) { window.clearInterval(holdIntervalRef.current); holdIntervalRef.current = null; }
-    setHoldProgress(0);
-  };
-
-  const startHold = () => {
-    cancelHold();
-    const start = Date.now();
-    holdIntervalRef.current = window.setInterval(() => {
-      setHoldProgress(Math.min(1, (Date.now() - start) / ADMIN_HOLD_MS));
-    }, 40);
-    holdTimeoutRef.current = window.setTimeout(() => {
-      cancelHold();
-      setLocation('/cozinha');
-    }, ADMIN_HOLD_MS);
-  };
-
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -171,25 +145,9 @@ export function Home() {
       {/* HEADER */}
       <header className="px-3 sm:px-8 lg:px-12 pt-3 sm:pt-7 pb-3 flex justify-between items-start z-10 shrink-0 gap-2 sm:gap-3 max-w-[1500px] w-full mx-auto">
         <div className="flex items-start gap-2 sm:gap-8 min-w-0">
-          <button
-            type="button"
-            aria-label="Segure por 5 segundos para acessar a área restrita"
-            onPointerDown={startHold}
-            onPointerUp={cancelHold}
-            onPointerLeave={cancelHold}
-            onPointerCancel={cancelHold}
-            onContextMenu={(e) => e.preventDefault()}
-            className="relative w-[6rem] sm:w-[10.5rem] h-[6rem] sm:h-[9.5rem] flex items-center justify-center shrink-0 select-none touch-none"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
-          >
-            {holdProgress > 0 && (
-              <svg className="absolute -inset-1.5 -rotate-90 pointer-events-none" viewBox="0 0 36 36">
-                <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(0,0,0,0.2)" strokeWidth="3"
-                  strokeDasharray={`${holdProgress * 100.53} 100.53`} strokeLinecap="round" />
-              </svg>
-            )}
+          <div className="relative w-[6rem] sm:w-[10.5rem] h-[6rem] sm:h-[9.5rem] flex items-center justify-center shrink-0">
             <img src={`${REFERENCE_ASSET}logo.webp`} alt="StarNexus" className="w-full h-full object-contain" />
-          </button>
+          </div>
           <img
             src={`${REFERENCE_ASSET}greeting.webp`}
             alt="Olá! O que você vai pedir hoje?"

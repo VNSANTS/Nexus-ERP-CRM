@@ -109,7 +109,7 @@ export interface ApiProduct {
 export const api = {
   products: {
     list: () => publicSelect<ApiProduct[]>('products'),
-    create: (data: Omit<ApiProduct, 'createdAt' | 'updatedAt'>) =>
+    create: (data: Omit<ApiProduct, 'createdAt' | 'updatedAt'> & { quantidadeInicial?: number }) =>
       callFn<ApiProduct>('gerenciar-dados', { action: 'create-product', ...data }),
     update: (id: string, data: Partial<ApiProduct>) =>
       callFn<ApiProduct>('gerenciar-dados', { action: 'update-product', id, ...data }),

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <title>Nexus-ERP-CRM</title>
+    <!--
+      GitHub Pages só serve arquivos estáticos: quando alguém acessa uma rota
+      da SPA diretamente (ex: /Nexus-ERP-CRM/cozinha) ou recarrega a página
+      nela, o servidor não encontra um arquivo com esse nome e cai aqui.
+      Este script guarda a rota pedida e redireciona para o index.html, que
+      então devolve essa rota para o React Router (wouter) assumir.
+      Técnica padrão: https://github.com/rafgraph/spa-github-pages
+    -->
+    <script>
+      sessionStorage.setItem('spa-redirect-path', location.pathname + location.search + location.hash);
+      location.replace(
+        location.origin + '/Nexus-ERP-CRM/'
+      );
+    </script>
+  </head>
+  <body></body>
+</html>

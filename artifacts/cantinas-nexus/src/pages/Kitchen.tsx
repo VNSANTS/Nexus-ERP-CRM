@@ -312,7 +312,9 @@ export function Kitchen() {
       setManualItems({});
       setManualTelefone('');
       setManualObs('');
-      qc.invalidateQueries({ queryKey: ['orders', 'stock', 'loyalty'] });
+      qc.invalidateQueries({ queryKey: ['orders'] });
+      qc.invalidateQueries({ queryKey: ['stock'] });
+      qc.invalidateQueries({ queryKey: ['loyalty'] });
     },
     onError: () => toast.error('Erro ao criar pedido.'),
   });
@@ -324,11 +326,11 @@ export function Kitchen() {
 
   const stockEntryMut = useMutation({
     mutationFn: () => api.stock.addEntry(stockEntry!.productId, stockEntry!.quantidade, stockEntry!.motivo),
-    onSuccess: () => { toast.success('Estoque atualizado!'); setStockEntry(null); qc.invalidateQueries({ queryKey: ['stock', 'stock-history'] }); },
+    onSuccess: () => { toast.success('Estoque atualizado!'); setStockEntry(null); qc.invalidateQueries({ queryKey: ['stock'] }); qc.invalidateQueries({ queryKey: ['stock-history'] }); },
   });
   const wasteMut = useMutation({
     mutationFn: () => api.stock.addWaste(wasteEntry!.productId, wasteEntry!.quantidade, wasteEntry!.motivo),
-    onSuccess: () => { toast.success('Desperdício registrado.'); setWasteEntry(null); qc.invalidateQueries({ queryKey: ['stock', 'waste-log', 'waste-report'] }); },
+    onSuccess: () => { toast.success('Desperdício registrado.'); setWasteEntry(null); qc.invalidateQueries({ queryKey: ['stock'] }); qc.invalidateQueries({ queryKey: ['waste-log'] }); qc.invalidateQueries({ queryKey: ['waste-report'] }); },
   });
   const minimoMut = useMutation({
     mutationFn: ({ productId, minimo }: { productId: string; minimo: number }) => api.stock.setMinimo(productId, minimo),
@@ -346,9 +348,9 @@ export function Kitchen() {
         ? api.products.update(productForm!.id, { name: productForm!.name, price: productForm!.price, emoji: productForm!.emoji, categoria: productForm!.categoria, sazonal: productForm!.sazonal, disponivel: productForm!.disponivel, imageUrl: productForm!.imageUrl })
         : api.products.create({ id, name: productForm!.name, price: productForm!.price, emoji: productForm!.emoji, categoria: productForm!.categoria, sazonal: productForm!.sazonal, disponivel: productForm!.disponivel, imageUrl: productForm!.imageUrl, quantidadeInicial: Number(productForm!.quantidadeInicial ?? 0) });
     },
-    onSuccess: () => { toast.success('Produto salvo!'); setProductForm(null); qc.invalidateQueries({ queryKey: ['products', 'stock'] }); },
+    onSuccess: () => { toast.success('Produto salvo!'); setProductForm(null); qc.invalidateQueries({ queryKey: ['products'] }); qc.invalidateQueries({ queryKey: ['stock'] }); },
   });
-  const removeProductMut = useMutation({ mutationFn: api.products.remove, onSuccess: () => qc.invalidateQueries({ queryKey: ['products', 'stock'] }) });
+  const removeProductMut = useMutation({ mutationFn: api.products.remove, onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); qc.invalidateQueries({ queryKey: ['stock'] }); } });
   const toggleProductMut = useMutation({
     mutationFn: ({ id, disponivel }: { id: string; disponivel: boolean }) => api.products.update(id, { disponivel }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
@@ -393,7 +395,7 @@ export function Kitchen() {
 
   const addInteractionMut = useMutation({
     mutationFn: () => api.customers.addInteraction(selectedCustomer!, interactionForm!.tipo, interactionForm!.nota),
-    onSuccess: () => { toast.success('Interação registrada!'); setInteractionForm(null); qc.invalidateQueries({ queryKey: ['customer-interactions', 'customers'] }); },
+    onSuccess: () => { toast.success('Interação registrada!'); setInteractionForm(null); qc.invalidateQueries({ queryKey: ['customer-interactions'] }); qc.invalidateQueries({ queryKey: ['customers'] }); },
   });
   const upsertCustomerMut = useMutation({
     mutationFn: () => api.customers.upsert(customerForm!.telefone, { nome: customerForm!.nome, tags: customerForm!.tags.split(',').map((t) => t.trim()).filter(Boolean), observacoes: customerForm!.observacoes }),
@@ -429,7 +431,14 @@ export function Kitchen() {
   });
   const clearSalesMut = useMutation({
     mutationFn: api.reports.clearSales,
-    onSuccess: () => { toast.success('Histórico limpo.'); qc.invalidateQueries({ queryKey: ['orders', 'transactions', 'report-daily', 'report-products', 'report-hourly'] }); },
+    onSuccess: () => {
+      toast.success('Histórico limpo.');
+      qc.invalidateQueries({ queryKey: ['orders'] });
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+      qc.invalidateQueries({ queryKey: ['report-daily'] });
+      qc.invalidateQueries({ queryKey: ['report-products'] });
+      qc.invalidateQueries({ queryKey: ['report-hourly'] });
+    },
   });
 
   // ─── derived data ────────────────────────────────────────────────────────────
@@ -1456,12 +1465,33 @@ export function Kitchen() {
                         </select>
                       </div>
                     </div>
-                    {!productForm.id && (
+                    {!productForm.id ? (
                       <div>
                         <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Estoque inicial</label>
                         <input type="number" step="1" min="0" value={productForm.quantidadeInicial ?? '0'}
                           onChange={(e) => setProductForm({ ...productForm, quantidadeInicial: e.target.value })}
                           className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+                        <div>
+                          <span className="text-xs font-black text-gray-400 uppercase tracking-wider block">Estoque atual</span>
+                          <span className="text-lg font-black text-gray-800">
+                            {stock.find((s: ApiStockItem) => s.productId === productForm.id)?.quantidade ?? 0} unidades
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const item = stock.find((s: ApiStockItem) => s.productId === productForm.id);
+                            setProductForm(null);
+                            setStockEntry({ productId: productForm.id!, quantidade: 1, motivo: 'Reposição' });
+                            if (!item) toast.error('Item de estoque não encontrado para este produto.');
+                          }}
+                          className="text-xs bg-primary text-white px-3 py-2 rounded-lg font-bold hover:bg-orange-600 transition-colors"
+                        >
+                          Ajustar estoque
+                        </button>
                       </div>
                     )}
                     <div className="flex items-center gap-6">

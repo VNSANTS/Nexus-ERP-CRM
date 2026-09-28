@@ -36,7 +36,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
 
   async function loadProfile(userId: string) {
     const { data } = await supabase
-      .from('customers')
+      .from('customer_accounts')
       .select('id, nome, email, telefone, telefone_whatsapp, cpf, cadastro_completo')
       .eq('id', userId)
       .maybeSingle();

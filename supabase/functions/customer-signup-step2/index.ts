@@ -99,7 +99,7 @@ Deno.serve(async (req: Request) => {
     // Verifica duplicidade de CPF/telefone em outra conta antes de tentar
     // o upsert (mensagem mais clara do que deixar a constraint estourar).
     const { data: existing } = await supabaseAdmin
-      .from('customers')
+      .from('customer_accounts')
       .select('id')
       .neq('id', user.id)
       .or(`cpf.eq.${cpfDigits},telefone.eq.${telefoneDigits}`)
@@ -109,7 +109,7 @@ Deno.serve(async (req: Request) => {
       return errorResponse('CPF ou telefone já cadastrado em outra conta.', 409);
     }
 
-    const { error: upsertErr } = await supabaseAdmin.from('customers').upsert({
+    const { error: upsertErr } = await supabaseAdmin.from('customer_accounts').upsert({
       id: user.id,
       email: user.email,
       nome: nome.trim(),

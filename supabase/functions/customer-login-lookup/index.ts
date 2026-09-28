@@ -52,7 +52,7 @@ Deno.serve(async (req: Request) => {
       // CPF (11) — CNPJ (14) não se aplica a cliente final, mas aceitamos
       // o dígito por segurança/consistência com outros formulários.
       const { data } = await supabase
-        .from('customers')
+        .from('customer_accounts')
         .select('email')
         .eq('cpf', digits)
         .maybeSingle();
@@ -60,7 +60,7 @@ Deno.serve(async (req: Request) => {
     } else if (digits.length >= 10) {
       // Telefone
       const { data } = await supabase
-        .from('customers')
+        .from('customer_accounts')
         .select('email')
         .eq('telefone', digits)
         .maybeSingle();

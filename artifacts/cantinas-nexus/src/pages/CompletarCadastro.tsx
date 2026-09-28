@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
@@ -27,7 +27,9 @@ export function CompletarCadastro() {
   const [enderecoBairro, setEnderecoBairro] = useState('');
   const [enderecoCidade, setEnderecoCidade] = useState('');
   const [enderecoUf, setEnderecoUf] = useState('');
-  const [enderecoEditavel, setEnderecoEditavel] = useState(false);
+  const [cepPreenchido, setCepPreenchido] = useState(false);
+  const cepAtual = useRef('');
+  const numeroRef = useRef<HTMLInputElement>(null);
   const [cepLoading, setCepLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -43,17 +45,14 @@ export function CompletarCadastro() {
     }
   }, [loading, session, profile, navigate]);
 
-  async function handleCepBlur() {
-    const digits = enderecoCep.replace(/\D/g, '');
-    if (!isValidCep(digits)) return;
-
+  async function buscarCep(digits: string) {
     setCepLoading(true);
     const result = await lookupCep(digits);
+    if (cepAtual.current !== digits) return; // o usuário já mudou o CEP enquanto buscava
     setCepLoading(false);
 
     if (!result.ok) {
       toast.error(result.message);
-      setEnderecoEditavel(true);
       return;
     }
 
@@ -61,7 +60,38 @@ export function CompletarCadastro() {
     setEnderecoBairro(result.bairro);
     setEnderecoCidade(result.cidade);
     setEnderecoUf(result.uf);
-    setEnderecoEditavel(!result.logradouro);
+    setCepPreenchido(true);
+    if (result.logradouro) numeroRef.current?.focus();
+  }
+
+  // Busca automática assim que o 8º dígito é digitado (sem precisar sair do campo).
+  function handleCepChange(value: string) {
+    const formatted = formatCep(value);
+    const digits = formatted.replace(/\D/g, '');
+    cepAtual.current = digits;
+    setEnderecoCep(formatted);
+
+    if (digits.length === 8) {
+      buscarCep(digits);
+      return;
+    }
+
+    setCepLoading(false);
+    if (cepPreenchido) {
+      // CEP alterado depois de preenchido: limpa o que veio do CEP anterior
+      setEnderecoLogradouro('');
+      setEnderecoBairro('');
+      setEnderecoCidade('');
+      setEnderecoUf('');
+      setCepPreenchido(false);
+    }
+  }
+
+  function handleCepBlur() {
+    const digits = enderecoCep.replace(/\D/g, '');
+    if (digits.length > 0 && digits.length < 8) {
+      toast.error('CEP incompleto. Digite os 8 números.');
+    }
   }
 
   function validate(): string | null {
@@ -197,7 +227,7 @@ export function CompletarCadastro() {
                 <input
                   type="text"
                   value={enderecoCep}
-                  onChange={(e) => setEnderecoCep(formatCep(e.target.value))}
+                  onChange={(e) => handleCepChange(e.target.value)}
                   onBlur={handleCepBlur}
                   placeholder="00000-000"
                   className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
@@ -211,7 +241,6 @@ export function CompletarCadastro() {
                   type="text"
                   value={enderecoLogradouro}
                   onChange={(e) => setEnderecoLogradouro(e.target.value)}
-                  disabled={!enderecoEditavel && !!enderecoLogradouro}
                   className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none disabled:bg-neutral-100 disabled:text-neutral-500"
                   required
                 />
@@ -222,6 +251,7 @@ export function CompletarCadastro() {
               <div>
                 <label className="mb-1 block text-sm font-medium text-neutral-700">Número</label>
                 <input
+                  ref={numeroRef}
                   type="text"
                   value={enderecoNumero}
                   onChange={(e) => setEnderecoNumero(e.target.value)}
@@ -247,7 +277,6 @@ export function CompletarCadastro() {
                   type="text"
                   value={enderecoBairro}
                   onChange={(e) => setEnderecoBairro(e.target.value)}
-                  disabled={!enderecoEditavel && !!enderecoBairro}
                   className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none disabled:bg-neutral-100 disabled:text-neutral-500"
                   required
                 />
@@ -258,7 +287,6 @@ export function CompletarCadastro() {
                   type="text"
                   value={enderecoCidade}
                   onChange={(e) => setEnderecoCidade(e.target.value)}
-                  disabled={!enderecoEditavel && !!enderecoCidade}
                   className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none disabled:bg-neutral-100 disabled:text-neutral-500"
                   required
                 />
@@ -269,7 +297,6 @@ export function CompletarCadastro() {
                   type="text"
                   value={enderecoUf}
                   onChange={(e) => setEnderecoUf(e.target.value.toUpperCase().slice(0, 2))}
-                  disabled={!enderecoEditavel && !!enderecoUf}
                   maxLength={2}
                   className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm uppercase focus:border-neutral-500 focus:outline-none disabled:bg-neutral-100 disabled:text-neutral-500"
                   required

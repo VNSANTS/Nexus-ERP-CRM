@@ -6,6 +6,7 @@ import {
   isValidCpfCnpj,
   formatCpfCnpj,
   isValidEmail,
+  suggestEmailCorrection,
   isValidCep,
   formatCep,
   lookupCep,
@@ -24,6 +25,7 @@ declare global {
         },
       ) => string;
       reset: (widgetId: string) => void;
+      remove: (widgetId: string) => void;
     };
   }
 }
@@ -66,25 +68,58 @@ export function SolicitarEstabelecimento() {
   const [cepPreenchido, setCepPreenchido] = useState(false);
   const cepAtual = useRef('');
   const numeroRef = useRef<HTMLInputElement>(null);
+  const [emailSugestao, setEmailSugestao] = useState<string | null>(null);
+  const [emailConfirmado, setEmailConfirmado] = useState('');
 
   const turnstileRef = useRef<HTMLDivElement>(null);
   const turnstileWidgetId = useRef<string | null>(null);
   const turnstileToken = useRef<string>('');
 
+  // Carrega o script da Cloudflare (se ainda não estiver na página) e renderiza
+  // o widget assim que window.turnstile ficar disponível.
   useEffect(() => {
-    if (!TURNSTILE_SITE_KEY || !turnstileRef.current || !window.turnstile) return;
-    turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
-      sitekey: TURNSTILE_SITE_KEY,
-      callback: (token) => {
-        turnstileToken.current = token;
-      },
-      'error-callback': () => {
-        turnstileToken.current = '';
-      },
-      'expired-callback': () => {
-        turnstileToken.current = '';
-      },
-    });
+    if (!TURNSTILE_SITE_KEY) return;
+
+    const scriptId = 'turnstile-script';
+    if (!document.getElementById(scriptId)) {
+      const script = document.createElement('script');
+      script.id = scriptId;
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+
+    const renderWidget = () => {
+      if (window.turnstile && turnstileRef.current && !turnstileWidgetId.current) {
+        turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
+          sitekey: TURNSTILE_SITE_KEY,
+          callback: (token) => {
+            turnstileToken.current = token;
+          },
+          'error-callback': () => {
+            turnstileToken.current = '';
+          },
+          'expired-callback': () => {
+            turnstileToken.current = '';
+          },
+        });
+      }
+    };
+
+    const interval = setInterval(() => {
+      if (window.turnstile) {
+        renderWidget();
+        clearInterval(interval);
+      }
+    }, 200);
+
+    return () => {
+      clearInterval(interval);
+      if (window.turnstile && turnstileWidgetId.current) {
+        window.turnstile.remove(turnstileWidgetId.current);
+        turnstileWidgetId.current = null;
+      }
+    };
   }, []);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -149,6 +184,11 @@ export function SolicitarEstabelecimento() {
   function validate(): string | null {
     if (!form.nome.trim()) return 'Informe seu nome completo.';
     if (!isValidEmail(form.email)) return 'E-mail inválido.';
+    const sugestao = suggestEmailCorrection(form.email);
+    if (sugestao && emailConfirmado !== form.email.trim().toLowerCase()) {
+      setEmailSugestao(sugestao);
+      return 'Confira o e-mail digitado: parece haver um erro de digitação.';
+    }
     if (!form.telefone.trim()) return 'Informe um telefone para contato.';
     if (!isValidCpfCnpj(form.cpfCnpj)) return 'CPF ou CNPJ inválido.';
     if (!isValidCep(form.enderecoCep)) return 'CEP inválido.';
@@ -250,10 +290,43 @@ export function SolicitarEstabelecimento() {
               <input
                 type="email"
                 value={form.email}
-                onChange={(e) => updateField('email', e.target.value)}
+                onChange={(e) => {
+                  updateField('email', e.target.value);
+                  setEmailSugestao(null);
+                }}
+                onBlur={() => {
+                  const s = suggestEmailCorrection(form.email);
+                  setEmailSugestao(s && emailConfirmado !== form.email.trim().toLowerCase() ? s : null);
+                }}
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
                 required
               />
+              {emailSugestao && (
+                <p className="mt-1 text-xs text-amber-700">
+                  Você quis dizer{' '}
+                  <button
+                    type="button"
+                    className="font-semibold underline"
+                    onClick={() => {
+                      updateField('email', emailSugestao);
+                      setEmailSugestao(null);
+                    }}
+                  >
+                    {emailSugestao}
+                  </button>
+                  ?{' '}
+                  <button
+                    type="button"
+                    className="underline"
+                    onClick={() => {
+                      setEmailConfirmado(form.email.trim().toLowerCase());
+                      setEmailSugestao(null);
+                    }}
+                  >
+                    Manter como está
+                  </button>
+                </p>
+              )}
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-neutral-700">Telefone</label>

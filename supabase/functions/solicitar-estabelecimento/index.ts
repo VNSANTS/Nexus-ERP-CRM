@@ -52,6 +52,36 @@ function isValidCep(cep: string): boolean {
   return /^\d{8}$/.test(cep.replace(/\D/g, ''));
 }
 
+// Verifica se o domínio do e-mail existe e recebe e-mail, consultando o DNS
+// via Cloudflare DNS-over-HTTPS. Se a consulta falhar (rede/timeout) ou vier
+// inconclusiva, ACEITA: é melhor não bloquear um usuário legítimo por falha
+// de infraestrutura.
+async function domainReceivesEmail(domain: string): Promise<boolean> {
+  const query = async (type: 'MX' | 'A') => {
+    const res = await fetch(
+      `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=${type}`,
+      { headers: { accept: 'application/dns-json' }, signal: AbortSignal.timeout(3000) },
+    );
+    return (await res.json()) as { Status: number; Answer?: Array<{ type: number }> };
+  };
+
+  try {
+    const mx = await query('MX');
+    if (mx.Status === 3) return false; // NXDOMAIN: o domínio não existe
+    if (mx.Status !== 0) return true; // resposta inconclusiva
+    if (mx.Answer?.some((r) => r.type === 15)) return true;
+
+    // Sem MX: e-mail ainda pode ser entregue no registro A do domínio
+    const a = await query('A');
+    if (a.Status === 3) return false;
+    if (a.Status !== 0) return true;
+    return Boolean(a.Answer?.some((r) => r.type === 1));
+  } catch (err) {
+    console.error('Falha ao consultar DNS do e-mail (aceitando):', err);
+    return true;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -100,6 +130,9 @@ Deno.serve(async (req: Request) => {
     const emailNorm = String(email).trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNorm)) {
       return errorResponse('E-mail inválido.', 400);
+    }
+    if (!(await domainReceivesEmail(emailNorm.split('@')[1]))) {
+      return errorResponse('Não encontramos esse domínio de e-mail. Confira se digitou corretamente.', 400);
     }
 
     // 4) Validação de endereço (obrigatório)

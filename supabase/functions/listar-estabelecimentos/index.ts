@@ -8,6 +8,7 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse } from '../_shared/helpers.ts';
+import { getClientIp, checkRateLimit } from '../_shared/security.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -18,6 +19,14 @@ Deno.serve(async (req: Request) => {
   );
 
   try {
+    // Rate limit por IP — rota pública e sem autenticação, precisa de
+    // limite pra não virar alvo fácil de scraping/DoS.
+    const ip = getClientIp(req);
+    const rate = await checkRateLimit(supabase, 'listar_estabelecimentos', ip, 120, 60);
+    if (!rate.allowed) {
+      return errorResponse('Muitas requisições. Tente novamente mais tarde.', 429);
+    }
+
     const url = new URL(req.url);
     const busca = url.searchParams.get('busca')?.trim();
 

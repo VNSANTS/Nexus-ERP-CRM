@@ -60,6 +60,81 @@ export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
+// Provedores mais comuns: usados para detectar erro de digitação
+// (ex: "ail.com" -> "gmail.com").
+const COMMON_EMAIL_DOMAINS = [
+  'gmail.com',
+  'hotmail.com',
+  'outlook.com',
+  'icloud.com',
+  'yahoo.com',
+  'yahoo.com.br',
+  'live.com',
+  'msn.com',
+  'uol.com.br',
+  'bol.com.br',
+  'terra.com.br',
+  'globo.com',
+  'protonmail.com',
+  'proton.me',
+  'me.com',
+];
+
+// Domínios reais parecidos com os de cima: nunca sugerir correção para eles.
+const KNOWN_VALID_DOMAINS = new Set([
+  ...COMMON_EMAIL_DOMAINS,
+  'mail.com',
+  'aol.com',
+  'gmx.com',
+  'zoho.com',
+  'ymail.com',
+  'yandex.com',
+  'hotmail.com.br',
+  'outlook.com.br',
+]);
+
+function levenshtein(a: string, b: string): number {
+  const dp: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+/**
+ * Se o domínio do e-mail parece um erro de digitação de um provedor comum,
+ * devolve o e-mail corrigido (ex: "joao@ail.com" -> "joao@gmail.com").
+ * Devolve null quando o e-mail parece correto.
+ */
+export function suggestEmailCorrection(email: string): string | null {
+  const trimmed = email.trim().toLowerCase();
+  const at = trimmed.lastIndexOf('@');
+  if (at < 1) return null;
+
+  const local = trimmed.slice(0, at);
+  const domain = trimmed.slice(at + 1);
+  if (!domain || KNOWN_VALID_DOMAINS.has(domain)) return null;
+
+  let best: string | null = null;
+  let bestDist = Infinity;
+  for (const candidate of COMMON_EMAIL_DOMAINS) {
+    const allowed = Math.min(2, Math.floor(candidate.length / 4));
+    const dist = levenshtein(domain, candidate);
+    if (dist <= allowed && dist < bestDist) {
+      best = candidate;
+      bestDist = dist;
+    }
+  }
+  return best ? `${local}@${best}` : null;
+}
+
 export function isValidCep(cep: string): boolean {
   return /^\d{8}$/.test(cep.replace(/\D/g, ''));
 }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
-import { isValidEmail } from '../lib/validators';
+import { isValidEmail, suggestEmailCorrection } from '../lib/validators';
 
 type Mode = 'login' | 'signup';
 
@@ -17,6 +17,8 @@ export function Login() {
 
   // Sign up
   const [signupEmail, setSignupEmail] = useState('');
+  const [emailSugestao, setEmailSugestao] = useState<string | null>(null);
+  const [emailConfirmado, setEmailConfirmado] = useState('');
   const [signupSenha, setSignupSenha] = useState('');
   const [signupSenhaConfirm, setSignupSenhaConfirm] = useState('');
   const [signupSent, setSignupSent] = useState(false);
@@ -68,6 +70,12 @@ export function Login() {
     e.preventDefault();
     if (!isValidEmail(signupEmail)) {
       toast.error('E-mail inválido.');
+      return;
+    }
+    const sugestao = suggestEmailCorrection(signupEmail);
+    if (sugestao && emailConfirmado !== signupEmail.trim().toLowerCase()) {
+      setEmailSugestao(sugestao);
+      toast.error('Confira o e-mail digitado: parece haver um erro de digitação.');
       return;
     }
     if (signupSenha.length < 8) {
@@ -172,10 +180,43 @@ export function Login() {
               <input
                 type="email"
                 value={signupEmail}
-                onChange={(e) => setSignupEmail(e.target.value)}
+                onChange={(e) => {
+                  setSignupEmail(e.target.value);
+                  setEmailSugestao(null);
+                }}
+                onBlur={() => {
+                  const s = suggestEmailCorrection(signupEmail);
+                  setEmailSugestao(s && emailConfirmado !== signupEmail.trim().toLowerCase() ? s : null);
+                }}
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
                 required
               />
+              {emailSugestao && (
+                <p className="mt-1 text-xs text-amber-700">
+                  Você quis dizer{' '}
+                  <button
+                    type="button"
+                    className="font-semibold underline"
+                    onClick={() => {
+                      setSignupEmail(emailSugestao);
+                      setEmailSugestao(null);
+                    }}
+                  >
+                    {emailSugestao}
+                  </button>
+                  ?{' '}
+                  <button
+                    type="button"
+                    className="underline"
+                    onClick={() => {
+                      setEmailConfirmado(signupEmail.trim().toLowerCase());
+                      setEmailSugestao(null);
+                    }}
+                  >
+                    Manter como está
+                  </button>
+                </p>
+              )}
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-neutral-700">Senha</label>

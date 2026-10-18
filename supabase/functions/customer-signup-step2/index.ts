@@ -14,6 +14,7 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse } from '../_shared/helpers.ts';
+import { getClientIp, checkRateLimit } from '../_shared/security.ts';
 
 function isValidCpf(cpf: string): boolean {
   const digits = cpf.replace(/\D/g, '');
@@ -34,6 +35,7 @@ function isValidCep(cep: string): boolean {
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  const ip = getClientIp(req);
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     return errorResponse('Não autenticado.', 401);
@@ -44,6 +46,14 @@ Deno.serve(async (req: Request) => {
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
+
+  // Rate limit por IP — protege contra automação tentando completar
+  // cadastro repetidamente (CPF/telefone são únicos, mas sem limite dá
+  // pra martelar a checagem de duplicidade e o DB).
+  const rate = await checkRateLimit(supabaseAdmin, 'customer_signup_step2', ip, 20, 60);
+  if (!rate.allowed) {
+    return errorResponse('Muitas tentativas. Tente novamente mais tarde.', 429);
+  }
 
   const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
   if (userErr || !userData?.user) {

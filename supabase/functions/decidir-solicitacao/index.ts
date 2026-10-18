@@ -14,12 +14,25 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse } from '../_shared/helpers.ts';
+import { getClientIp, checkRateLimit } from '../_shared/security.ts';
 import { sendEmail } from '../_shared/email.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
+    const supabaseForRate = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    // Rate limit por IP — protegida por secret, mas sem limite alguém
+    // poderia tentar adivinhar o NEXUS_ADMIN_SECRET por força bruta.
+    const ip = getClientIp(req);
+    const rate = await checkRateLimit(supabaseForRate, 'decidir_solicitacao', ip, 20, 60);
+    if (!rate.allowed) {
+      return errorResponse('Muitas tentativas. Tente novamente mais tarde.', 429);
+    }
+
     const body = await req.json();
     const { action, requestId, adminSecret, reason } = body;
 

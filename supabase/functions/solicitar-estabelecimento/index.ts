@@ -2,16 +2,16 @@
 //
 // Ponto de entrada público do formulário "Cadastrar estabelecimento".
 // Protegido por: rate limit (100/hora por IP), CAPTCHA (Turnstile),
-// validação de CPF/CNPJ e de endereço (CEP). Grava a solicitação e avisa
-// o admin da Nexus por e-mail (via Resend). Não expõe se um e-mail/CPF já
-// está cadastrado.
+// validação de CPF/CNPJ e de endereço (CEP), verificação de domínio de
+// e-mail via DNS. Grava a solicitação e avisa o admin da Nexus por e-mail
+// (via Resend). Não expõe se um e-mail/CPF já está cadastrado.
 //
 // O dono NÃO define senha nesta etapa — se a solicitação for aprovada,
 // ele recebe um link por e-mail (Supabase Auth) para definir a própria
 // senha. Isso evita transitar/guardar senha em texto puro nesta function.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { corsHeaders, jsonResponse, errorResponse, uid } from '../_shared/helpers.ts';
+import { corsHeaders, jsonResponse, errorResponse } from '../_shared/helpers.ts';
 import { getClientIp, checkRateLimit, verifyTurnstile } from '../_shared/security.ts';
 import { sendEmail } from '../_shared/email.ts';
 
@@ -154,8 +154,11 @@ Deno.serve(async (req: Request) => {
     }
 
     // 5) Grava a solicitação (mensagem de sucesso é sempre a mesma,
-    // exista ou não conflito — não revelamos duplicidade de e-mail/CPF)
-    const requestId = uid();
+    // exista ou não conflito — não revelamos duplicidade de e-mail/CPF).
+    // IMPORTANTE: id precisa ser um UUID de verdade, pois a coluna é do
+    // tipo uuid no Postgres — crypto.randomUUID(), não a função uid() de
+    // _shared/helpers.ts (essa gera string curta, não-UUID).
+    const requestId = crypto.randomUUID();
 
     const { error } = await supabase.from('establishment_requests').insert({
       id: requestId,
@@ -176,7 +179,7 @@ Deno.serve(async (req: Request) => {
     if (error) {
       // Loga o erro real mas não expõe detalhes ao requisitante
       console.error('Erro ao gravar solicitação:', error);
-      return jsonResponse({ ok: true, message: 'Solicitação recebida. Você será notificado por e-mail sobre o andamento.' });
+      return errorResponse('Não foi possível registrar sua solicitação agora. Tente novamente em instantes.', 500);
     }
 
     // 6) Notifica o admin da Nexus por e-mail (não bloqueia a resposta

@@ -7,10 +7,12 @@ import { SolicitarEstabelecimento } from './pages/SolicitarEstabelecimento';
 import { Login } from './pages/Login';
 import { CompletarCadastro } from './pages/CompletarCadastro';
 import { SelecionarEstabelecimento } from './pages/SelecionarEstabelecimento';
+import { PainelRaiz } from './pages/PainelRaiz';
 import NotFound from './pages/not-found';
 import { Toaster } from 'sonner';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { CustomerAuthProvider, useCustomerAuth } from './lib/customer-auth';
+import { AdminAuthProvider } from './lib/admin-auth';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -86,6 +88,7 @@ function Router() {
         )}
       </Route>
       <Route path="/cozinha" component={Kitchen} />
+      <Route path="/painel-raiz" component={PainelRaiz} />
       <Route path="/solicitar-estabelecimento" component={SolicitarEstabelecimento} />
       <Route component={NotFound} />
     </Switch>
@@ -96,10 +99,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <CustomerAuthProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-          <Router />
-        </WouterRouter>
-        <Toaster position="top-center" />
+        <AdminAuthProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+            <Router />
+          </WouterRouter>
+          <Toaster position="top-center" />
+        </AdminAuthProvider>
       </CustomerAuthProvider>
     </QueryClientProvider>
   );

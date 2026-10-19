@@ -3,8 +3,9 @@
 // Ponto de entrada público do formulário "Cadastrar estabelecimento".
 // Protegido por: rate limit (100/hora por IP), CAPTCHA (Turnstile),
 // validação de CPF/CNPJ e de endereço (CEP), verificação de domínio de
-// e-mail via DNS. Grava a solicitação e avisa o admin da Nexus por e-mail
-// (via Resend). Não expõe se um e-mail/CPF já está cadastrado.
+// e-mail via DNS, e checagem de bloqueio (blocked_identifiers). Grava a
+// solicitação e avisa o admin da Nexus por e-mail (via Resend). Não expõe
+// se um e-mail/CPF já está cadastrado ou bloqueado.
 //
 // O dono NÃO define senha nesta etapa — se a solicitação for aprovada,
 // ele recebe um link por e-mail (Supabase Auth) para definir a própria
@@ -153,7 +154,23 @@ Deno.serve(async (req: Request) => {
       return errorResponse('UF inválida.', 400);
     }
 
-    // 5) Grava a solicitação (mensagem de sucesso é sempre a mesma,
+    // 5) Checa bloqueio — mensagem genérica, igual à de sucesso, para não
+    // revelar ao solicitante que ele está bloqueado (evita tentativa de
+    // descobrir qual dado disparou o bloqueio).
+    const cpfCnpjDigits = cpfCnpj.replace(/\D/g, '');
+    const { data: blocked } = await supabase
+      .from('blocked_identifiers')
+      .select('id')
+      .eq('contexto', 'establishment_request')
+      .or(`and(tipo.eq.cpf_cnpj,valor.eq.${cpfCnpjDigits}),and(tipo.eq.email,valor.eq.${emailNorm})`)
+      .limit(1)
+      .maybeSingle();
+
+    if (blocked) {
+      return jsonResponse({ ok: true, message: 'Solicitação recebida. Você será notificado por e-mail sobre o andamento.' });
+    }
+
+    // 6) Grava a solicitação (mensagem de sucesso é sempre a mesma,
     // exista ou não conflito — não revelamos duplicidade de e-mail/CPF).
     // IMPORTANTE: id precisa ser um UUID de verdade, pois a coluna é do
     // tipo uuid no Postgres — crypto.randomUUID(), não a função uid() de
@@ -165,7 +182,7 @@ Deno.serve(async (req: Request) => {
       owner_nome: nome.trim(),
       owner_email: emailNorm,
       owner_telefone: telefone.trim(),
-      owner_cpf_cnpj: cpfCnpj.replace(/\D/g, ''),
+      owner_cpf_cnpj: cpfCnpjDigits,
       status: 'pendente',
       endereco_cep: enderecoCep.replace(/\D/g, ''),
       endereco_logradouro: enderecoLogradouro.trim(),
@@ -182,7 +199,7 @@ Deno.serve(async (req: Request) => {
       return errorResponse('Não foi possível registrar sua solicitação agora. Tente novamente em instantes.', 500);
     }
 
-    // 6) Notifica o admin da Nexus por e-mail (não bloqueia a resposta
+    // 7) Notifica o admin da Nexus por e-mail (não bloqueia a resposta
     // ao usuário se o e-mail falhar — a solicitação já foi gravada)
     const adminEmail = Deno.env.get('NEXUS_ADMIN_EMAIL');
     if (adminEmail) {
@@ -202,6 +219,7 @@ Deno.serve(async (req: Request) => {
               (CEP ${enderecoCep.trim()})</p>
             <p><strong>Prazo para decisão:</strong> 90 dias a partir de agora.</p>
             <p>ID da solicitação: ${requestId}</p>
+            <p><a href="https://vnsants.github.io/Nexus-ERP-CRM/painel-raiz">Abrir painel de aprovação</a></p>
           `,
         });
       } catch (emailErr) {

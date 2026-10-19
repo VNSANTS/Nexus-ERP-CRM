@@ -1,53 +1,60 @@
 // supabase/functions/decidir-solicitacao/index.ts
 //
-// Usada por VOCÊ (dono da Nexus) para aprovar ou rejeitar uma solicitação
-// de estabelecimento. Protegida por um segredo próprio (NEXUS_ADMIN_SECRET),
-// não pelo sistema de login dos estabelecimentos — você não é um
-// funcionário de nenhum estabelecimento, é o dono da plataforma.
+// Usada pelo Painel de Administração (/painel-raiz) para aprovar, rejeitar
+// ou bloquear uma solicitação de estabelecimento. Autenticação por sessão:
+// o chamador precisa estar logado (Supabase Auth) e constar em
+// platform_admins — substitui o antigo esquema de NEXUS_ADMIN_SECRET fixo
+// por um login de verdade, auditável (sabemos QUEM aprovou).
 //
-// Body esperado: { action: 'approve' | 'reject', requestId, adminSecret, reason? }
+// Body esperado: { action: 'approve' | 'reject' | 'block', requestId, reason? }
 //
-// Na aprovação: cria o registro em `establishments` (copiando também o
-// endereço da solicitação), cria o usuário do dono no Supabase Auth com
-// senha aleatória descartável, e envia um link de "definir senha" por
-// e-mail — o dono nunca soube dessa senha temporária.
+// - approve: cria o establishment (copiando endereço da solicitação), cria
+//   o usuário do dono no Supabase Auth com senha aleatória descartável, e
+//   envia link de "definir senha" por e-mail.
+// - reject: marca como rejeitado e avisa o solicitante por e-mail.
+// - block: marca como rejeitado, avisa o solicitante, E impede que o mesmo
+//   CPF/CNPJ ou e-mail solicitem de novo (grava em blocked_identifiers).
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse } from '../_shared/helpers.ts';
-import { getClientIp, checkRateLimit } from '../_shared/security.ts';
 import { sendEmail } from '../_shared/email.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return errorResponse('Não autenticado.', 401);
+  }
+  const token = authHeader.slice('Bearer '.length);
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+
+  const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+  if (userErr || !userData?.user) {
+    return errorResponse('Sessão inválida ou expirada.', 401);
+  }
+
+  const { data: admin } = await supabase
+    .from('platform_admins')
+    .select('id')
+    .eq('id', userData.user.id)
+    .maybeSingle();
+
+  if (!admin) {
+    return errorResponse('Acesso negado.', 403);
+  }
+
   try {
-    const supabaseForRate = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
-    // Rate limit por IP — protegida por secret, mas sem limite alguém
-    // poderia tentar adivinhar o NEXUS_ADMIN_SECRET por força bruta.
-    const ip = getClientIp(req);
-    const rate = await checkRateLimit(supabaseForRate, 'decidir_solicitacao', ip, 20, 60);
-    if (!rate.allowed) {
-      return errorResponse('Muitas tentativas. Tente novamente mais tarde.', 429);
-    }
-
     const body = await req.json();
-    const { action, requestId, adminSecret, reason } = body;
+    const { action, requestId, reason } = body;
 
-    const expectedSecret = Deno.env.get('NEXUS_ADMIN_SECRET');
-    if (!expectedSecret || adminSecret !== expectedSecret) {
-      return errorResponse('Não autorizado.', 401);
-    }
-    if (!requestId || (action !== 'approve' && action !== 'reject')) {
+    if (!requestId || !['approve', 'reject', 'block'].includes(action)) {
       return errorResponse('Parâmetros inválidos.', 400);
     }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
 
     const { data: reqRow, error: findErr } = await supabase
       .from('establishment_requests')
@@ -62,11 +69,38 @@ Deno.serve(async (req: Request) => {
 
     const now = new Date().toISOString();
 
-    if (action === 'reject') {
+    if (action === 'reject' || action === 'block') {
       await supabase
         .from('establishment_requests')
-        .update({ status: 'rejeitado', decided_at: now, decided_by: 'nexus-admin', rejection_reason: reason ?? null })
+        .update({
+          status: 'rejeitado',
+          decided_at: now,
+          decided_by: userData.user.id,
+          rejection_reason: reason ?? (action === 'block' ? 'Bloqueado pelo administrador.' : null),
+        })
         .eq('id', requestId);
+
+      if (action === 'block') {
+        await supabase.from('blocked_identifiers').upsert(
+          [
+            {
+              tipo: 'cpf_cnpj',
+              valor: reqRow.owner_cpf_cnpj,
+              contexto: 'establishment_request',
+              motivo: reason ?? null,
+              blocked_by: userData.user.id,
+            },
+            {
+              tipo: 'email',
+              valor: reqRow.owner_email,
+              contexto: 'establishment_request',
+              motivo: reason ?? null,
+              blocked_by: userData.user.id,
+            },
+          ],
+          { onConflict: 'tipo,valor,contexto', ignoreDuplicates: true },
+        );
+      }
 
       await sendEmail({
         to: reqRow.owner_email,
@@ -74,7 +108,10 @@ Deno.serve(async (req: Request) => {
         html: `<p>Olá, ${reqRow.owner_nome}.</p><p>Sua solicitação de estabelecimento não foi aprovada${reason ? `: ${reason}` : '.'}</p>`,
       }).catch((e) => console.error('Falha ao enviar e-mail de rejeição:', e));
 
-      return jsonResponse({ ok: true, message: 'Solicitação rejeitada.' });
+      return jsonResponse({
+        ok: true,
+        message: action === 'block' ? 'Solicitação rejeitada e identificadores bloqueados.' : 'Solicitação rejeitada.',
+      });
     }
 
     // action === 'approve'
@@ -118,7 +155,7 @@ Deno.serve(async (req: Request) => {
 
     await supabase
       .from('establishment_requests')
-      .update({ status: 'aprovado', decided_at: now, decided_by: 'nexus-admin', establishment_id: establishmentId })
+      .update({ status: 'aprovado', decided_at: now, decided_by: userData.user.id, establishment_id: establishmentId })
       .eq('id', requestId);
 
     // Gera link de definição de senha

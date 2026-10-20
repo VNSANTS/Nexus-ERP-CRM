@@ -267,6 +267,14 @@ export function Login() {
         >
           Quero cadastrar meu estabelecimento →
         </button>
+
+        <button
+          type="button"
+          onClick={() => navigate('/estabelecimento/login')}
+          className="mt-2 w-full text-center text-sm font-medium text-neutral-500 hover:text-neutral-800"
+        >
+          Já tenho um estabelecimento →
+        </button>
       </div>
     </div>
   );

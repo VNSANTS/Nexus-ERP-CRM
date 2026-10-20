@@ -8,11 +8,16 @@ import { Login } from './pages/Login';
 import { CompletarCadastro } from './pages/CompletarCadastro';
 import { SelecionarEstabelecimento } from './pages/SelecionarEstabelecimento';
 import { PainelRaiz } from './pages/PainelRaiz';
+import { LoginEstabelecimento } from './pages/LoginEstabelecimento';
+import { OnboardingEstabelecimento } from './pages/OnboardingEstabelecimento';
+import { PainelEstabelecimento } from './pages/PainelEstabelecimento';
+import { AdmEstabelecimentoPlaceholder } from './pages/AdmEstabelecimentoPlaceholder';
 import NotFound from './pages/not-found';
 import { Toaster } from 'sonner';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { CustomerAuthProvider, useCustomerAuth } from './lib/customer-auth';
 import { AdminAuthProvider } from './lib/admin-auth';
+import { OwnerAuthProvider } from './lib/owner-auth';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -88,7 +93,11 @@ function Router() {
         )}
       </Route>
       <Route path="/cozinha" component={Kitchen} />
-      <Route path="/painel-raiz" component={PainelRaiz} />
+      <Route path="/nxs" component={PainelRaiz} />
+      <Route path="/estabelecimento/login" component={LoginEstabelecimento} />
+      <Route path="/estabelecimento/onboarding" component={OnboardingEstabelecimento} />
+      <Route path="/estabelecimento/adm" component={AdmEstabelecimentoPlaceholder} />
+      <Route path="/estabelecimento" component={PainelEstabelecimento} />
       <Route path="/solicitar-estabelecimento" component={SolicitarEstabelecimento} />
       <Route component={NotFound} />
     </Switch>
@@ -100,10 +109,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <CustomerAuthProvider>
         <AdminAuthProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-            <Router />
-          </WouterRouter>
-          <Toaster position="top-center" />
+          <OwnerAuthProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+              <Router />
+            </WouterRouter>
+            <Toaster position="top-center" />
+          </OwnerAuthProvider>
         </AdminAuthProvider>
       </CustomerAuthProvider>
     </QueryClientProvider>

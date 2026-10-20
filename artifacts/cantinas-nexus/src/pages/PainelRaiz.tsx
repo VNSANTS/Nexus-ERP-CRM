@@ -2,21 +2,24 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import { useAdminAuth } from '../lib/admin-auth';
+import { isValidCpfCnpj, formatCpfCnpj, isValidCep, formatCep, lookupCep } from '../lib/validators';
 
+// Campos como chegam do backend: toda resposta passa por camelizeKeys
+// (_shared/helpers.ts), então snake_case do banco vira camelCase aqui.
 type Solicitacao = {
   id: string;
-  owner_nome: string;
-  owner_email: string;
-  owner_telefone: string;
-  owner_cpf_cnpj: string;
-  endereco_cep: string | null;
-  endereco_logradouro: string | null;
-  endereco_numero: string | null;
-  endereco_complemento: string | null;
-  endereco_bairro: string | null;
-  endereco_cidade: string | null;
-  endereco_uf: string | null;
-  created_at: string;
+  ownerNome: string;
+  ownerEmail: string;
+  ownerTelefone: string;
+  ownerCpfCnpj: string;
+  enderecoCep: string | null;
+  enderecoLogradouro: string | null;
+  enderecoNumero: string | null;
+  enderecoComplemento: string | null;
+  enderecoBairro: string | null;
+  enderecoCidade: string | null;
+  enderecoUf: string | null;
+  createdAt: string;
 };
 
 export function PainelRaiz() {
@@ -55,7 +58,6 @@ function AdminLogin({ deniedAccess }: { deniedAccess: boolean }) {
         toast.error('E-mail ou senha incorretos.');
         return;
       }
-      // onAuthStateChange no AdminAuthProvider cuida do resto
     } catch (err) {
       console.error(err);
       toast.error('Erro inesperado ao entrar.');
@@ -109,11 +111,25 @@ function AdminLogin({ deniedAccess }: { deniedAccess: boolean }) {
   );
 }
 
+function formatEndereco(s: Solicitacao): string {
+  if (!s.enderecoCidade) return '—';
+  const parts = [
+    s.enderecoLogradouro,
+    s.enderecoNumero && `, ${s.enderecoNumero}`,
+    s.enderecoComplemento && ` - ${s.enderecoComplemento}`,
+  ].filter(Boolean).join('');
+  return `${parts} — ${s.enderecoBairro}, ${s.enderecoCidade}/${s.enderecoUf} (CEP ${s.enderecoCep})`;
+}
+
 // === Dashboard com as solicitações pendentes ===
 function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [processandoId, setProcessandoId] = useState<string | null>(null);
+  const [detalhesDe, setDetalhesDe] = useState<Solicitacao | null>(null);
+  const [editandoDe, setEditandoDe] = useState<Solicitacao | null>(null);
+  const [confirmando, setConfirmando] = useState<{ id: string; action: 'reject' | 'block' } | null>(null);
+  const [motivo, setMotivo] = useState('');
 
   useEffect(() => {
     carregar();
@@ -136,35 +152,67 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
     }
   }
 
-  async function decidir(requestId: string, action: 'approve' | 'reject' | 'block') {
-    let reason: string | undefined;
-    if (action === 'reject' || action === 'block') {
-      const input = window.prompt(
-        action === 'block'
-          ? 'Motivo do bloqueio (opcional):'
-          : 'Motivo da rejeição (opcional):',
-      );
-      if (input === null) return; // cancelou o prompt
-      reason = input.trim() || undefined;
-    } else {
-      const confirmar = window.confirm('Aprovar esta solicitação e criar o estabelecimento?');
-      if (!confirmar) return;
-    }
-
+  async function aprovar(requestId: string) {
     setProcessandoId(requestId);
     try {
       const { data, error } = await supabase.functions.invoke('decidir-solicitacao', {
-        body: { action, requestId, reason },
+        body: { action: 'approve', requestId },
       });
       if (error || data?.error) {
-        toast.error(data?.error ?? 'Não foi possível processar a solicitação.');
+        toast.error(data?.error ?? 'Não foi possível aprovar.');
         return;
       }
-      toast.success(data?.message ?? 'Processado com sucesso.');
+      toast.success(data?.message ?? 'Aprovado com sucesso.');
       setSolicitacoes((prev) => prev.filter((s) => s.id !== requestId));
     } catch (err) {
       console.error(err);
-      toast.error('Erro inesperado ao processar.');
+      toast.error('Erro inesperado ao aprovar.');
+    } finally {
+      setProcessandoId(null);
+    }
+  }
+
+  async function confirmarRejeitarOuBloquear() {
+    if (!confirmando) return;
+    const { id, action } = confirmando;
+    setProcessandoId(id);
+    try {
+      const { data, error } = await supabase.functions.invoke('decidir-solicitacao', {
+        body: { action, requestId: id, reason: motivo.trim() || undefined },
+      });
+      if (error || data?.error) {
+        toast.error(data?.error ?? 'Não foi possível processar.');
+        return;
+      }
+      toast.success(data?.message ?? 'Processado com sucesso.');
+      setSolicitacoes((prev) => prev.filter((s) => s.id !== id));
+      setConfirmando(null);
+      setMotivo('');
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro inesperado.');
+    } finally {
+      setProcessandoId(null);
+    }
+  }
+
+  async function salvarEdicao(fields: Record<string, string>) {
+    if (!editandoDe) return;
+    setProcessandoId(editandoDe.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('decidir-solicitacao', {
+        body: { action: 'edit', requestId: editandoDe.id, fields },
+      });
+      if (error || data?.error) {
+        toast.error(data?.error ?? 'Não foi possível salvar.');
+        return;
+      }
+      toast.success('Solicitação atualizada.');
+      setEditandoDe(null);
+      await carregar();
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro inesperado ao salvar.');
     } finally {
       setProcessandoId(null);
     }
@@ -196,32 +244,24 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
               <div key={s.id} className="rounded-xl bg-white p-5 shadow-sm">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-medium text-neutral-900">{s.owner_nome}</p>
+                    <p className="font-medium text-neutral-900">{s.ownerNome}</p>
                     <p className="text-xs text-neutral-500">
-                      {new Date(s.created_at).toLocaleString('pt-BR')}
+                      {s.createdAt ? new Date(s.createdAt).toLocaleString('pt-BR') : '—'}
                     </p>
                   </div>
                 </div>
 
                 <div className="mt-3 grid grid-cols-1 gap-1 text-sm text-neutral-700 md:grid-cols-2">
-                  <p><span className="text-neutral-400">E-mail:</span> {s.owner_email}</p>
-                  <p><span className="text-neutral-400">Telefone:</span> {s.owner_telefone}</p>
-                  <p><span className="text-neutral-400">CPF/CNPJ:</span> {s.owner_cpf_cnpj}</p>
-                  {s.endereco_cidade && (
-                    <p>
-                      <span className="text-neutral-400">Endereço:</span>{' '}
-                      {s.endereco_logradouro}, {s.endereco_numero}
-                      {s.endereco_complemento ? ` - ${s.endereco_complemento}` : ''} —{' '}
-                      {s.endereco_bairro}, {s.endereco_cidade}/{s.endereco_uf} (CEP {s.endereco_cep})
-                    </p>
-                  )}
+                  <p><span className="text-neutral-400">E-mail:</span> {s.ownerEmail}</p>
+                  <p><span className="text-neutral-400">Telefone:</span> {s.ownerTelefone}</p>
+                  <p><span className="text-neutral-400">CPF/CNPJ:</span> {s.ownerCpfCnpj}</p>
                 </div>
 
-                <div className="mt-4 flex gap-2">
+                <div className="mt-4 flex flex-wrap gap-2">
                   <button
                     type="button"
                     disabled={processando}
-                    onClick={() => decidir(s.id, 'approve')}
+                    onClick={() => aprovar(s.id)}
                     className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
                   >
                     Aprovar
@@ -229,7 +269,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                   <button
                     type="button"
                     disabled={processando}
-                    onClick={() => decidir(s.id, 'reject')}
+                    onClick={() => { setConfirmando({ id: s.id, action: 'reject' }); setMotivo(''); }}
                     className="rounded-lg bg-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-300 disabled:opacity-60"
                   >
                     Rejeitar
@@ -237,15 +277,306 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                   <button
                     type="button"
                     disabled={processando}
-                    onClick={() => decidir(s.id, 'block')}
+                    onClick={() => { setConfirmando({ id: s.id, action: 'block' }); setMotivo(''); }}
                     className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
                   >
                     Bloquear
+                  </button>
+                  <button
+                    type="button"
+                    disabled={processando}
+                    onClick={() => setEditandoDe(s)}
+                    className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-60"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={processando}
+                    onClick={() => setDetalhesDe(s)}
+                    className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-60"
+                  >
+                    Ver detalhes
                   </button>
                 </div>
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {detalhesDe && <DetalhesModal solicitacao={detalhesDe} onClose={() => setDetalhesDe(null)} />}
+      {editandoDe && (
+        <EditarModal
+          solicitacao={editandoDe}
+          salvando={processandoId === editandoDe.id}
+          onClose={() => setEditandoDe(null)}
+          onSalvar={salvarEdicao}
+        />
+      )}
+      {confirmando && (
+        <ConfirmarModal
+          action={confirmando.action}
+          motivo={motivo}
+          setMotivo={setMotivo}
+          processando={processandoId === confirmando.id}
+          onCancel={() => { setConfirmando(null); setMotivo(''); }}
+          onConfirm={confirmarRejeitarOuBloquear}
+        />
+      )}
+    </div>
+  );
+}
+
+// === Modal: ver detalhes ===
+function DetalhesModal({ solicitacao, onClose }: { solicitacao: Solicitacao; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-neutral-900">Detalhes da solicitação</h2>
+          <button type="button" onClick={onClose} className="text-neutral-400 hover:text-neutral-700">✕</button>
+        </div>
+
+        <div className="mt-4 space-y-3 text-sm">
+          <Campo label="Nome" valor={solicitacao.ownerNome} />
+          <Campo label="E-mail" valor={solicitacao.ownerEmail} />
+          <Campo label="Telefone" valor={solicitacao.ownerTelefone} />
+          <Campo label="CPF/CNPJ" valor={solicitacao.ownerCpfCnpj} />
+          <Campo label="Endereço" valor={formatEndereco(solicitacao)} />
+          <Campo
+            label="Enviado em"
+            valor={solicitacao.createdAt ? new Date(solicitacao.createdAt).toLocaleString('pt-BR') : '—'}
+          />
+          <Campo label="ID da solicitação" valor={solicitacao.id} mono />
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-6 w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-semibold text-white hover:bg-neutral-800"
+        >
+          Fechar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Campo({ label, valor, mono }: { label: string; valor: string; mono?: boolean }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-neutral-400">{label}</p>
+      <p className={mono ? 'font-mono text-xs text-neutral-700' : 'text-neutral-800'}>{valor}</p>
+    </div>
+  );
+}
+
+// === Modal: editar ===
+function EditarModal({
+  solicitacao,
+  salvando,
+  onClose,
+  onSalvar,
+}: {
+  solicitacao: Solicitacao;
+  salvando: boolean;
+  onClose: () => void;
+  onSalvar: (fields: Record<string, string>) => void;
+}) {
+  const [nome, setNome] = useState(solicitacao.ownerNome);
+  const [telefone, setTelefone] = useState(solicitacao.ownerTelefone);
+  const [cpfCnpj, setCpfCnpj] = useState(formatCpfCnpj(solicitacao.ownerCpfCnpj ?? ''));
+  const [cep, setCep] = useState(formatCep(solicitacao.enderecoCep ?? ''));
+  const [logradouro, setLogradouro] = useState(solicitacao.enderecoLogradouro ?? '');
+  const [numero, setNumero] = useState(solicitacao.enderecoNumero ?? '');
+  const [complemento, setComplemento] = useState(solicitacao.enderecoComplemento ?? '');
+  const [bairro, setBairro] = useState(solicitacao.enderecoBairro ?? '');
+  const [cidade, setCidade] = useState(solicitacao.enderecoCidade ?? '');
+  const [uf, setUf] = useState(solicitacao.enderecoUf ?? '');
+  const [cepLoading, setCepLoading] = useState(false);
+
+  async function handleCepBlur() {
+    const digits = cep.replace(/\D/g, '');
+    if (!isValidCep(digits)) return;
+    setCepLoading(true);
+    const result = await lookupCep(digits);
+    setCepLoading(false);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    setLogradouro(result.logradouro);
+    setBairro(result.bairro);
+    setCidade(result.cidade);
+    setUf(result.uf);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!nome.trim() || !telefone.trim()) {
+      toast.error('Nome e telefone são obrigatórios.');
+      return;
+    }
+    if (!isValidCpfCnpj(cpfCnpj)) {
+      toast.error('CPF ou CNPJ inválido.');
+      return;
+    }
+    onSalvar({
+      nome: nome.trim(),
+      telefone: telefone.trim(),
+      cpfCnpj: cpfCnpj.trim(),
+      enderecoCep: cep.trim(),
+      enderecoLogradouro: logradouro.trim(),
+      enderecoNumero: numero.trim(),
+      enderecoComplemento: complemento.trim(),
+      enderecoBairro: bairro.trim(),
+      enderecoCidade: cidade.trim(),
+      enderecoUf: uf.trim().toUpperCase(),
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8 overflow-y-auto">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-neutral-900">Editar solicitação</h2>
+          <button type="button" onClick={onClose} className="text-neutral-400 hover:text-neutral-700">✕</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-500">Nome</label>
+            <input value={nome} onChange={(e) => setNome(e.target.value)}
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" required />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-500">Telefone</label>
+            <input value={telefone} onChange={(e) => setTelefone(e.target.value)}
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" required />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-500">CPF/CNPJ</label>
+            <input value={cpfCnpj} onChange={(e) => setCpfCnpj(formatCpfCnpj(e.target.value))}
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" required />
+          </div>
+
+          <div className="border-t border-neutral-200 pt-3">
+            <p className="mb-2 text-xs font-semibold text-neutral-600">Endereço</p>
+            <div className="grid grid-cols-[120px_1fr] gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-500">CEP</label>
+                <input value={cep} onChange={(e) => setCep(formatCep(e.target.value))} onBlur={handleCepBlur}
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
+                {cepLoading && <p className="mt-1 text-xs text-neutral-400">Buscando...</p>}
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-500">Logradouro</label>
+                <input value={logradouro} onChange={(e) => setLogradouro(e.target.value)}
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-500">Número</label>
+                <input value={numero} onChange={(e) => setNumero(e.target.value)}
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-500">Complemento</label>
+                <input value={complemento} onChange={(e) => setComplemento(e.target.value)}
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-[1fr_1fr_70px] gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-500">Bairro</label>
+                <input value={bairro} onChange={(e) => setBairro(e.target.value)}
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-500">Cidade</label>
+                <input value={cidade} onChange={(e) => setCidade(e.target.value)}
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-500">UF</label>
+                <input value={uf} onChange={(e) => setUf(e.target.value.toUpperCase().slice(0, 2))} maxLength={2}
+                  className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm uppercase" />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 rounded-lg border border-neutral-300 py-2.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
+              Cancelar
+            </button>
+            <button type="submit" disabled={salvando}
+              className="flex-1 rounded-lg bg-neutral-900 py-2.5 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-60">
+              {salvando ? 'Salvando...' : 'Salvar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// === Modal: confirmar rejeitar/bloquear ===
+function ConfirmarModal({
+  action,
+  motivo,
+  setMotivo,
+  processando,
+  onCancel,
+  onConfirm,
+}: {
+  action: 'reject' | 'block';
+  motivo: string;
+  setMotivo: (v: string) => void;
+  processando: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const isBlock = action === 'block';
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6">
+        <h2 className="text-lg font-semibold text-neutral-900">
+          {isBlock ? 'Bloquear solicitação' : 'Rejeitar solicitação'}
+        </h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          {isBlock
+            ? 'O CPF/CNPJ e o e-mail não poderão solicitar novamente.'
+            : 'O solicitante pode enviar uma nova solicitação depois.'}
+        </p>
+
+        <div className="mt-4">
+          <label className="mb-1 block text-xs font-medium text-neutral-500">Motivo (opcional)</label>
+          <textarea
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            rows={3}
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div className="mt-5 flex gap-2">
+          <button type="button" onClick={onCancel}
+            className="flex-1 rounded-lg border border-neutral-300 py-2.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={processando}
+            onClick={onConfirm}
+            className={`flex-1 rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-60 ${
+              isBlock ? 'bg-red-600 hover:bg-red-700' : 'bg-neutral-700 hover:bg-neutral-800'
+            }`}
+          >
+            {processando ? 'Processando...' : isBlock ? 'Bloquear' : 'Rejeitar'}
+          </button>
         </div>
       </div>
     </div>

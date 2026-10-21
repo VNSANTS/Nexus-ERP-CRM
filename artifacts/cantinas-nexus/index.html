@@ -6,6 +6,29 @@
     <title>Cantinas Nexus</title>
     <meta name="description" content="Cantinas Nexus — built on Replit. Update this description to reflect the app." />
     <meta name="robots" content="index, follow" />
+
+    <!-- SEGURANÇA: GitHub Pages não permite configurar headers HTTP
+         reais (Content-Security-Policy, X-Content-Type-Options, etc).
+         A alternativa é declarar via <meta http-equiv>, que o navegador
+         aplica da mesma forma para estas diretivas específicas (CSP não
+         suporta frame-ancestors/report-uri por essa via, mas o restante
+         funciona normalmente). Calibrado para os domínios externos que o
+         app realmente usa: Supabase (API + Edge Functions), Cloudflare
+         Turnstile (CAPTCHA), Google Fonts, ViaCEP (busca de endereço). -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' https://challenges.cloudflare.com;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com;
+      img-src 'self' data: blob: https:;
+      connect-src 'self' https://*.supabase.co https://viacep.com.br https://challenges.cloudflare.com https://cloudflare-dns.com;
+      frame-src https://challenges.cloudflare.com;
+      object-src 'none';
+      base-uri 'self';
+      form-action 'self';
+    ">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta property="og:title" content="Cantinas Nexus" />
     <meta property="og:description" content="Cantinas Nexus — built on Replit. Update this description to reflect the app." />
     <meta property="og:type" content="website" />

@@ -12,6 +12,7 @@ import { LoginEstabelecimento } from './pages/LoginEstabelecimento';
 import { OnboardingEstabelecimento } from './pages/OnboardingEstabelecimento';
 import { PainelEstabelecimento } from './pages/PainelEstabelecimento';
 import { AdmEstabelecimentoPlaceholder } from './pages/AdmEstabelecimentoPlaceholder';
+import { CardapioTablet } from './pages/CardapioTablet';
 import NotFound from './pages/not-found';
 import { Toaster } from 'sonner';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
@@ -93,6 +94,7 @@ function Router() {
         )}
       </Route>
       <Route path="/cozinha" component={Kitchen} />
+      <Route path="/cardapio-tablet" component={CardapioTablet} />
       <Route path="/nxs" component={PainelRaiz} />
       <Route path="/estabelecimento/login" component={LoginEstabelecimento} />
       <Route path="/estabelecimento/onboarding" component={OnboardingEstabelecimento} />

@@ -34,8 +34,8 @@ Deno.serve(async (req: Request) => {
 
     if (action === 'create') {
       const { nome, username, password, role, horario, ativo } = body;
-      if (!nome || !username || typeof password !== 'string' || password.length < 6) {
-        return errorResponse('Nome, usuário e senha com pelo menos 6 caracteres são obrigatórios.', 400);
+      if (!nome || !username || typeof password !== 'string' || password.length < 8) {
+        return errorResponse('Nome, usuário e senha com pelo menos 8 caracteres são obrigatórios.', 400);
       }
 
       const cleanUsername = String(username).trim().toLowerCase();
@@ -76,7 +76,7 @@ Deno.serve(async (req: Request) => {
       const authUpdates: Record<string, unknown> = {};
       const metaUpdates: Record<string, unknown> = {};
       if (password != null && password !== '') {
-        if (password.length < 6) return errorResponse('A senha deve ter pelo menos 6 caracteres.', 400);
+        if (password.length < 8) return errorResponse('A senha deve ter pelo menos 8 caracteres.', 400);
         authUpdates.password = password;
       }
       if (username != null) {

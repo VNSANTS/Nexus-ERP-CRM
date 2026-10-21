@@ -11,17 +11,43 @@
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 
+// SEGURANÇA: CORS restrito aos domínios reais do projeto, em vez de '*'.
+// '*' liberado para qualquer function autenticada por Bearer token não é
+// CSRF (CSRF explora credenciais automáticas como cookies, que não é o
+// caso aqui), mas facilita exfiltração de dados por um site malicioso caso
+// um token vaze por outro vetor (XSS, extensão de navegador comprometida).
+// Restringir a origem fecha essa superfície extra sem custo de UX real.
+const ALLOWED_ORIGINS = [
+  'https://vnsants.github.io',
+  'http://localhost:5173', // dev local (Vite)
+  'http://localhost:3000',
+];
+
+export function buildCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') ?? '';
+  const allowOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, PATCH, DELETE, OPTIONS',
+    Vary: 'Origin',
+  };
+}
+
+// Mantido por compatibilidade com código que ainda importa `corsHeaders`
+// como objeto estático (sem Origin dinâmico) — usado só no preflight
+// genérico quando a request ainda não está disponível no escopo.
 export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': ALLOWED_ORIGINS[0],
   'Access-Control-Allow-Headers':
     'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, PATCH, DELETE, OPTIONS',
 };
 
-export function jsonResponse(body: unknown, status = 200): Response {
+export function jsonResponse(body: unknown, status = 200, extraHeaders: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(camelizeKeys(body)), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, ...extraHeaders, 'Content-Type': 'application/json' },
   });
 }
 

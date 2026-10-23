@@ -84,7 +84,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const { action, requestId, reason, fields } = body;
 
-    if (!requestId || !['edit', 'approve', 'reject', 'block'].includes(action)) {
+    if (!requestId || !['edit', 'approve', 'reject', 'block', 'delete'].includes(action)) {
       return errorResponse('Parâmetros inválidos.', 400);
     }
 
@@ -95,6 +95,21 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
     if (findErr) throw findErr;
     if (!reqRow) return errorResponse('Solicitação não encontrada.', 404);
+
+    // Exclusão manual: somente solicitações rejeitadas podem ser removidas.
+    // A exclusão não apaga estabelecimento, usuário Auth nem identificadores bloqueados.
+    if (action === 'delete') {
+      if (reqRow.status !== 'rejeitado') {
+        return jsonResponse({ ok: false, message: 'Só é possível excluir solicitações rejeitadas.' });
+      }
+      const { error: deleteErr } = await supabase
+        .from('establishment_requests')
+        .delete()
+        .eq('id', requestId)
+        .eq('status', 'rejeitado');
+      if (deleteErr) throw deleteErr;
+      return jsonResponse({ ok: true, message: 'Solicitação rejeitada excluída do histórico.' });
+    }
 
     // 'block' é a única ação permitida fora do status 'pendente' — serve
     // para bloquear um estabelecimento JÁ APROVADO (ex: fraude descoberta

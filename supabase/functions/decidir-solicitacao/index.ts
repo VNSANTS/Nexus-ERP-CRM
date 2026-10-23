@@ -95,11 +95,27 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
     if (findErr) throw findErr;
     if (!reqRow) return errorResponse('Solicitação não encontrada.', 404);
-    if (reqRow.status !== 'pendente') {
+
+    // 'block' é a única ação permitida fora do status 'pendente' — serve
+    // para bloquear um estabelecimento JÁ APROVADO (ex: fraude descoberta
+    // depois da aprovação). As demais ações (edit/approve/reject) só
+    // fazem sentido enquanto a solicitação ainda está pendente.
+    const podeAgirForaDePendente = action === 'block' && reqRow.status === 'aprovado';
+    if (reqRow.status !== 'pendente' && !podeAgirForaDePendente) {
       return jsonResponse({ ok: false, message: `Esta solicitação já foi ${reqRow.status}.` });
     }
 
     const now = new Date().toISOString();
+
+    // === block em solicitação já aprovada: desativa o estabelecimento
+    // de verdade, não só a solicitação (senão o bloqueio seria só
+    // cosmético e o estabelecimento continuaria ativo e operando) ===
+    if (action === 'block' && reqRow.status === 'aprovado' && reqRow.establishment_id) {
+      await supabase
+        .from('establishments')
+        .update({ status: 'bloqueado', updated_at: now })
+        .eq('id', reqRow.establishment_id);
+    }
 
     // === edit ===
     if (action === 'edit') {
@@ -141,15 +157,22 @@ Deno.serve(async (req: Request) => {
 
     // === reject / block ===
     if (action === 'reject' || action === 'block') {
-      await supabase
-        .from('establishment_requests')
-        .update({
-          status: 'rejeitado',
-          decided_at: now,
-          decided_by: userData.user.id,
-          rejection_reason: reason ?? (action === 'block' ? 'Bloqueado pelo administrador.' : null),
-        })
-        .eq('id', requestId);
+      // Se a solicitação ainda estava pendente, vira 'rejeitado' (histórico
+      // normal). Se já estava 'aprovado' e agora está sendo bloqueada, o
+      // registro da solicitação em si continua mostrando 'aprovado' — foi
+      // o establishment que mudou de status, não o fato histórico de que
+      // a solicitação original tinha sido aprovada.
+      if (reqRow.status === 'pendente') {
+        await supabase
+          .from('establishment_requests')
+          .update({
+            status: 'rejeitado',
+            decided_at: now,
+            decided_by: userData.user.id,
+            rejection_reason: reason ?? (action === 'block' ? 'Bloqueado pelo administrador.' : null),
+          })
+          .eq('id', requestId);
+      }
 
       if (action === 'block') {
         await supabase.from('blocked_identifiers').upsert(
@@ -173,19 +196,57 @@ Deno.serve(async (req: Request) => {
         );
       }
 
+      const eraAprovado = reqRow.status === 'aprovado';
       await sendEmail({
         to: reqRow.owner_email,
-        subject: 'Solicitação de estabelecimento — Nexus',
-        html: `<p>Olá, ${reqRow.owner_nome}.</p><p>Sua solicitação de estabelecimento não foi aprovada${reason ? `: ${reason}` : '.'}</p>`,
-      }).catch((e) => console.error('Falha ao enviar e-mail de rejeição:', e));
+        subject: eraAprovado ? 'Seu acesso à Nexus foi bloqueado' : 'Solicitação de estabelecimento — Nexus',
+        html: eraAprovado
+          ? `<p>Olá, ${reqRow.owner_nome}.</p><p>Seu estabelecimento foi bloqueado pela administração da Nexus${reason ? `: ${reason}` : '.'}</p>`
+          : `<p>Olá, ${reqRow.owner_nome}.</p><p>Sua solicitação de estabelecimento não foi aprovada${reason ? `: ${reason}` : '.'}</p>`,
+      }).catch((e) => console.error('Falha ao enviar e-mail de rejeição/bloqueio:', e));
 
       return jsonResponse({
         ok: true,
-        message: action === 'block' ? 'Solicitação rejeitada e identificadores bloqueados.' : 'Solicitação rejeitada.',
+        message:
+          action === 'block'
+            ? eraAprovado
+              ? 'Estabelecimento bloqueado e identificadores restritos.'
+              : 'Solicitação rejeitada e identificadores bloqueados.'
+            : 'Solicitação rejeitada.',
       });
     }
 
     // === approve ===
+
+    // Checa duplicidade ANTES de tentar criar — sem isso, a tentativa só
+    // falha na constraint UNIQUE do banco com um erro genérico (23505),
+    // sem dizer ao admin qual é o problema real nem qual dos dois campos
+    // colidiu. Isso acontece quando o mesmo e-mail/CPF já tem outra
+    // solicitação aprovada antes (ex: testes, ou o solicitante mandou
+    // duas solicitações com o mesmo e-mail).
+    const { data: existingByEmail } = await supabase
+      .from('establishments')
+      .select('id')
+      .eq('email', reqRow.owner_email)
+      .maybeSingle();
+    if (existingByEmail) {
+      return jsonResponse({
+        ok: false,
+        message: 'Já existe um estabelecimento aprovado com este e-mail. Rejeite esta solicitação duplicada.',
+      });
+    }
+    const { data: existingByCpfCnpj } = await supabase
+      .from('establishments')
+      .select('id')
+      .eq('cpf_cnpj', reqRow.owner_cpf_cnpj)
+      .maybeSingle();
+    if (existingByCpfCnpj) {
+      return jsonResponse({
+        ok: false,
+        message: 'Já existe um estabelecimento aprovado com este CPF/CNPJ. Rejeite esta solicitação duplicada.',
+      });
+    }
+
     const establishmentId = crypto.randomUUID();
     const { error: estErr } = await supabase.from('establishments').insert({
       id: establishmentId,
@@ -227,23 +288,20 @@ Deno.serve(async (req: Request) => {
       .update({ status: 'aprovado', decided_at: now, decided_by: userData.user.id, establishment_id: establishmentId })
       .eq('id', requestId);
 
-    const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
-      type: 'recovery',
-      email: reqRow.owner_email,
+    // IMPORTANTE: usa resetPasswordForEmail (não generateLink + Resend).
+    // generateLink() SÓ gera a URL e nunca envia nada sozinho — alguém
+    // precisa mandar o e-mail, e isso dependia do Resend, que recusa
+    // (403) qualquer destinatário fora da conta enquanto não houver um
+    // domínio verificado. resetPasswordForEmail() já dispara o e-mail
+    // pelo sistema nativo do Supabase (sujeito a 2 e-mails/hora no plano
+    // grátis, mas sem a trava de domínio), então chega a qualquer
+    // destinatário de verdade.
+    const { error: resetErr } = await supabase.auth.resetPasswordForEmail(reqRow.owner_email, {
+      redirectTo: 'https://vnsants.github.io/Nexus-ERP-CRM/estabelecimento/onboarding',
     });
-    if (linkErr) console.error('Falha ao gerar link de senha:', linkErr);
-
-    await sendEmail({
-      to: reqRow.owner_email,
-      subject: 'Sua conta Nexus foi aprovada!',
-      html: `
-        <p>Olá, ${reqRow.owner_nome}.</p>
-        <p>Sua solicitação de estabelecimento foi aprovada.</p>
-        ${linkData?.properties?.action_link
-          ? `<p>Defina sua senha e acesse o painel: <a href="${linkData.properties.action_link}">clique aqui</a></p>`
-          : '<p>Entre em contato com o suporte para definir sua senha de acesso.</p>'}
-      `,
-    }).catch((e) => console.error('Falha ao enviar e-mail de aprovação:', e));
+    if (resetErr) {
+      console.error('Falha ao enviar e-mail de definição de senha:', resetErr);
+    }
 
     return jsonResponse({ ok: true, message: 'Estabelecimento aprovado e criado.', establishmentId });
   } catch (err) {

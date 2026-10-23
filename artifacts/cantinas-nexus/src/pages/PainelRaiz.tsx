@@ -20,6 +20,21 @@ type Solicitacao = {
   enderecoCidade: string | null;
   enderecoUf: string | null;
   createdAt: string;
+  status: 'pendente' | 'aprovado' | 'rejeitado' | 'expirado';
+};
+
+const STATUS_LABEL: Record<Solicitacao['status'], string> = {
+  pendente: 'Pendente',
+  aprovado: 'Aprovado',
+  rejeitado: 'Rejeitado',
+  expirado: 'Expirado',
+};
+
+const STATUS_COLOR: Record<Solicitacao['status'], string> = {
+  pendente: 'bg-amber-100 text-amber-700',
+  aprovado: 'bg-emerald-100 text-emerald-700',
+  rejeitado: 'bg-neutral-200 text-neutral-600',
+  expirado: 'bg-neutral-200 text-neutral-500',
 };
 
 export function PainelRaiz() {
@@ -138,7 +153,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
   async function carregar() {
     setCarregando(true);
     try {
-      const { data, error } = await supabase.functions.invoke('listar-solicitacoes-pendentes');
+      const { data, error } = await supabase.functions.invoke('listar-solicitacoes');
       if (error || data?.error) {
         toast.error(data?.error ?? 'Não foi possível carregar as solicitações.');
         return;
@@ -163,7 +178,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
         return;
       }
       toast.success(data?.message ?? 'Aprovado com sucesso.');
-      setSolicitacoes((prev) => prev.filter((s) => s.id !== requestId));
+      await carregar();
     } catch (err) {
       console.error(err);
       toast.error('Erro inesperado ao aprovar.');
@@ -185,7 +200,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
         return;
       }
       toast.success(data?.message ?? 'Processado com sucesso.');
-      setSolicitacoes((prev) => prev.filter((s) => s.id !== id));
+      await carregar();
       setConfirmando(null);
       setMotivo('');
     } catch (err) {
@@ -222,14 +237,24 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
     <div className="min-h-screen bg-neutral-50 px-4 py-8">
       <div className="mx-auto max-w-3xl">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-neutral-900">Solicitações pendentes</h1>
-          <button
-            type="button"
-            onClick={onSignOut}
-            className="text-sm font-medium text-neutral-500 hover:text-neutral-800"
-          >
-            Sair
-          </button>
+          <h1 className="text-xl font-semibold text-neutral-900">Solicitações de estabelecimento</h1>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={carregar}
+              disabled={carregando}
+              className="text-sm font-medium text-neutral-500 hover:text-neutral-800 disabled:opacity-60"
+            >
+              {carregando ? 'Atualizando...' : 'Atualizar'}
+            </button>
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="text-sm font-medium text-neutral-500 hover:text-neutral-800"
+            >
+              Sair
+            </button>
+          </div>
         </div>
 
         <div className="mt-6 space-y-4">
@@ -240,6 +265,8 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
 
           {solicitacoes.map((s) => {
             const processando = processandoId === s.id;
+            const ehPendente = s.status === 'pendente';
+            const podeBloquear = s.status === 'pendente' || s.status === 'aprovado';
             return (
               <div key={s.id} className="rounded-xl bg-white p-5 shadow-sm">
                 <div className="flex items-start justify-between">
@@ -249,6 +276,9 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                       {s.createdAt ? new Date(s.createdAt).toLocaleString('pt-BR') : '—'}
                     </p>
                   </div>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_COLOR[s.status]}`}>
+                    {STATUS_LABEL[s.status]}
+                  </span>
                 </div>
 
                 <div className="mt-3 grid grid-cols-1 gap-1 text-sm text-neutral-700 md:grid-cols-2">
@@ -258,38 +288,46 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={processando}
-                    onClick={() => aprovar(s.id)}
-                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-                  >
-                    Aprovar
-                  </button>
-                  <button
-                    type="button"
-                    disabled={processando}
-                    onClick={() => { setConfirmando({ id: s.id, action: 'reject' }); setMotivo(''); }}
-                    className="rounded-lg bg-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-300 disabled:opacity-60"
-                  >
-                    Rejeitar
-                  </button>
-                  <button
-                    type="button"
-                    disabled={processando}
-                    onClick={() => { setConfirmando({ id: s.id, action: 'block' }); setMotivo(''); }}
-                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
-                  >
-                    Bloquear
-                  </button>
-                  <button
-                    type="button"
-                    disabled={processando}
-                    onClick={() => setEditandoDe(s)}
-                    className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-60"
-                  >
-                    Editar
-                  </button>
+                  {ehPendente && (
+                    <button
+                      type="button"
+                      disabled={processando}
+                      onClick={() => aprovar(s.id)}
+                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                    >
+                      Aprovar
+                    </button>
+                  )}
+                  {ehPendente && (
+                    <button
+                      type="button"
+                      disabled={processando}
+                      onClick={() => { setConfirmando({ id: s.id, action: 'reject' }); setMotivo(''); }}
+                      className="rounded-lg bg-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-300 disabled:opacity-60"
+                    >
+                      Rejeitar
+                    </button>
+                  )}
+                  {podeBloquear && (
+                    <button
+                      type="button"
+                      disabled={processando}
+                      onClick={() => { setConfirmando({ id: s.id, action: 'block' }); setMotivo(''); }}
+                      className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                    >
+                      Bloquear
+                    </button>
+                  )}
+                  {ehPendente && (
+                    <button
+                      type="button"
+                      disabled={processando}
+                      onClick={() => setEditandoDe(s)}
+                      className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-60"
+                    >
+                      Editar
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={processando}

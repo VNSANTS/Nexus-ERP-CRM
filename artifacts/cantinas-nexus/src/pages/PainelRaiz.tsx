@@ -145,6 +145,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
   const [editandoDe, setEditandoDe] = useState<Solicitacao | null>(null);
   const [confirmando, setConfirmando] = useState<{ id: string; action: 'reject' | 'block' } | null>(null);
   const [motivo, setMotivo] = useState('');
+  const [excluindoId, setExcluindoId] = useState<string | null>(null);
 
   useEffect(() => {
     carregar();
@@ -154,8 +155,8 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
     setCarregando(true);
     try {
       const { data, error } = await supabase.functions.invoke('listar-solicitacoes');
-      if (error || data?.error) {
-        toast.error(data?.error ?? 'Não foi possível carregar as solicitações.');
+      if (error || data?.error || data?.ok === false) {
+        toast.error(data?.error ?? data?.message ?? 'Não foi possível carregar as solicitações.');
         return;
       }
       setSolicitacoes(data?.solicitacoes ?? []);
@@ -167,14 +168,37 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
     }
   }
 
+  async function excluirRejeitada(s: Solicitacao) {
+    if (s.status !== 'rejeitado') return;
+    const confirmado = window.confirm('Excluir esta solicitação rejeitada do histórico? Esta ação não pode ser desfeita. O estabelecimento e os bloqueios existentes não serão apagados.');
+    if (!confirmado) return;
+    setExcluindoId(s.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('decidir-solicitacao', {
+        body: { action: 'delete', requestId: s.id },
+      });
+      if (error || data?.error || data?.ok === false) {
+        toast.error(data?.error ?? data?.message ?? 'Não foi possível excluir a solicitação.');
+        return;
+      }
+      toast.success(data?.message ?? 'Solicitação excluída.');
+      await carregar();
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro inesperado ao excluir a solicitação.');
+    } finally {
+      setExcluindoId(null);
+    }
+  }
+
   async function aprovar(requestId: string) {
     setProcessandoId(requestId);
     try {
       const { data, error } = await supabase.functions.invoke('decidir-solicitacao', {
         body: { action: 'approve', requestId },
       });
-      if (error || data?.error) {
-        toast.error(data?.error ?? 'Não foi possível aprovar.');
+      if (error || data?.error || data?.ok === false) {
+        toast.error(data?.error ?? data?.message ?? 'Não foi possível aprovar.');
         return;
       }
       toast.success(data?.message ?? 'Aprovado com sucesso.');
@@ -195,8 +219,8 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
       const { data, error } = await supabase.functions.invoke('decidir-solicitacao', {
         body: { action, requestId: id, reason: motivo.trim() || undefined },
       });
-      if (error || data?.error) {
-        toast.error(data?.error ?? 'Não foi possível processar.');
+      if (error || data?.error || data?.ok === false) {
+        toast.error(data?.error ?? data?.message ?? 'Não foi possível processar.');
         return;
       }
       toast.success(data?.message ?? 'Processado com sucesso.');
@@ -218,8 +242,8 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
       const { data, error } = await supabase.functions.invoke('decidir-solicitacao', {
         body: { action: 'edit', requestId: editandoDe.id, fields },
       });
-      if (error || data?.error) {
-        toast.error(data?.error ?? 'Não foi possível salvar.');
+      if (error || data?.error || data?.ok === false) {
+        toast.error(data?.error ?? data?.message ?? 'Não foi possível salvar.');
         return;
       }
       toast.success('Solicitação atualizada.');
@@ -326,6 +350,16 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                       className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-60"
                     >
                       Editar
+                    </button>
+                  )}
+                  {s.status === 'rejeitado' && (
+                    <button
+                      type="button"
+                      disabled={processando || excluindoId === s.id}
+                      onClick={() => excluirRejeitada(s)}
+                      className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+                    >
+                      {excluindoId === s.id ? 'Excluindo...' : 'Excluir'}
                     </button>
                   )}
                   <button

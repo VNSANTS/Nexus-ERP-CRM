@@ -20,7 +20,9 @@ export function LoginEstabelecimento() {
     setRecoverySubmitting(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(emailNorm, {
-        redirectTo: 'https://vnsants.github.io/Nexus-ERP-CRM/estabelecimento/onboarding',
+        // GitHub Pages retorna HTTP 404 em rotas internas antes do fallback da SPA.
+        // A raiz sempre responde 200; o App encaminha sessões de recovery ao onboarding.
+        redirectTo: 'https://vnsants.github.io/Nexus-ERP-CRM/',
       });
       if (error) {
         toast.error('Não foi possível enviar o link. Tente novamente em alguns minutos.');

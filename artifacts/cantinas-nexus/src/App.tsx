@@ -18,7 +18,7 @@ import { Toaster } from 'sonner';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { CustomerAuthProvider, useCustomerAuth } from './lib/customer-auth';
 import { AdminAuthProvider } from './lib/admin-auth';
-import { OwnerAuthProvider } from './lib/owner-auth';
+import { OwnerAuthProvider, useOwnerAuth } from './lib/owner-auth';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -106,6 +106,17 @@ function Router() {
   );
 }
 
+function RecoveryRedirect() {
+  const [, navigate] = useLocation();
+  const { isPasswordRecovery } = useOwnerAuth();
+
+  useEffect(() => {
+    if (isPasswordRecovery) navigate('/estabelecimento/onboarding');
+  }, [isPasswordRecovery, navigate]);
+
+  return null;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -113,6 +124,7 @@ function App() {
         <AdminAuthProvider>
           <OwnerAuthProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+              <RecoveryRedirect />
               <Router />
             </WouterRouter>
             <Toaster position="top-center" />

@@ -42,9 +42,16 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // IMPORTANTE: traz o status do establishment vinculado (quando existe)
+    // via join. Uma solicitação 'aprovada' que depois foi bloqueada
+    // continua com request.status = 'aprovado' por design (o histórico da
+    // decisão original não muda) — quem realmente fica 'bloqueado' é o
+    // establishment. Sem esse join, o painel não tinha como mostrar esse
+    // bloqueio, e o card continuava parecendo um estabelecimento ativo
+    // normal mesmo depois de bloqueado.
     const { data, error } = await supabaseAdmin
       .from('establishment_requests')
-      .select('*')
+      .select('*, establishments(status)')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -52,7 +59,13 @@ Deno.serve(async (req: Request) => {
       return errorResponse('Não foi possível carregar as solicitações.', 500);
     }
 
-    return jsonResponse({ ok: true, solicitacoes: data ?? [] });
+    const solicitacoes = (data ?? []).map((row: Record<string, unknown>) => {
+      const establishments = row.establishments as { status?: string } | null;
+      const { establishments: _omit, ...rest } = row;
+      return { ...rest, establishmentStatus: establishments?.status ?? null };
+    });
+
+    return jsonResponse({ ok: true, solicitacoes });
   } catch (err) {
     console.error(err);
     return errorResponse('Erro interno ao listar solicitações.', 500);

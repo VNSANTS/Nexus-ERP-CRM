@@ -21,18 +21,32 @@ type Solicitacao = {
   enderecoUf: string | null;
   createdAt: string;
   status: 'pendente' | 'aprovado' | 'rejeitado' | 'expirado';
+  // Status do establishment vinculado, quando existe (null se a
+  // solicitação nunca foi aprovada). Uma solicitação 'aprovada' cujo
+  // establishment foi bloqueado depois continua com status 'aprovado'
+  // aqui — é esse campo que mostra o bloqueio de verdade.
+  establishmentStatus: string | null;
 };
 
-const STATUS_LABEL: Record<Solicitacao['status'], string> = {
+type StatusEfetivo = 'pendente' | 'aprovado' | 'bloqueado' | 'rejeitado' | 'expirado';
+
+function statusEfetivo(s: Solicitacao): StatusEfetivo {
+  if (s.status === 'aprovado' && s.establishmentStatus === 'bloqueado') return 'bloqueado';
+  return s.status;
+}
+
+const STATUS_LABEL: Record<StatusEfetivo, string> = {
   pendente: 'Pendente',
   aprovado: 'Aprovado',
+  bloqueado: 'Bloqueado',
   rejeitado: 'Rejeitado',
   expirado: 'Expirado',
 };
 
-const STATUS_COLOR: Record<Solicitacao['status'], string> = {
+const STATUS_COLOR: Record<StatusEfetivo, string> = {
   pendente: 'bg-amber-100 text-amber-700',
   aprovado: 'bg-emerald-100 text-emerald-700',
+  bloqueado: 'bg-red-100 text-red-700',
   rejeitado: 'bg-neutral-200 text-neutral-600',
   expirado: 'bg-neutral-200 text-neutral-500',
 };
@@ -289,8 +303,9 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
 
           {solicitacoes.map((s) => {
             const processando = processandoId === s.id;
+            const efetivo = statusEfetivo(s);
             const ehPendente = s.status === 'pendente';
-            const podeBloquear = s.status === 'pendente' || s.status === 'aprovado';
+            const podeBloquear = efetivo === 'pendente' || efetivo === 'aprovado';
             return (
               <div key={s.id} className="rounded-xl bg-white p-5 shadow-sm">
                 <div className="flex items-start justify-between">
@@ -300,8 +315,8 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                       {s.createdAt ? new Date(s.createdAt).toLocaleString('pt-BR') : '—'}
                     </p>
                   </div>
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_COLOR[s.status]}`}>
-                    {STATUS_LABEL[s.status]}
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_COLOR[efetivo]}`}>
+                    {STATUS_LABEL[efetivo]}
                   </span>
                 </div>
 

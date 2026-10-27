@@ -157,7 +157,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
   const [processandoId, setProcessandoId] = useState<string | null>(null);
   const [detalhesDe, setDetalhesDe] = useState<Solicitacao | null>(null);
   const [editandoDe, setEditandoDe] = useState<Solicitacao | null>(null);
-  const [confirmando, setConfirmando] = useState<{ id: string; action: 'reject' | 'block' } | null>(null);
+  const [confirmando, setConfirmando] = useState<{ id: string; action: 'reject' | 'block' | 'unblock' } | null>(null);
   const [motivo, setMotivo] = useState('');
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
 
@@ -225,7 +225,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
     }
   }
 
-  async function confirmarRejeitarOuBloquear() {
+  async function confirmarAcao() {
     if (!confirmando) return;
     const { id, action } = confirmando;
     setProcessandoId(id);
@@ -357,6 +357,16 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                       Bloquear
                     </button>
                   )}
+                  {efetivo === 'bloqueado' && (
+                    <button
+                      type="button"
+                      disabled={processando}
+                      onClick={() => { setConfirmando({ id: s.id, action: 'unblock' }); setMotivo(''); }}
+                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                    >
+                      Desbloquear
+                    </button>
+                  )}
                   {ehPendente && (
                     <button
                       type="button"
@@ -408,7 +418,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
           setMotivo={setMotivo}
           processando={processandoId === confirmando.id}
           onCancel={() => { setConfirmando(null); setMotivo(''); }}
-          onConfirm={confirmarRejeitarOuBloquear}
+          onConfirm={confirmarAcao}
         />
       )}
     </div>
@@ -610,7 +620,7 @@ function EditarModal({
   );
 }
 
-// === Modal: confirmar rejeitar/bloquear ===
+// === Modal: confirmar rejeitar/bloquear/desbloquear ===
 function ConfirmarModal({
   action,
   motivo,
@@ -619,7 +629,7 @@ function ConfirmarModal({
   onCancel,
   onConfirm,
 }: {
-  action: 'reject' | 'block';
+  action: 'reject' | 'block' | 'unblock';
   motivo: string;
   setMotivo: (v: string) => void;
   processando: boolean;
@@ -627,27 +637,35 @@ function ConfirmarModal({
   onConfirm: () => void;
 }) {
   const isBlock = action === 'block';
+  const isUnblock = action === 'unblock';
+  const title = isUnblock
+    ? 'Desbloquear estabelecimento'
+    : isBlock
+      ? 'Bloquear solicitação'
+      : 'Rejeitar solicitação';
+  const description = isUnblock
+    ? 'O estabelecimento voltará a ficar ativo e o CPF/CNPJ e o e-mail serão liberados.'
+    : isBlock
+      ? 'O CPF/CNPJ e o e-mail não poderão solicitar novamente.'
+      : 'O solicitante pode enviar uma nova solicitação depois.';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-6">
-        <h2 className="text-lg font-semibold text-neutral-900">
-          {isBlock ? 'Bloquear solicitação' : 'Rejeitar solicitação'}
-        </h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          {isBlock
-            ? 'O CPF/CNPJ e o e-mail não poderão solicitar novamente.'
-            : 'O solicitante pode enviar uma nova solicitação depois.'}
-        </p>
+        <h2 className="text-lg font-semibold text-neutral-900">{title}</h2>
+        <p className="mt-1 text-sm text-neutral-500">{description}</p>
 
-        <div className="mt-4">
-          <label className="mb-1 block text-xs font-medium text-neutral-500">Motivo (opcional)</label>
-          <textarea
-            value={motivo}
-            onChange={(e) => setMotivo(e.target.value)}
-            rows={3}
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-          />
-        </div>
+        {!isUnblock && (
+          <div className="mt-4">
+            <label className="mb-1 block text-xs font-medium text-neutral-500">Motivo (opcional)</label>
+            <textarea
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              rows={3}
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            />
+          </div>
+        )}
 
         <div className="mt-5 flex gap-2">
           <button type="button" onClick={onCancel}
@@ -659,10 +677,10 @@ function ConfirmarModal({
             disabled={processando}
             onClick={onConfirm}
             className={`flex-1 rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-60 ${
-              isBlock ? 'bg-red-600 hover:bg-red-700' : 'bg-neutral-700 hover:bg-neutral-800'
+              isBlock ? 'bg-red-600 hover:bg-red-700' : isUnblock ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-neutral-700 hover:bg-neutral-800'
             }`}
           >
-            {processando ? 'Processando...' : isBlock ? 'Bloquear' : 'Rejeitar'}
+            {processando ? 'Processando...' : isUnblock ? 'Desbloquear' : isBlock ? 'Bloquear' : 'Rejeitar'}
           </button>
         </div>
       </div>

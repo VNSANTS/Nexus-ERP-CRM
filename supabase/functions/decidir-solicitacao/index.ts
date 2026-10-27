@@ -5,7 +5,7 @@
 // por sessão: o chamador precisa estar logado (Supabase Auth) e constar
 // em platform_admins.
 //
-// Body esperado: { action: 'edit' | 'approve' | 'reject' | 'block', requestId, reason?, fields? }
+// Body esperado: { action: 'edit' | 'approve' | 'reject' | 'block' | 'unblock', requestId, reason?, fields? }
 //
 // - edit: atualiza nome/telefone/CPF-CNPJ/endereço da solicitação (fields).
 //   Não muda o status nem dispara e-mail.
@@ -84,7 +84,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const { action, requestId, reason, fields } = body;
 
-    if (!requestId || !['edit', 'approve', 'reject', 'block', 'delete'].includes(action)) {
+    if (!requestId || !['edit', 'approve', 'reject', 'block', 'unblock', 'delete'].includes(action)) {
       return errorResponse('Parâmetros inválidos.', 400);
     }
 
@@ -115,6 +115,61 @@ Deno.serve(async (req: Request) => {
     // para bloquear um estabelecimento JÁ APROVADO (ex: fraude descoberta
     // depois da aprovação). As demais ações (edit/approve/reject) só
     // fazem sentido enquanto a solicitação ainda está pendente.
+    if (action === 'unblock') {
+      if (reqRow.status !== 'aprovado' || !reqRow.establishment_id) {
+        return jsonResponse({ ok: false, message: 'Só é possível desbloquear estabelecimentos aprovados.' });
+      }
+
+      const { data: establishment, error: establishmentErr } = await supabase
+        .from('establishments')
+        .select('id, status')
+        .eq('id', reqRow.establishment_id)
+        .maybeSingle();
+      if (establishmentErr) throw establishmentErr;
+      if (!establishment) {
+        return jsonResponse({ ok: false, message: 'Estabelecimento vinculado não encontrado.' });
+      }
+      if (establishment.status !== 'bloqueado') {
+        return jsonResponse({ ok: false, message: 'Este estabelecimento já está desbloqueado.' });
+      }
+
+      const { error: cpfBlockErr } = await supabase
+        .from('blocked_identifiers')
+        .delete()
+        .eq('tipo', 'cpf_cnpj')
+        .eq('valor', reqRow.owner_cpf_cnpj)
+        .eq('contexto', 'establishment_request');
+      if (cpfBlockErr) throw cpfBlockErr;
+
+      const { error: emailBlockErr } = await supabase
+        .from('blocked_identifiers')
+        .delete()
+        .eq('tipo', 'email')
+        .eq('valor', reqRow.owner_email)
+        .eq('contexto', 'establishment_request');
+      if (emailBlockErr) throw emailBlockErr;
+
+      const { data: reactivated, error: reactivateErr } = await supabase
+        .from('establishments')
+        .update({ status: 'ativo', updated_at: new Date().toISOString() })
+        .eq('id', reqRow.establishment_id)
+        .eq('status', 'bloqueado')
+        .select('id')
+        .maybeSingle();
+      if (reactivateErr) throw reactivateErr;
+      if (!reactivated) {
+        return jsonResponse({ ok: false, message: 'O status do estabelecimento mudou. Atualize a lista e tente novamente.' });
+      }
+
+      await sendEmail({
+        to: reqRow.owner_email,
+        subject: 'Seu acesso à Nexus foi desbloqueado',
+        html: `<p>Olá, ${reqRow.owner_nome}.</p><p>O acesso do seu estabelecimento foi desbloqueado pela administração da Nexus. Você já pode voltar a utilizar a plataforma.</p>`,
+      }).catch((e) => console.error('Falha ao enviar e-mail de desbloqueio:', e));
+
+      return jsonResponse({ ok: true, message: 'Estabelecimento desbloqueado e identificadores liberados.' });
+    }
+
     const podeAgirForaDePendente = action === 'block' && reqRow.status === 'aprovado';
     if (reqRow.status !== 'pendente' && !podeAgirForaDePendente) {
       return jsonResponse({ ok: false, message: `Esta solicitação já foi ${reqRow.status}.` });

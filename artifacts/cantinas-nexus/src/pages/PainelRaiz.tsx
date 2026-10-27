@@ -182,9 +182,12 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
     }
   }
 
-  async function excluirRejeitada(s: Solicitacao) {
-    if (s.status !== 'rejeitado') return;
-    const confirmado = window.confirm('Excluir esta solicitação rejeitada do histórico? Esta ação não pode ser desfeita. O estabelecimento e os bloqueios existentes não serão apagados.');
+  async function excluirSolicitacao(s: Solicitacao) {
+    if (s.status !== 'pendente' && s.status !== 'rejeitado') return;
+    const descricao = s.status === 'pendente'
+      ? 'Excluir esta solicitação pendente? Esta ação não pode ser desfeita.'
+      : 'Excluir esta solicitação rejeitada do histórico? Esta ação não pode ser desfeita. O estabelecimento e os bloqueios existentes não serão apagados.';
+    const confirmado = window.confirm(descricao);
     if (!confirmado) return;
     setExcluindoId(s.id);
     try {
@@ -302,7 +305,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
           )}
 
           {solicitacoes.map((s) => {
-            const processando = processandoId === s.id;
+            const processando = processandoId === s.id || excluindoId === s.id;
             const efetivo = statusEfetivo(s);
             const ehPendente = s.status === 'pendente';
             const podeBloquear = efetivo === 'pendente' || efetivo === 'aprovado';
@@ -377,11 +380,11 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                       Editar
                     </button>
                   )}
-                  {s.status === 'rejeitado' && (
+                  {(s.status === 'pendente' || s.status === 'rejeitado') && (
                     <button
                       type="button"
                       disabled={processando || excluindoId === s.id}
-                      onClick={() => excluirRejeitada(s)}
+                      onClick={() => excluirSolicitacao(s)}
                       className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
                     >
                       {excluindoId === s.id ? 'Excluindo...' : 'Excluir'}

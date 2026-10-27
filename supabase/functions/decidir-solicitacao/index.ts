@@ -96,19 +96,24 @@ Deno.serve(async (req: Request) => {
     if (findErr) throw findErr;
     if (!reqRow) return errorResponse('Solicitação não encontrada.', 404);
 
-    // Exclusão manual: somente solicitações rejeitadas podem ser removidas.
+    // Exclusão manual: somente solicitações pendentes ou rejeitadas podem ser removidas.
     // A exclusão não apaga estabelecimento, usuário Auth nem identificadores bloqueados.
     if (action === 'delete') {
-      if (reqRow.status !== 'rejeitado') {
-        return jsonResponse({ ok: false, message: 'Só é possível excluir solicitações rejeitadas.' });
+      if (reqRow.status !== 'pendente' && reqRow.status !== 'rejeitado') {
+        return jsonResponse({ ok: false, message: 'Só é possível excluir solicitações pendentes ou rejeitadas.' });
       }
-      const { error: deleteErr } = await supabase
+      const { data: deleted, error: deleteErr } = await supabase
         .from('establishment_requests')
         .delete()
         .eq('id', requestId)
-        .eq('status', 'rejeitado');
+        .eq('status', reqRow.status)
+        .select('id')
+        .maybeSingle();
       if (deleteErr) throw deleteErr;
-      return jsonResponse({ ok: true, message: 'Solicitação rejeitada excluída do histórico.' });
+      if (!deleted) {
+        return jsonResponse({ ok: false, message: 'A solicitação mudou de status. Atualize a lista e tente novamente.' });
+      }
+      return jsonResponse({ ok: true, message: 'Solicitação excluída do histórico.' });
     }
 
     // 'block' é a única ação permitida fora do status 'pendente' — serve

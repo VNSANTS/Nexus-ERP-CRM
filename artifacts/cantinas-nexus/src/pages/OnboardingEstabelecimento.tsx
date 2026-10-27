@@ -15,11 +15,54 @@ type Funcionario = {
 
 export function OnboardingEstabelecimento() {
   const [, navigate] = useLocation();
-  const { session, establishment, loading, refreshEstablishment } = useOwnerAuth();
+  const { session, establishment, loading, isPasswordRecovery, refreshEstablishment, clearPasswordRecovery } = useOwnerAuth();
   const [etapa, setEtapa] = useState<1 | 2 | 3>(1);
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
+  const [senha, setSenha] = useState('');
+  const [confirmacaoSenha, setConfirmacaoSenha] = useState('');
+  const [salvandoSenha, setSalvandoSenha] = useState(false);
+
+  async function definirSenha(e: React.FormEvent) {
+    e.preventDefault();
+    if (senha.length < 8) {
+      toast.error('A senha precisa ter pelo menos 8 caracteres.');
+      return;
+    }
+    if (senha !== confirmacaoSenha) {
+      toast.error('As senhas não coincidem.');
+      return;
+    }
+
+    setSalvandoSenha(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: senha });
+      if (error) {
+        toast.error(error.message || 'Não foi possível definir a senha. Peça um novo link e tente novamente.');
+        return;
+      }
+
+      clearPasswordRecovery();
+      await refreshEstablishment();
+      toast.success('Senha definida. Vamos configurar seu estabelecimento.');
+      setSenha('');
+      setConfirmacaoSenha('');
+    } catch (err) {
+      console.error(err);
+      toast.error('Não foi possível concluir a definição da senha.');
+    } finally {
+      setSalvandoSenha(false);
+    }
+  }
 
   useEffect(() => {
+    const callbackParams = new URLSearchParams(
+      `${window.location.search.replace(/^\?/, '')}&${window.location.hash.replace(/^#/, '')}`,
+    );
+    if (callbackParams.has('error') || callbackParams.has('error_code')) {
+      toast.error('Este link de senha expirou ou já foi usado. Solicite um novo link para continuar.');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    if (isPasswordRecovery) return;
     if (loading) return;
     if (!session) {
       navigate('/estabelecimento/login');
@@ -33,7 +76,53 @@ export function OnboardingEstabelecimento() {
     if (establishment.onboardingCompleto) {
       navigate('/estabelecimento');
     }
-  }, [loading, session, establishment, navigate]);
+  }, [loading, session, establishment, isPasswordRecovery, navigate]);
+
+  if (isPasswordRecovery) {
+    if (loading) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-neutral-50">
+          <p className="text-sm text-neutral-400">Validando seu acesso...</p>
+        </div>
+      );
+    }
+
+    if (!session) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-sm">
+            <h1 className="text-lg font-semibold text-neutral-900">Link inválido ou expirado</h1>
+            <p className="mt-2 text-sm text-neutral-500">Volte ao login e solicite um novo link para definir sua senha.</p>
+            <button type="button" onClick={() => navigate('/estabelecimento/login')}
+              className="mt-5 w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-semibold text-white">
+              Ir para o login
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 py-10">
+        <form onSubmit={definirSenha} className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-sm md:p-8">
+          <h1 className="text-xl font-semibold text-neutral-900">Defina sua senha</h1>
+          <p className="mt-2 text-sm text-neutral-500">Depois de criar sua senha, você seguirá para as etapas de configuração do estabelecimento.</p>
+          <label className="mb-1 mt-6 block text-sm font-medium text-neutral-700">Nova senha</label>
+          <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)}
+            autoComplete="new-password" minLength={8} required
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
+          <label className="mb-1 mt-4 block text-sm font-medium text-neutral-700">Confirme a nova senha</label>
+          <input type="password" value={confirmacaoSenha} onChange={(e) => setConfirmacaoSenha(e.target.value)}
+            autoComplete="new-password" minLength={8} required
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
+          <button type="submit" disabled={salvandoSenha}
+            className="mt-6 w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-60">
+            {salvandoSenha ? 'Salvando senha...' : 'Definir senha e continuar'}
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   if (loading || !session || !establishment) {
     return (

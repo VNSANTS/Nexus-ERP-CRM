@@ -8,6 +8,32 @@ export function LoginEstabelecimento() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [recoverySubmitting, setRecoverySubmitting] = useState(false);
+
+  async function handleRecuperarSenha() {
+    const emailNorm = email.trim().toLowerCase();
+    if (!emailNorm) {
+      toast.error('Digite seu e-mail para receber um novo link.');
+      return;
+    }
+
+    setRecoverySubmitting(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(emailNorm, {
+        redirectTo: 'https://vnsants.github.io/Nexus-ERP-CRM/estabelecimento/onboarding',
+      });
+      if (error) {
+        toast.error('Não foi possível enviar o link. Tente novamente em alguns minutos.');
+        return;
+      }
+      toast.success('Se o e-mail estiver cadastrado, enviaremos um link para definir a senha.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro inesperado ao solicitar um novo link.');
+    } finally {
+      setRecoverySubmitting(false);
+    }
+  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -66,6 +92,16 @@ export function LoginEstabelecimento() {
               className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
               required
             />
+          </div>
+          <div className="-mt-2 text-right">
+            <button
+              type="button"
+              onClick={handleRecuperarSenha}
+              disabled={recoverySubmitting}
+              className="text-xs font-medium text-neutral-500 underline hover:text-neutral-800 disabled:opacity-60"
+            >
+              {recoverySubmitting ? 'Enviando link...' : 'Definir ou recuperar senha'}
+            </button>
           </div>
           <button
             type="submit"

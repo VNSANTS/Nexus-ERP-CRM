@@ -20,6 +20,7 @@ type Solicitacao = {
   enderecoCidade: string | null;
   enderecoUf: string | null;
   createdAt: string;
+  establishmentId: string | null;
   status: 'pendente' | 'aprovado' | 'rejeitado' | 'expirado';
   // Status do establishment vinculado, quando existe (null se a
   // solicitação nunca foi aprovada). Uma solicitação 'aprovada' cujo
@@ -160,6 +161,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
   const [confirmando, setConfirmando] = useState<{ id: string; action: 'reject' | 'block' | 'unblock' } | null>(null);
   const [motivo, setMotivo] = useState('');
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
+  const [excluindoEstabelecimentoId, setExcluindoEstabelecimentoId] = useState<string | null>(null);
 
   useEffect(() => {
     carregar();
@@ -205,6 +207,33 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
       toast.error('Erro inesperado ao excluir a solicitação.');
     } finally {
       setExcluindoId(null);
+    }
+  }
+
+  async function excluirEstabelecimento(s: Solicitacao) {
+    if (s.status !== 'aprovado' || !s.establishmentId) return;
+    if (!['ativo', 'bloqueado'].includes(s.establishmentStatus ?? '')) return;
+    const confirmado = window.confirm(
+      `Excluir permanentemente o estabelecimento de ${s.ownerNome}? Isso também remove os acessos vinculados, funcionários, dispositivos e a solicitação de aprovação. Identificadores já bloqueados continuam bloqueados. Pedidos e produtos sem vínculo com o estabelecimento serão preservados. Esta ação não pode ser desfeita.`,
+    );
+    if (!confirmado) return;
+
+    setExcluindoEstabelecimentoId(s.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('decidir-solicitacao', {
+        body: { action: 'delete-establishment', requestId: s.id },
+      });
+      if (error || data?.error || data?.ok === false) {
+        toast.error(data?.error ?? data?.message ?? 'Não foi possível excluir o estabelecimento.');
+        return;
+      }
+      toast.success(data?.message ?? 'Estabelecimento excluído.');
+      await carregar();
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro inesperado ao excluir o estabelecimento.');
+    } finally {
+      setExcluindoEstabelecimentoId(null);
     }
   }
 
@@ -305,7 +334,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
           )}
 
           {solicitacoes.map((s) => {
-            const processando = processandoId === s.id || excluindoId === s.id;
+            const processando = processandoId === s.id || excluindoId === s.id || excluindoEstabelecimentoId === s.id;
             const efetivo = statusEfetivo(s);
             const ehPendente = s.status === 'pendente';
             const podeBloquear = efetivo === 'pendente' || efetivo === 'aprovado';
@@ -368,6 +397,16 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                       className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
                     >
                       Desbloquear
+                    </button>
+                  )}
+                  {s.status === 'aprovado' && s.establishmentId && ['ativo', 'bloqueado'].includes(s.establishmentStatus ?? '') && (
+                    <button
+                      type="button"
+                      disabled={processando}
+                      onClick={() => excluirEstabelecimento(s)}
+                      className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+                    >
+                      {excluindoEstabelecimentoId === s.id ? 'Excluindo...' : 'Excluir estabelecimento'}
                     </button>
                   )}
                   {ehPendente && (

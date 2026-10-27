@@ -5,7 +5,7 @@
 // por sessão: o chamador precisa estar logado (Supabase Auth) e constar
 // em platform_admins.
 //
-// Body esperado: { action: 'edit' | 'approve' | 'reject' | 'block' | 'unblock', requestId, reason?, fields? }
+// Body esperado: { action: 'edit' | 'approve' | 'reject' | 'block' | 'unblock' | 'delete-establishment', requestId, reason?, fields? }
 //
 // - edit: atualiza nome/telefone/CPF-CNPJ/endereço da solicitação (fields).
 //   Não muda o status nem dispara e-mail.
@@ -84,7 +84,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const { action, requestId, reason, fields } = body;
 
-    if (!requestId || !['edit', 'approve', 'reject', 'block', 'unblock', 'delete'].includes(action)) {
+    if (!requestId || !['edit', 'approve', 'reject', 'block', 'unblock', 'delete', 'delete-establishment'].includes(action)) {
       return errorResponse('Parâmetros inválidos.', 400);
     }
 
@@ -114,6 +114,80 @@ Deno.serve(async (req: Request) => {
         return jsonResponse({ ok: false, message: 'A solicitação mudou de status. Atualize a lista e tente novamente.' });
       }
       return jsonResponse({ ok: true, message: 'Solicitação excluída do histórico.' });
+    }
+
+    if (action === 'delete-establishment') {
+      if (reqRow.status !== 'aprovado' || !reqRow.establishment_id) {
+        return jsonResponse({ ok: false, message: 'Só é possível excluir estabelecimentos aprovados.' });
+      }
+
+      const establishmentId = reqRow.establishment_id as string;
+      const { data: establishment, error: establishmentErr } = await supabase
+        .from('establishments')
+        .select('id, status')
+        .eq('id', establishmentId)
+        .maybeSingle();
+      if (establishmentErr) throw establishmentErr;
+      if (!establishment || !['ativo', 'bloqueado'].includes(establishment.status)) {
+        return jsonResponse({ ok: false, message: 'Estabelecimento não encontrado ou com status incompatível.' });
+      }
+
+      const { data: owners, error: ownersErr } = await supabase
+        .from('establishment_owners')
+        .select('id')
+        .eq('establishment_id', establishmentId);
+      if (ownersErr) throw ownersErr;
+
+      const { data: employees, error: employeesErr } = await supabase
+        .from('employees')
+        .select('id, auth_user_id')
+        .eq('establishment_id', establishmentId);
+      if (employeesErr) throw employeesErr;
+
+      const linkedUserIds = [...new Set([
+        ...(owners ?? []).map((owner) => owner.id),
+        ...(employees ?? []).flatMap((employee) => [employee.id, employee.auth_user_id].filter(Boolean)),
+      ])];
+
+      // Preserve any platform-admin account that also owns this establishment.
+      const { data: platformAdmins, error: adminsErr } = linkedUserIds.length
+        ? await supabase.from('platform_admins').select('id').in('id', linkedUserIds)
+        : { data: [], error: null };
+      if (adminsErr) throw adminsErr;
+      const protectedAdminIds = new Set((platformAdmins ?? []).map((admin) => admin.id));
+
+      for (const userId of linkedUserIds) {
+        if (protectedAdminIds.has(userId)) continue;
+        const { data: authUser, error: lookupErr } = await supabase.auth.admin.getUserById(userId);
+        if (lookupErr && lookupErr.status !== 404) throw lookupErr;
+        if (!authUser?.user) continue;
+
+        const { error: deleteUserErr } = await supabase.auth.admin.deleteUser(userId);
+        if (deleteUserErr) throw deleteUserErr;
+      }
+
+      // Keep the database's foreign-key relationship valid by removing the
+      // approval record before deleting its establishment. The dependent
+      // owners, employees and devices are removed by their cascade rules.
+      const { error: requestDeleteErr } = await supabase
+        .from('establishment_requests')
+        .delete()
+        .eq('establishment_id', establishmentId);
+      if (requestDeleteErr) throw requestDeleteErr;
+
+      const { data: deletedEstablishment, error: deleteEstablishmentErr } = await supabase
+        .from('establishments')
+        .delete()
+        .eq('id', establishmentId)
+        .in('status', ['ativo', 'bloqueado'])
+        .select('id')
+        .maybeSingle();
+      if (deleteEstablishmentErr) throw deleteEstablishmentErr;
+      if (!deletedEstablishment) {
+        return jsonResponse({ ok: false, message: 'O estabelecimento mudou de status. Atualize a lista e tente novamente.' });
+      }
+
+      return jsonResponse({ ok: true, message: 'Estabelecimento e acessos vinculados excluídos. Identificadores bloqueados foram preservados.' });
     }
 
     // 'block' é a única ação permitida fora do status 'pendente' — serve

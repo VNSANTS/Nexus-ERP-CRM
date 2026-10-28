@@ -36,23 +36,17 @@ export function AdmEstabelecimentoPlaceholder() {
   async function carregarDevices() {
     setCarregando(true);
     try {
-      const { data } = await supabase
-        .from('establishment_devices')
-        .select('id, codigo, apelido, ativo, last_login_at')
-        .eq('establishment_id', establishment!.id)
-        .order('created_at', { ascending: false });
-
-      setDevices(
-        (data ?? []).map((d) => ({
-          id: d.id,
-          codigo: d.codigo,
-          apelido: d.apelido,
-          ativo: d.ativo,
-          lastLoginAt: d.last_login_at,
-        })),
-      );
+      const { data, error } = await supabase.functions.invoke('criar-dispositivo-cardapio', {
+        body: { action: 'list' },
+      });
+      if (error || data?.error) {
+        toast.error(data?.error ?? 'Não foi possível carregar os dispositivos.');
+        return;
+      }
+      setDevices(data?.devices ?? []);
     } catch (err) {
       console.error(err);
+      toast.error('Não foi possível carregar os dispositivos.');
     } finally {
       setCarregando(false);
     }

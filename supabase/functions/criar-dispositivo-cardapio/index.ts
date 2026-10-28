@@ -66,6 +66,7 @@ Deno.serve(async (req: Request) => {
       .select('establishment_id')
       .eq('auth_user_id', userData.user.id)
       .eq('acesso_adm', true)
+      .eq('ativo', true)
       .maybeSingle();
     if (adminEmployee) establishmentId = adminEmployee.establishment_id;
   }
@@ -76,6 +77,18 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json();
+
+    if (body?.action === 'list') {
+      const { data: devices, error } = await supabase
+        .from('establishment_devices')
+        .select('id, codigo, apelido, ativo, last_login_at, created_at')
+        .eq('establishment_id', establishmentId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return jsonResponse({ ok: true, devices: devices ?? [] });
+    }
+
     const { apelido, senha } = body;
 
     if (typeof senha !== 'string' || senha.length < 8) {

@@ -69,3 +69,10 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 
 - As APIs de pedidos, estoque, clientes, fornecedores, promocoes e configuracoes legadas trabalham com dados globais e nao filtram por estabelecimento. O helper agora nega funcionarios com `establishment_id` preenchido, ate a arquitetura dessas APIs ser isolada por tenant.
 - Segundo deploy concluido nas mesmas sete funcoes. Versoes atuais confirmadas no Supabase: `clientes v12, estoque v12, gerenciar-dados v14, gerenciar-funcionarios v13, fornecedores v12, pedidos v12, promocoes v12`.
+## Atualizacao ADM de dispositivos (28/10/2026)
+
+- A tela ADM fazia leitura direta de establishment_devices; como RLS esta ligado e a tabela nao tem politica de leitura publica, a consulta nao podia listar os dispositivos do dono.
+- A lista agora chama criar-dispositivo-cardapio com action=list. A Edge Function autentica dono/ADM e filtra a consulta pelo establishment_id da sessao.
+- A verificacao de funcionarios ADM nas funcoes de criar e revogar dispositivo agora tambem exige ativo=true.
+- Build do frontend passou. O aviso conhecido de bundle maior que 500 kB permanece.
+- criar-dispositivo-cardapio e revogar-dispositivo-cardapio foram publicadas com o Supabase CLI. Falta commit/push do codigo desta atualizacao.

@@ -50,6 +50,7 @@ Deno.serve(async (req: Request) => {
       .select('establishment_id')
       .eq('auth_user_id', userData.user.id)
       .eq('acesso_adm', true)
+      .eq('ativo', true)
       .maybeSingle();
     if (adminEmployee) establishmentId = adminEmployee.establishment_id;
   }

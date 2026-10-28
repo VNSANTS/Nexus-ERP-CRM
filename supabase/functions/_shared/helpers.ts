@@ -2,12 +2,9 @@
 //
 // Utilitários compartilhados por todas as Edge Functions do Nexus-ERP-CRM.
 //
-// MUDANÇA DE ARQUITETURA: como o projeto usa chaves de assinatura JWT
-// assimétricas (ECC), não há mais um "JWT Secret" único para assinar tokens
-// à mão. Em vez disso, usamos o Supabase Auth nativo: cada funcionário é um
-// usuário em auth.users (e-mail sintético `username@cozinha...internal`), e
-// o cargo (admin/funcionario) fica em `raw_user_meta_data`. O Supabase já
-// verifica o token sozinho — aqui só decodificamos o usuário autenticado.
+// SECURITY: Auth identifies the account; employee role and active status
+// are read from the protected employees table, never from editable
+// Supabase Auth user_metadata.
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -121,13 +118,36 @@ export async function requireEmployee(req: Request): Promise<EmployeeClaims | nu
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data?.user) return null;
 
-  const meta = data.user.user_metadata as Record<string, unknown>;
-  const role = meta?.role;
-  if (role !== 'admin' && role !== 'funcionario') return null;
+  // Roles in Auth user_metadata are user-editable and cannot authorize actions.
+  // Resolve the account through its protected employee record instead.
+  const { data: byAuthId, error: authIdError } = await supabase
+    .from('employees')
+    .select('id, auth_user_id, nome, role, ativo, establishment_id')
+    .eq('auth_user_id', data.user.id)
+    .maybeSingle();
+
+  let employee = byAuthId;
+  if (!employee && !authIdError) {
+    // Older employee accounts use employees.id as their Auth user ID.
+    const { data: byId, error: idError } = await supabase
+      .from('employees')
+      .select('id, auth_user_id, nome, role, ativo, establishment_id')
+      .eq('id', data.user.id)
+      .maybeSingle();
+    if (idError) return null;
+    employee = byId;
+  }
+
+  // These legacy APIs operate on the original, global canteen tables and
+  // do not filter by establishment. Fail closed for tenant-scoped staff.
+  if (authIdError || !employee || employee.ativo !== true || employee.establishment_id != null) return null;
+
+  const role: EmployeeClaims['employeeRole'] =
+    employee.role === 'admin' ? 'admin' : 'funcionario';
 
   return {
     employeeId: data.user.id,
     employeeRole: role,
-    employeeName: (meta?.nome as string) ?? '',
+    employeeName: employee.nome ?? '',
   };
 }

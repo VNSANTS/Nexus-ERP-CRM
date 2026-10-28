@@ -122,6 +122,16 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
 
   function clearPasswordRecovery() {
     setIsPasswordRecovery(false);
+
+    // A URL ainda pode conter o fragmento `type=recovery` depois que a
+    // senha foi atualizada. Limpamos os tokens para que um reload nao
+    // reapresente a tela de definicao de senha.
+    const callbackUrl = new URL(window.location.href);
+    callbackUrl.hash = '';
+    for (const key of ['code', 'type', 'error', 'error_code', 'error_description']) {
+      callbackUrl.searchParams.delete(key);
+    }
+    window.history.replaceState(null, document.title, `${callbackUrl.pathname}${callbackUrl.search}`);
   }
 
   async function signOut() {

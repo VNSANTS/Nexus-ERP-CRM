@@ -97,3 +97,8 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 - finalizar-onboarding nao exige mais funcionario; o dono pode concluir usando a conta principal e abrir o ADM.
 - criar-funcionario agora traduz corretamente a resposta de e-mail duplicado para HTTP 409; a tela le e mostra a mensagem da Edge Function em vez de um erro 500 generico.
 - Typecheck e build passaram. criar-funcionario e finalizar-onboarding foram publicadas. Falta commit/push do frontend e aguardar o deploy do GitHub Pages.
+
+### Reload seguro apos definir senha
+
+- Depois de atualizar a senha, OwnerAuth remove hash e parametros de callback da URL. Assim, atualizar a tela nao inicia novamente o fluxo PASSWORD_RECOVERY.
+- Typecheck e build passaram. Falta commit/push desta limpeza de URL.

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { downloadCsv } from '../lib/csv';
 import { convertImageToWebp } from '../lib/image-convert';
+import { useOwnerAuth } from '../lib/owner-auth';
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -244,12 +245,30 @@ function OrderCard({ order, products, onAdvance, onCancel, onUpdateObs }: {
 export function Kitchen() {
   const qc = useQueryClient();
   const [, setLocation] = useLocation();
+  const { session: ownerSession, establishment: ownerEstablishment, loading: ownerLoading } = useOwnerAuth();
   const [loggedEmployee, setLoggedEmployee] = useState<ApiEmployee | null>(null);
+  const [ownerAdminAccess, setOwnerAdminAccess] = useState(false);
   const [kitchenMode, setKitchenMode] = useState<KitchenMode>('funcionario');
   const [activeTab, setActiveTab] = useState<KitchenTab>('pedidos');
   const [pickupCode, setPickupCode] = useState('');
   const [pickupMsg, setPickupMsg] = useState<{ ok: boolean; message: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (ownerLoading || !ownerSession || !ownerEstablishment) return;
+    api.employees.clearLocalSession();
+    setOwnerAdminAccess(true);
+    setKitchenMode('admin');
+    setLoggedEmployee({
+      id: ownerSession.user.id,
+      nome: ownerEstablishment.apelido || ownerEstablishment.nomeCompleto,
+      username: ownerSession.user.email ?? '',
+      role: 'admin',
+      horario: '',
+      ativo: true,
+      createdAt: '',
+    });
+  }, [ownerLoading, ownerSession, ownerEstablishment]);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
 
@@ -462,6 +481,9 @@ export function Kitchen() {
 
   // ─── Login guard ─────────────────────────────────────────────────────────────
 
+  if (!loggedEmployee && ownerLoading) {
+    return <div className="flex min-h-screen items-center justify-center bg-background text-sm text-gray-500">Verificando acesso...</div>;
+  }
   if (!loggedEmployee) {
     return <LoginScreen onLogin={(emp) => { setLoggedEmployee(emp); setKitchenMode(emp.role as KitchenMode); }} />;
   }
@@ -520,7 +542,14 @@ export function Kitchen() {
               {kitchenMode === 'admin' ? <ShieldCheck className="w-5 h-5 text-primary" /> : <ToggleLeft className="w-5 h-5" />}
             </button>
           )}
-          <button onClick={() => { setLoggedEmployee(null); setActiveTab('pedidos'); }}
+          <button onClick={() => {
+            if (ownerAdminAccess) {
+              setLocation('/estabelecimento');
+              return;
+            }
+            setLoggedEmployee(null);
+            setActiveTab('pedidos');
+          }}
             className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white px-3 py-2 rounded-xl transition-colors text-sm font-bold">
             <LogOut className="w-4 h-4" /><span className="hidden sm:inline">Sair</span>
           </button>
@@ -1725,6 +1754,20 @@ export function Kitchen() {
                 </button>
               )}
             </div>
+
+            {ownerAdminAccess && (
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <h3 className="font-black text-gray-700">Dispositivos do cardápio</h3>
+                <p className="mt-1 text-sm text-gray-500">Crie códigos, configure tablets e remova dispositivos revogados.</p>
+                <button
+                  type="button"
+                  onClick={() => setLocation('/estabelecimento/adm')}
+                  className="mt-4 rounded-xl bg-primary px-5 py-3 font-bold text-white hover:bg-orange-600"
+                >
+                  Configurar dispositivos
+                </button>
+              </div>
+            )}
 
             <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
               <h3 className="font-black text-gray-700">Manutenção</h3>

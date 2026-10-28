@@ -51,7 +51,7 @@ export function PainelEstabelecimento() {
           </button>
           <button
             type="button"
-            onClick={() => navigate('/estabelecimento/adm')}
+            onClick={() => navigate('/cozinha')}
             className="w-full rounded-lg border border-neutral-300 py-2.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
           >
             Acessar ADM

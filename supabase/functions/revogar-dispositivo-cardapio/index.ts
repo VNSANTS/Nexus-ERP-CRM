@@ -10,7 +10,7 @@
 // precisa pertencer a esse estabelecimento (nunca aceita deviceId de
 // outro estabelecimento, mesmo que adivinhado).
 //
-// Body esperado: { deviceId }
+// Body esperado: { deviceId, action?: 'revoke' | 'delete' }
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse } from '../_shared/helpers.ts';
@@ -60,9 +60,28 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { deviceId } = await req.json();
+    const { deviceId, action = 'revoke' } = await req.json();
     if (!deviceId) {
       return errorResponse('deviceId é obrigatório.', 400);
+    }
+    if (action !== 'revoke' && action !== 'delete') {
+      return errorResponse('Ação inválida.', 400);
+    }
+
+    if (action === 'delete') {
+      const { data, error } = await supabase
+        .from('establishment_devices')
+        .delete()
+        .eq('id', deviceId)
+        .eq('establishment_id', establishmentId)
+        .eq('ativo', false)
+        .not('revoked_at', 'is', null)
+        .select('id')
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) return errorResponse('Dispositivo revogado não encontrado.', 404);
+      return jsonResponse({ ok: true, message: 'Dispositivo excluído.' });
     }
 
     // IMPORTANTE: o filtro por establishment_id aqui é o que impede um

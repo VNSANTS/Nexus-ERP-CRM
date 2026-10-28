@@ -140,7 +140,30 @@ export async function requireEmployee(req: Request): Promise<EmployeeClaims | nu
 
   // These legacy APIs operate on the original, global canteen tables and
   // do not filter by establishment. Fail closed for tenant-scoped staff.
-  if (authIdError || !employee || employee.ativo !== true || employee.establishment_id != null) return null;
+  if (authIdError) return null;
+  if (!employee) {
+    // Temporary bridge for the establishment owner using the legacy admin
+    // screen. This is safe only while the project has a single establishment,
+    // because these APIs still read/write global tables.
+    const { data: owner, error: ownerError } = await supabase
+      .from('establishment_owners')
+      .select('establishment_id')
+      .eq('id', data.user.id)
+      .maybeSingle();
+    if (ownerError || !owner) return null;
+
+    const { count, error: countError } = await supabase
+      .from('establishments')
+      .select('id', { count: 'exact', head: true });
+    if (countError || count !== 1) return null;
+
+    return {
+      employeeId: data.user.id,
+      employeeRole: 'admin',
+      employeeName: data.user.user_metadata?.full_name ?? data.user.email ?? 'Administrador',
+    };
+  }
+  if (employee.ativo !== true || employee.establishment_id != null) return null;
 
   const role: EmployeeClaims['employeeRole'] =
     employee.role === 'admin' ? 'admin' : 'funcionario';

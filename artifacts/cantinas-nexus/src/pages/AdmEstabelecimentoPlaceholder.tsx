@@ -134,6 +134,7 @@ function DeviceManager({
 
 function DeviceRow({ device, onChange }: { device: Device; onChange: () => void }) {
   const [revogando, setRevogando] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
 
   async function handleRevogar() {
     if (!window.confirm(`Revogar o dispositivo "${device.apelido ?? device.codigo}"? Ele será desconectado do cardápio.`)) {
@@ -158,6 +159,27 @@ function DeviceRow({ device, onChange }: { device: Device; onChange: () => void 
     }
   }
 
+  async function handleExcluir() {
+    if (!window.confirm(`Excluir definitivamente o dispositivo revogado "${device.apelido ?? device.codigo}"?`)) return;
+    setExcluindo(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('revogar-dispositivo-cardapio', {
+        body: { deviceId: device.id, action: 'delete' },
+      });
+      if (error || data?.error) {
+        toast.error(data?.error ?? 'Não foi possível excluir o dispositivo.');
+        return;
+      }
+      toast.success('Dispositivo excluído.');
+      onChange();
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro inesperado.');
+    } finally {
+      setExcluindo(false);
+    }
+  }
+
   return (
     <div className="flex items-center justify-between rounded-lg bg-neutral-50 p-3">
       <div>
@@ -169,7 +191,7 @@ function DeviceRow({ device, onChange }: { device: Device; onChange: () => void 
           {device.lastLoginAt && ` · último acesso ${new Date(device.lastLoginAt).toLocaleString('pt-BR')}`}
         </p>
       </div>
-      {device.ativo && (
+      {device.ativo ? (
         <button
           type="button"
           disabled={revogando}
@@ -177,6 +199,15 @@ function DeviceRow({ device, onChange }: { device: Device; onChange: () => void 
           className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
         >
           {revogando ? 'Revogando...' : 'Revogar'}
+        </button>
+      ) : (
+        <button
+          type="button"
+          disabled={excluindo}
+          onClick={handleExcluir}
+          className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+        >
+          {excluindo ? 'Excluindo...' : 'Excluir'}
         </button>
       )}
     </div>
@@ -254,6 +285,14 @@ function NovoDispositivoModal({ onClose, onCriado }: { onClose: () => void; onCr
             <p className="mt-2 text-xs text-neutral-400">
               Digite esse código + a senha definida na tela de login do tablet, na rota /cardapio-tablet.
             </p>
+            <a
+              href={`${import.meta.env.BASE_URL}cardapio-tablet`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 block text-center text-sm font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-900"
+            >
+              Abrir configuração do tablet em nova aba
+            </a>
             <button type="button" onClick={onCriado}
               className="mt-6 w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-semibold text-white hover:bg-neutral-800">
               Concluir

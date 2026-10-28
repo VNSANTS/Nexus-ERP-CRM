@@ -10,8 +10,11 @@ import { supabase } from './supabase';
 const TOKEN_KEY = 'nexus-erp-crm:employee-token';
 const REFRESH_KEY = 'nexus-erp-crm:employee-refresh-token';
 
-function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+async function getToken(): Promise<string | null> {
+  const employeeToken = localStorage.getItem(TOKEN_KEY);
+  if (employeeToken) return employeeToken;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
 }
 
 function setSession(token: string, refreshToken?: string) {
@@ -26,7 +29,7 @@ function clearSession() {
 
 /** Chama uma Edge Function autenticada (painel da cozinha). */
 async function callFn<T>(fn: string, body: Record<string, unknown>): Promise<T> {
-  const token = getToken();
+  const token = await getToken();
   const { data, error } = await supabase.functions.invoke(fn, {
     body,
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -185,6 +188,7 @@ export const api = {
   // ---------------------------------------------------------------------------
 
   employees: {
+    clearLocalSession: clearSession,
     list: () => callFn<ApiEmployee[]>('gerenciar-funcionarios', { action: 'list' }),
     login: async (username: string, password: string) => {
       const result = await callPublicFn<{ ok: boolean; token?: string; refreshToken?: string; employee?: ApiEmployee; message?: string }>(

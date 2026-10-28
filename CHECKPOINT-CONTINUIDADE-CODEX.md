@@ -82,3 +82,10 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 - Criada e publicada a Edge Function obter-estabelecimento-dono: valida a sessao Auth e retorna apenas o estabelecimento ligado ao usuario.
 - OwnerAuth agora usa essa funcao. Typecheck e build passaram; permanece o aviso conhecido de bundle acima de 500 kB.
 - Falta commit/push desta correcao para o novo frontend ir ao GitHub Pages. Aguardar o workflow terminar antes de abrir o link de recuperacao de uso unico.
+
+### Validacao final do fluxo do dono (28/10/2026)
+
+- Commit/push concluido: b6f9949.
+- GitHub Actions run 40731134619 terminou com sucesso; a raiz publicada respondeu HTTP 200 e carrega o bundle novo.
+- Consulta ao banco confirmou que a conta dona vinculada ainda esta com onboarding_completo=false.
+- O e-mail enviado hoje continua aguardando o usuario abrir o link e concluir a senha. Nao reenviar outro sem necessidade: cada link e de uso unico e o provedor tem limite horario.

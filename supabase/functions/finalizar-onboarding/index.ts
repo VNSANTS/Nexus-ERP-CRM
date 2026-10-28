@@ -39,17 +39,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Confirma que há ao menos 1 funcionário antes de liberar — evita
-    // finalizar o onboarding sem ninguém com acesso operacional.
-    const { count } = await supabase
-      .from('employees')
-      .select('id', { count: 'exact', head: true })
-      .eq('establishment_id', owner.establishment_id);
-
-    if (!count || count === 0) {
-      return errorResponse('Cadastre ao menos um funcionário antes de finalizar.', 400);
-    }
-
+    // O dono pode concluir com a propria conta; cadastrar funcionarios e opcional.
     const { error: updErr } = await supabase
       .from('establishments')
       .update({ onboarding_completo: true, updated_at: new Date().toISOString() })

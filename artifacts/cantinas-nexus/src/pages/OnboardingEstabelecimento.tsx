@@ -13,6 +13,19 @@ type Funcionario = {
   acessoAdm: boolean;
 };
 
+async function obterMensagemErroFunction(error: unknown): Promise<string | null> {
+  if (!error || typeof error !== 'object' || !('context' in error)) return null;
+  const context = (error as { context?: unknown }).context;
+  if (!(context instanceof Response)) return null;
+
+  try {
+    const payload = await context.clone().json();
+    return typeof payload?.error === 'string' ? payload.error : null;
+  } catch {
+    return null;
+  }
+}
+
 export function OnboardingEstabelecimento() {
   const [, navigate] = useLocation();
   const { session, establishment, loading, isPasswordRecovery, refreshEstablishment, clearPasswordRecovery } = useOwnerAuth();
@@ -147,6 +160,7 @@ export function OnboardingEstabelecimento() {
           <Passo2
             funcionarios={funcionarios}
             setFuncionarios={setFuncionarios}
+            ownerEmail={session.user.email ?? ''}
             onVoltar={() => setEtapa(1)}
             onConcluido={() => setEtapa(3)}
           />
@@ -228,7 +242,8 @@ function Passo1({
         body: { nomeCompleto: nomeCompleto.trim(), apelido: apelido.trim(), email: email.trim(), cpfCnpj: cpfCnpj.trim() },
       });
       if (error || data?.error) {
-        toast.error(data?.error ?? 'Não foi possível salvar.');
+        const mensagem = data?.error ?? (error ? await obterMensagemErroFunction(error) : null);
+        toast.error(mensagem ?? 'Nao foi possivel salvar os dados.');
         return;
       }
       toast.success('Dados salvos.');
@@ -284,11 +299,13 @@ function Passo1({
 function Passo2({
   funcionarios,
   setFuncionarios,
+  ownerEmail,
   onVoltar,
   onConcluido,
 }: {
   funcionarios: Funcionario[];
   setFuncionarios: (f: Funcionario[]) => void;
+  ownerEmail: string;
   onVoltar: () => void;
   onConcluido: () => void;
 }) {
@@ -317,7 +334,8 @@ function Passo2({
         body: { nome: nome.trim(), email: email.trim(), senha, acessoCozinha, acessoCaixa, acessoAdm },
       });
       if (error || data?.error) {
-        toast.error(data?.error ?? 'Não foi possível criar o funcionário.');
+        const mensagem = data?.error ?? (error ? await obterMensagemErroFunction(error) : null);
+        toast.error(mensagem ?? 'Nao foi possivel criar o funcionario.');
         return;
       }
       setFuncionarios([
@@ -365,6 +383,11 @@ function Passo2({
           <label className="mb-1 block text-sm font-medium text-neutral-700">E-mail</label>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" required />
+          {ownerEmail && email.trim().toLowerCase() === ownerEmail.trim().toLowerCase() && (
+            <p className="mt-1 text-xs text-blue-700">
+              Este ja e seu email principal de administrador. Sua conta ja acessa o ADM; nao precisa cadastra-la de novo como funcionario.
+            </p>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-neutral-700">Senha</label>
@@ -407,10 +430,9 @@ function Passo2({
         <button
           type="button"
           onClick={onConcluido}
-          disabled={funcionarios.length === 0}
           className="flex-1 rounded-lg bg-neutral-900 py-2.5 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-60"
         >
-          Continuar
+          {funcionarios.length === 0 ? 'Continuar sem funcionario' : 'Continuar'}
         </button>
       </div>
     </div>

@@ -89,3 +89,11 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 - GitHub Actions run 40731134619 terminou com sucesso; a raiz publicada respondeu HTTP 200 e carrega o bundle novo.
 - Consulta ao banco confirmou que a conta dona vinculada ainda esta com onboarding_completo=false.
 - O e-mail enviado hoje continua aguardando o usuario abrir o link e concluir a senha. Nao reenviar outro sem necessidade: cada link e de uso unico e o provedor tem limite horario.
+
+## Atualizacao: cadastro de funcionario (28/10/2026)
+
+- Logs da tentativa em 17:12 UTC mostraram Auth code email_exists: o e-mail informado ja pertence a uma conta. A tentativa nao criou um segundo usuario.
+- Como o dono ja e o administrador principal, o onboarding agora informa isso quando o campo recebe o mesmo e-mail e permite continuar sem criar funcionario.
+- finalizar-onboarding nao exige mais funcionario; o dono pode concluir usando a conta principal e abrir o ADM.
+- criar-funcionario agora traduz corretamente a resposta de e-mail duplicado para HTTP 409; a tela le e mostra a mensagem da Edge Function em vez de um erro 500 generico.
+- Typecheck e build passaram. criar-funcionario e finalizar-onboarding foram publicadas. Falta commit/push do frontend e aguardar o deploy do GitHub Pages.

@@ -87,8 +87,11 @@ Deno.serve(async (req: Request) => {
       user_metadata: { role: 'employee', establishmentId, nome: nome.trim() },
     });
     if (authErr) {
-      if (authErr.message?.toLowerCase().includes('already registered')) {
-        return errorResponse('Este e-mail já está em uso.', 409);
+      const erroDuplicado =
+        authErr.code === 'email_exists' ||
+        /already\s+(?:been\s+)?registered|already exists/i.test(authErr.message ?? '');
+      if (erroDuplicado) {
+        return errorResponse('Este e-mail ja esta cadastrado. Para adicionar outro funcionario, informe um e-mail diferente.', 409);
       }
       throw authErr;
     }

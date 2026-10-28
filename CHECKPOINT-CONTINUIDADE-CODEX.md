@@ -109,3 +109,31 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 - O dono pode pular a criacao e finalizar com a conta principal. Commit 156e866 incluiu essa opcao; as Edge Functions criar-funcionario e finalizar-onboarding foram publicadas.
 - Commit b68f179 limpa tokens de recovery depois da definicao de senha. GitHub Pages workflow 40734998738 concluiu build e deploy com sucesso.
 - Proximo passo: atualizar/recarregar a pagina, selecionar Continuar sem funcionario e concluir. Se o reload reapresentar Defina sua senha por causa do link ja usado, entrar pelo login de estabelecimento com a senha definida e retornar ao onboarding.
+
+## Estado ao encerrar a sessão — 28/10/2026
+
+### Login unificado
+
+- Vinícius pediu um único login para cliente, funcionário e ADM, sem atalhos separados para cozinha e dono. Os atalhos “Acesso de funcionário ou ADM” e “Já tenho um estabelecimento” foram removidos da tela inicial. O cadastro de estabelecimento continua disponível.
+- O login principal tenta identificar primeiro uma conta de funcionário ativa. Aceita o username ou o e-mail cadastrado; o cargo vem do registro em `employees`, nunca de `user_metadata`.
+- Se não for funcionário, autentica pelo fluxo normal e encaminha o dono para `/estabelecimento`; cliente segue para `/estabelecimentos`. Cliente ainda pode entrar com e-mail, telefone ou CPF.
+- `/cozinha` e `/estabelecimento/login` agora usam o mesmo formulário. Após autenticação de funcionário, o app reabre diretamente o painel correto e mantém o perfil ADM ou funcionário; sair limpa a sessão local.
+- A recuperação de senha continua disponível no formulário unificado para quem informar o e-mail.
+- Para permitir as funções antigas da cozinha, funcionário vinculado só é autorizado enquanto existe exatamente um estabelecimento e ele é o estabelecimento vinculado. Se houver mais de um, negar é intencional até a migração das APIs para isolamento por estabelecimento.
+
+### Publicação desta alteração
+
+- Commit `52ffd3a feat: unify customer employee and owner login`, enviado para `main`.
+- Supabase Edge Function `cozinha-login` implantada.
+- Build e `npm.cmd run typecheck` passaram. O build mantém o aviso conhecido de bundle JavaScript acima de 500 kB.
+- GitHub Actions workflow `40740890229` concluiu com sucesso para o commit `52ffd3a`.
+- Antes disso, o commit `521c184` já havia publicado a navegação ADM/cozinha e exclusão de dispositivos revogados; `b3229f0` habilitou o login de funcionário e as funções compartilhadas.
+- `supabase/.temp/cli-latest` continua modificado localmente e foi excluído dos commits. Não limpar nem commitar sem revisar.
+
+### Próximo passo para amanhã
+
+1. Abrir o site publicado, atualizar a tela e testar o mesmo formulário com uma conta cliente, a conta dona do estabelecimento, um funcionário comum e um funcionário ADM.
+2. Confirmar os destinos: cliente em `/estabelecimentos`, dono em `/estabelecimento`, funcionário/ADM em `/cozinha`, com abas coerentes com o cargo.
+3. Se funcionário não entrar, anotar exatamente se usou username ou e-mail, a mensagem exibida e conferir se `employees.username` coincide com o identificador cadastrado e se `ativo=true`.
+4. Verificar que o projeto ainda tem um único estabelecimento; o acesso legado da cozinha bloqueia funcionários vinculados quando houver mais de um, por segurança.
+5. As notas anteriores deste checkpoint registram etapas históricas; este bloco é o estado mais recente e substitui pendências antigas de publicação já resolvidas.

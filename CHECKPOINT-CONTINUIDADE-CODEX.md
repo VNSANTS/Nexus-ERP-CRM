@@ -64,3 +64,8 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 - Revisando as Edge Functions, encontramos uma falha de autorização: `requireEmployee` confiava em `user_metadata.role`, que o próprio usuário consegue editar. Agora a identidade é validada no Supabase Auth e cargo/nome/status ativo vêm de `employees`; contas antigas têm fallback para `employees.id`.
 - A mudança está publicada nas funções `clientes`, `estoque`, `gerenciar-dados`, `gerenciar-funcionarios`, `fornecedores`, `pedidos` e `promocoes`. Todas estão ativas; as versões confirmadas foram respectivamente 11, 11, 13, 12, 11, 11 e 11.
 - O código compartilhado da correção e este checkpoint precisam ser commitados e enviados ao GitHub; não foi feita alteração no banco.
+
+### Revisao complementar de autorizacao em 28/10
+
+- As APIs de pedidos, estoque, clientes, fornecedores, promocoes e configuracoes legadas trabalham com dados globais e nao filtram por estabelecimento. O helper agora nega funcionarios com `establishment_id` preenchido, ate a arquitetura dessas APIs ser isolada por tenant.
+- Segundo deploy concluido nas mesmas sete funcoes. Versoes atuais confirmadas no Supabase: `clientes v12, estoque v12, gerenciar-dados v14, gerenciar-funcionarios v13, fornecedores v12, pedidos v12, promocoes v12`.

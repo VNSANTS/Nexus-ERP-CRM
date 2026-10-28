@@ -32,6 +32,18 @@ Deno.serve(async (req: Request) => {
 
     const cleanUsername = String(username).trim().toLowerCase();
 
+    // Resolve o funcionário primeiro para aceitar os dois formatos:
+    // username legado e e-mail usado no cadastro pelo onboarding.
+    const { data: employeeRow } = await admin
+      .from('employees')
+      .select('*')
+      .eq('username', cleanUsername)
+      .maybeSingle();
+
+    if (!employeeRow) {
+      return jsonResponse({ ok: false, code: 'not_employee' }, 404);
+    }
+
     const rateIp = await checkRateLimit(admin, 'cozinha_login_ip', ip, RATE_LIMIT_MAX_PER_IP, RATE_LIMIT_WINDOW_MIN);
     if (!rateIp.allowed) {
       return errorResponse('Muitas tentativas de login. Tente novamente mais tarde.', 429);
@@ -47,16 +59,8 @@ Deno.serve(async (req: Request) => {
       return errorResponse('Muitas tentativas de login. Tente novamente mais tarde.', 429);
     }
 
-    // Resolve o funcionário primeiro para aceitar os dois formatos:
-    // username legado e e-mail usado no cadastro pelo onboarding.
-    const { data: employeeRow } = await admin
-      .from('employees')
-      .select('*')
-      .eq('username', cleanUsername)
-      .maybeSingle();
-
-    if (!employeeRow || !employeeRow.ativo) {
-      return jsonResponse({ ok: false, message: 'Funcionário inativo ou não encontrado.' }, 401);
+    if (!employeeRow.ativo) {
+      return jsonResponse({ ok: false, message: 'Usuário ou senha inválidos.' }, 401);
     }
 
     if (employeeRow.establishment_id) {

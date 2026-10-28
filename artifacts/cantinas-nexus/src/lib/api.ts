@@ -9,6 +9,7 @@ import { supabase } from './supabase';
 
 const TOKEN_KEY = 'nexus-erp-crm:employee-token';
 const REFRESH_KEY = 'nexus-erp-crm:employee-refresh-token';
+const EMPLOYEE_KEY = 'nexus-erp-crm:employee-profile';
 
 async function getToken(): Promise<string | null> {
   const employeeToken = localStorage.getItem(TOKEN_KEY);
@@ -17,14 +18,26 @@ async function getToken(): Promise<string | null> {
   return data.session?.access_token ?? null;
 }
 
-function setSession(token: string, refreshToken?: string) {
+function setSession(token: string, refreshToken?: string, employee?: ApiEmployee) {
   localStorage.setItem(TOKEN_KEY, token);
   if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
+  if (employee) localStorage.setItem(EMPLOYEE_KEY, JSON.stringify(employee));
 }
 
 function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(REFRESH_KEY);
+  localStorage.removeItem(EMPLOYEE_KEY);
+}
+
+function getSavedEmployee(): ApiEmployee | null {
+  try {
+    const value = localStorage.getItem(EMPLOYEE_KEY);
+    return value ? JSON.parse(value) as ApiEmployee : null;
+  } catch {
+    clearSession();
+    return null;
+  }
 }
 
 /** Chama uma Edge Function autenticada (painel da cozinha). */
@@ -189,14 +202,21 @@ export const api = {
 
   employees: {
     clearLocalSession: clearSession,
+    getLocalEmployee: getSavedEmployee,
     list: () => callFn<ApiEmployee[]>('gerenciar-funcionarios', { action: 'list' }),
     login: async (username: string, password: string) => {
-      const result = await callPublicFn<{ ok: boolean; token?: string; refreshToken?: string; employee?: ApiEmployee; message?: string }>(
-        'cozinha-login',
-        { username, password },
-      );
+      const { data: result, error } = await supabase.functions.invoke('cozinha-login', {
+        body: { username, password },
+      });
+      if (error) {
+        const context = (error as { context?: Response }).context;
+        const payload = context ? await context.json().catch(() => null) : null;
+        if (payload?.code === 'not_employee') return { ok: false, code: 'not_employee' as const };
+        if (context) return { ok: false, code: 'employee_login_failed' as const, message: payload?.error ?? 'Usuário ou senha inválidos.' };
+        throw error;
+      }
       if (result.ok && result.token) {
-        setSession(result.token, result.refreshToken);
+        setSession(result.token, result.refreshToken, result.employee);
         // Sincroniza o client Supabase com a sessão, necessário para operações
         // que passam direto pelo client (ex: upload de imagem no Storage) em
         // vez de por uma Edge Function.

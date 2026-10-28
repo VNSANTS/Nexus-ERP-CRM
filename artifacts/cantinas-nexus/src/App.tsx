@@ -8,7 +8,6 @@ import { Login } from './pages/Login';
 import { CompletarCadastro } from './pages/CompletarCadastro';
 import { SelecionarEstabelecimento } from './pages/SelecionarEstabelecimento';
 import { PainelRaiz } from './pages/PainelRaiz';
-import { LoginEstabelecimento } from './pages/LoginEstabelecimento';
 import { OnboardingEstabelecimento } from './pages/OnboardingEstabelecimento';
 import { PainelEstabelecimento } from './pages/PainelEstabelecimento';
 import { AdmEstabelecimentoPlaceholder } from './pages/AdmEstabelecimentoPlaceholder';
@@ -69,7 +68,7 @@ function AbrirEstabelecimento({ params }: { params: { establishmentId: string } 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Login} />
+      <Route path="/">{() => <Login />}</Route>
       <Route path="/completar-cadastro" component={CompletarCadastro} />
       <Route path="/estabelecimentos">
         {() => (
@@ -96,7 +95,7 @@ function Router() {
       <Route path="/cozinha" component={Kitchen} />
       <Route path="/cardapio-tablet" component={CardapioTablet} />
       <Route path="/nxs" component={PainelRaiz} />
-      <Route path="/estabelecimento/login" component={LoginEstabelecimento} />
+      <Route path="/estabelecimento/login">{() => <Login />}</Route>
       <Route path="/estabelecimento/onboarding" component={OnboardingEstabelecimento} />
       <Route path="/estabelecimento/adm" component={AdmEstabelecimentoPlaceholder} />
       <Route path="/estabelecimento" component={PainelEstabelecimento} />

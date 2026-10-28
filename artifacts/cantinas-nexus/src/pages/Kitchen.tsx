@@ -17,12 +17,13 @@ import {
   Phone, MessageCircle, Tag, Star, Edit2, Save, RefreshCw,
   Loader2, ArrowRight, ChevronDown, ChevronUp, Banknote,
   CreditCard, Wallet, QrCode, UserPlus, FileText, Download,
-  ToggleLeft, ToggleRight, Eye, EyeOff, Search, Filter,
-  ArrowLeft, ShieldCheck, DollarSign, Activity, Calendar,
+  ToggleLeft, ToggleRight, Search, Filter,
+  ShieldCheck, DollarSign, Activity, Calendar,
 } from 'lucide-react';
 import { downloadCsv } from '../lib/csv';
 import { convertImageToWebp } from '../lib/image-convert';
 import { useOwnerAuth } from '../lib/owner-auth';
+import { Login } from './Login';
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -67,68 +68,6 @@ const PAYMENT_ICON: Record<string, typeof QrCode> = {
 };
 
 // ─── Login Screen ─────────────────────────────────────────────────────────────
-
-function LoginScreen({ onLogin }: { onLogin: (emp: ApiEmployee) => void }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPass, setShowPass] = useState(false);
-  const [error, setError] = useState('');
-
-  const loginMutation = useMutation({
-    mutationFn: () => api.employees.login(username, password),
-    onSuccess: (data) => {
-      if (data.ok && data.employee) { onLogin(data.employee); }
-      else { setError(data.message ?? 'Usuário ou senha inválidos.'); }
-    },
-    onError: () => setError('Erro de conexão. Verifique a rede.'),
-  });
-
-  return (
-    <div className="nexus-noise min-h-[100dvh] bg-background flex items-center justify-center p-4">
-      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
-         className="nexus-surface rounded-[2.5rem] p-8 sm:p-12 w-full max-w-md">
-        <div className="flex flex-col items-center mb-8">
-           <div className="w-20 h-20 bg-primary text-white rounded-[1.5rem] flex items-center justify-center text-xl font-display font-black mb-5 shadow-xl">CN</div>
-           <h1 className="text-3xl sm:text-4xl font-display font-black text-foreground">Painel Nexus</h1>
-          <p className="text-gray-500 font-medium mt-1">Acesso exclusivo para equipe.</p>
-        </div>
-
-        <form onSubmit={(e) => { e.preventDefault(); setError(''); loginMutation.mutate(); }} className="space-y-5">
-          <div>
-            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Usuário</label>
-            <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin" autoComplete="username"
-              className="w-full border-2 border-gray-200 rounded-2xl px-5 py-4 text-lg font-bold focus:border-primary focus:outline-none transition-colors" />
-          </div>
-          <div className="relative">
-            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Senha</label>
-            <input type={showPass ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password"
-              className="w-full border-2 border-gray-200 rounded-2xl px-5 py-4 text-lg font-bold pr-14 focus:border-primary focus:outline-none transition-colors" />
-            <button type="button" onClick={() => setShowPass(!showPass)}
-              className="absolute right-4 bottom-4 text-gray-400 hover:text-gray-700 transition-colors">
-              {showPass ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-            </button>
-          </div>
-
-          {error && <p className="text-red-600 font-bold text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>}
-
-          <button type="submit" disabled={loginMutation.isPending}
-            className="w-full bg-primary text-white py-5 rounded-2xl font-black text-xl shadow-xl hover:bg-orange-600 transition-colors active:scale-95 disabled:opacity-70 flex items-center justify-center gap-3">
-            {loginMutation.isPending ? <Loader2 className="w-6 h-6 animate-spin" /> : null}
-            Acessar Painel
-          </button>
-        </form>
-
-        <button onClick={() => window.history.back()}
-          className="w-full mt-4 flex items-center justify-center gap-2 text-gray-400 hover:text-gray-700 font-bold py-3 rounded-2xl hover:bg-gray-100 transition-colors text-sm">
-          <ArrowLeft className="w-4 h-4" /> Voltar ao Totem
-        </button>
-
-      </motion.div>
-    </div>
-  );
-}
-
-// ─── Order Card ───────────────────────────────────────────────────────────────
 
 function OrderCard({ order, products, onAdvance, onCancel, onUpdateObs }: {
   order: ApiOrder;
@@ -252,9 +191,12 @@ export function Kitchen() {
   const qc = useQueryClient();
   const [, setLocation] = useLocation();
   const { session: ownerSession, establishment: ownerEstablishment, loading: ownerLoading } = useOwnerAuth();
-  const [loggedEmployee, setLoggedEmployee] = useState<ApiEmployee | null>(null);
+  const [loggedEmployee, setLoggedEmployee] = useState<ApiEmployee | null>(() => api.employees.getLocalEmployee());
   const [ownerAdminAccess, setOwnerAdminAccess] = useState(false);
-  const [kitchenMode, setKitchenMode] = useState<KitchenMode>('funcionario');
+  const [kitchenMode, setKitchenMode] = useState<KitchenMode>(() => {
+    const employee = api.employees.getLocalEmployee();
+    return employee ? normalizeKitchenRole(employee.role) : 'funcionario';
+  });
   const [activeTab, setActiveTab] = useState<KitchenTab>('pedidos');
   const [pickupCode, setPickupCode] = useState('');
   const [pickupMsg, setPickupMsg] = useState<{ ok: boolean; message: string } | null>(null);
@@ -491,7 +433,7 @@ export function Kitchen() {
     return <div className="flex min-h-screen items-center justify-center bg-background text-sm text-gray-500">Verificando acesso...</div>;
   }
   if (!loggedEmployee) {
-    return <LoginScreen onLogin={(emp) => { setLoggedEmployee(emp); setKitchenMode(normalizeKitchenRole(emp.role)); }} />;
+    return <Login onKitchenLogin={(emp) => { setLoggedEmployee(emp); setKitchenMode(normalizeKitchenRole(emp.role)); }} />;
   }
 
   // ─── Navigation tabs ─────────────────────────────────────────────────────────
@@ -553,6 +495,7 @@ export function Kitchen() {
               setLocation('/estabelecimento');
               return;
             }
+            api.employees.logout();
             setLoggedEmployee(null);
             setActiveTab('pedidos');
           }}

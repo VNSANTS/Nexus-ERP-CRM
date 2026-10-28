@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
+import { api, type ApiEmployee } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { isValidEmail, suggestEmailCorrection } from '../lib/validators';
 
 type Mode = 'login' | 'signup';
 
-export function Login() {
+export function Login({ onKitchenLogin }: { onKitchenLogin?: (employee: ApiEmployee) => void } = {}) {
   const [, navigate] = useLocation();
   const [mode, setMode] = useState<Mode>('login');
   const [submitting, setSubmitting] = useState(false);
+  const [recoverySubmitting, setRecoverySubmitting] = useState(false);
 
   // Login
   const [identifier, setIdentifier] = useState('');
@@ -32,6 +34,17 @@ export function Login() {
 
     setSubmitting(true);
     try {
+      const employeeLogin = await api.employees.login(identifier.trim(), loginSenha);
+      if (employeeLogin.ok && employeeLogin.employee) {
+        if (onKitchenLogin) onKitchenLogin(employeeLogin.employee);
+        else navigate('/cozinha');
+        return;
+      }
+      if (employeeLogin.code !== 'not_employee') {
+        toast.error('E-mail, usuário, telefone, CPF ou senha incorretos.');
+        return;
+      }
+
       let email = identifier.trim().toLowerCase();
 
       // Se não for e-mail, resolve via Edge Function (telefone ou CPF)
@@ -54,6 +67,18 @@ export function Login() {
 
       if (signInError) {
         toast.error('E-mail, telefone, CPF ou senha incorretos.');
+        return;
+      }
+
+      const { data: ownerData, error: ownerError } = await supabase.functions.invoke('obter-estabelecimento-dono');
+      if (ownerData?.establishment) {
+        navigate('/estabelecimento');
+        return;
+      }
+      const ownerResponse = (ownerError as { context?: Response } | null)?.context;
+      if (ownerError && ownerResponse?.status !== 403) {
+        await supabase.auth.signOut();
+        toast.error('Não foi possível identificar o tipo da conta. Tente novamente.');
         return;
       }
 
@@ -113,6 +138,30 @@ export function Login() {
     }
   }
 
+  async function handlePasswordRecovery() {
+    const email = identifier.trim().toLowerCase();
+    if (!isValidEmail(email)) {
+      toast.error('Digite seu e-mail para receber o link de redefinição.');
+      return;
+    }
+    setRecoverySubmitting(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
+      });
+      if (error) {
+        toast.error('Não foi possível enviar o link. Tente novamente.');
+        return;
+      }
+      toast.success('Se o e-mail estiver cadastrado, enviaremos um link para redefinir a senha.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro ao solicitar a redefinição de senha.');
+    } finally {
+      setRecoverySubmitting(false);
+    }
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 py-10">
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sm md:p-8">
@@ -143,12 +192,13 @@ export function Login() {
           <form onSubmit={handleLogin} className="mt-6 space-y-4">
             <div>
               <label className="mb-1 block text-sm font-medium text-neutral-700">
-                E-mail, telefone ou CPF
+                E-mail, usuário, telefone ou CPF
               </label>
               <input
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="E-mail, usuário, telefone ou CPF"
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
                 required
               />
@@ -162,6 +212,16 @@ export function Login() {
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
                 required
               />
+              <div className="mt-2 text-right">
+                <button
+                  type="button"
+                  onClick={handlePasswordRecovery}
+                  disabled={recoverySubmitting}
+                  className="text-xs font-medium text-neutral-500 underline hover:text-neutral-800 disabled:opacity-60"
+                >
+                  {recoverySubmitting ? 'Enviando link...' : 'Esqueci minha senha'}
+                </button>
+              </div>
             </div>
             <button
               type="submit"
@@ -268,21 +328,6 @@ export function Login() {
           Quero cadastrar meu estabelecimento →
         </button>
 
-        <button
-          type="button"
-          onClick={() => navigate('/cozinha')}
-          className="mt-3 w-full text-center text-sm font-medium text-neutral-500 hover:text-neutral-800"
-        >
-          Acesso de funcionário ou ADM → Cozinha
-        </button>
-
-        <button
-          type="button"
-          onClick={() => navigate('/estabelecimento/login')}
-          className="mt-2 w-full text-center text-sm font-medium text-neutral-500 hover:text-neutral-800"
-        >
-          Já tenho um estabelecimento →
-        </button>
       </div>
     </div>
   );

@@ -42,32 +42,25 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const loadSequence = useRef(0);
 
-  async function fetchEstablishment(userId: string): Promise<OwnerEstablishment | null> {
-    const { data: owner } = await supabase
-      .from('establishment_owners')
-      .select('establishment_id')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (!owner) return null;
-
-    const { data: est } = await supabase
-      .from('establishments')
-      .select('id, nome_completo, apelido, email, cpf_cnpj, onboarding_completo')
-      .eq('id', owner.establishment_id)
-      .maybeSingle();
-
-    if (est) {
-      return {
-        id: est.id,
-        nomeCompleto: est.nome_completo,
-        apelido: est.apelido,
-        email: est.email,
-        cpfCnpj: est.cpf_cnpj,
-        onboardingCompleto: est.onboarding_completo,
-      };
+  async function fetchEstablishment(): Promise<OwnerEstablishment | null> {
+    // establishment_owners has RLS without client-side SELECT policies.
+    // Use an authenticated function so only the establishment linked to
+    // the current owner account is returned.
+    const { data, error } = await supabase.functions.invoke('obter-estabelecimento-dono');
+    if (error || data?.error) {
+      throw error ?? new Error(data.error);
     }
-    return null;
+
+    const est = data?.establishment;
+    if (!est?.id) return null;
+    return {
+      id: est.id,
+      nomeCompleto: est.nomeCompleto,
+      apelido: est.apelido,
+      email: est.email,
+      cpfCnpj: est.cpfCnpj,
+      onboardingCompleto: est.onboardingCompleto,
+    };
   }
 
   async function refreshEstablishment() {
@@ -75,7 +68,7 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
       const sequence = ++loadSequence.current;
       setLoading(true);
       try {
-        const loaded = await fetchEstablishment(session.user.id);
+        const loaded = await fetchEstablishment();
         if (sequence === loadSequence.current) setEstablishment(loaded);
       } finally {
         if (sequence === loadSequence.current) setLoading(false);
@@ -101,7 +94,7 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       // Defer Supabase data calls until the auth callback has returned.
       window.setTimeout(() => {
-        void fetchEstablishment(newSession.user.id)
+        void fetchEstablishment()
           .then((loaded) => {
             if (sequence === loadSequence.current) setEstablishment(loaded);
           })

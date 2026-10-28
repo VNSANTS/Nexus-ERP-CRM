@@ -76,3 +76,9 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 - A verificacao de funcionarios ADM nas funcoes de criar e revogar dispositivo agora tambem exige ativo=true.
 - Build do frontend passou. O aviso conhecido de bundle maior que 500 kB permanece.
 - criar-dispositivo-cardapio e revogar-dispositivo-cardapio foram publicadas com o Supabase CLI. Falta commit/push do codigo desta atualizacao.
+## Atualizacao do fluxo do dono (28/10/2026)
+
+- Foi confirmado que establishment_owners tem RLS sem politica de SELECT. O OwnerAuth antigo consultava diretamente essa tabela, portanto nao conseguia carregar o estabelecimento do dono depois do login/recovery.
+- Criada e publicada a Edge Function obter-estabelecimento-dono: valida a sessao Auth e retorna apenas o estabelecimento ligado ao usuario.
+- OwnerAuth agora usa essa funcao. Typecheck e build passaram; permanece o aviso conhecido de bundle acima de 500 kB.
+- Falta commit/push desta correcao para o novo frontend ir ao GitHub Pages. Aguardar o workflow terminar antes de abrir o link de recuperacao de uso unico.

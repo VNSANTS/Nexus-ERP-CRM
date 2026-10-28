@@ -47,30 +47,39 @@ Deno.serve(async (req: Request) => {
       return errorResponse('Muitas tentativas de login. Tente novamente mais tarde.', 429);
     }
 
-    // Cliente "público" (anon), só para fazer o login em si
-    const anon = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-    );
-
-    const email = usernameToEmail(cleanUsername);
-    const { data, error } = await anon.auth.signInWithPassword({ email, password });
-
-    if (error || !data.session || !data.user) {
-      return jsonResponse({ ok: false, message: 'Usuário ou senha inválidos.' }, 401);
-    }
-
-    const meta = data.user.user_metadata as Record<string, unknown>;
-
-    // Confirma que o usuário está marcado como ativo na nossa tabela de negócio
+    // Resolve o funcionário primeiro para aceitar os dois formatos:
+    // username legado e e-mail usado no cadastro pelo onboarding.
     const { data: employeeRow } = await admin
       .from('employees')
       .select('*')
-      .eq('id', data.user.id)
+      .eq('username', cleanUsername)
       .maybeSingle();
 
     if (!employeeRow || !employeeRow.ativo) {
       return jsonResponse({ ok: false, message: 'Funcionário inativo ou não encontrado.' }, 401);
+    }
+
+    if (employeeRow.establishment_id) {
+      const { data: establishments, error: establishmentsError } = await admin
+        .from('establishments')
+        .select('id')
+        .limit(2);
+      if (establishmentsError || establishments?.length !== 1 || establishments[0].id !== employeeRow.establishment_id) {
+        return jsonResponse({ ok: false, message: 'O acesso da cozinha deste estabelecimento ainda não está disponível.' }, 403);
+      }
+    }
+
+    const authUserId = employeeRow.auth_user_id ?? employeeRow.id;
+    const { data: authUserResult } = await admin.auth.admin.getUserById(authUserId);
+    const email = authUserResult.user?.email ?? usernameToEmail(cleanUsername);
+
+    const anon = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+    );
+    const { data, error } = await anon.auth.signInWithPassword({ email, password });
+    if (error || !data.session || !data.user || data.user.id !== authUserId) {
+      return jsonResponse({ ok: false, message: 'Usuário ou senha inválidos.' }, 401);
     }
 
     const { password: _omit, ...safeEmployee } = employeeRow;
@@ -79,7 +88,7 @@ Deno.serve(async (req: Request) => {
       ok: true,
       token: data.session.access_token,
       refreshToken: data.session.refresh_token,
-      employee: { ...safeEmployee, nome: meta.nome ?? safeEmployee.nome, role: meta.role ?? safeEmployee.role },
+      employee: safeEmployee,
     });
   } catch (err) {
     console.error(err);

@@ -270,6 +270,14 @@ export function Login() {
 
         <button
           type="button"
+          onClick={() => navigate('/cozinha')}
+          className="mt-3 w-full text-center text-sm font-medium text-neutral-500 hover:text-neutral-800"
+        >
+          Acesso de funcionário ou ADM → Cozinha
+        </button>
+
+        <button
+          type="button"
           onClick={() => navigate('/estabelecimento/login')}
           className="mt-2 w-full text-center text-sm font-medium text-neutral-500 hover:text-neutral-800"
         >

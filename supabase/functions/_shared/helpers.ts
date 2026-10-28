@@ -138,9 +138,16 @@ export async function requireEmployee(req: Request): Promise<EmployeeClaims | nu
     employee = byId;
   }
 
-  // These legacy APIs operate on the original, global canteen tables and
-  // do not filter by establishment. Fail closed for tenant-scoped staff.
+  // These legacy APIs operate on original global tables. Scoped accounts
+  // may use them only while the linked establishment is the sole one.
   if (authIdError) return null;
+  if (employee && employee.ativo === true && employee.establishment_id != null) {
+    const { data: establishments, error: establishmentsError } = await supabase
+      .from('establishments')
+      .select('id')
+      .limit(2);
+    if (establishmentsError || establishments?.length !== 1 || establishments[0].id !== employee.establishment_id) return null;
+  }
   if (!employee) {
     // Temporary bridge for the establishment owner using the legacy admin
     // screen. This is safe only while the project has a single establishment,

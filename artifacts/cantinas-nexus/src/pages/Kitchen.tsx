@@ -33,6 +33,12 @@ type KitchenTab =
 
 type KitchenMode = 'funcionario' | 'admin';
 
+function normalizeKitchenRole(role: string): KitchenMode {
+  return ['admin', 'adm', 'administrador'].includes(role.trim().toLocaleLowerCase('pt-BR'))
+    ? 'admin'
+    : 'funcionario';
+}
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 function uid() { return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`; }
@@ -485,7 +491,7 @@ export function Kitchen() {
     return <div className="flex min-h-screen items-center justify-center bg-background text-sm text-gray-500">Verificando acesso...</div>;
   }
   if (!loggedEmployee) {
-    return <LoginScreen onLogin={(emp) => { setLoggedEmployee(emp); setKitchenMode(emp.role as KitchenMode); }} />;
+    return <LoginScreen onLogin={(emp) => { setLoggedEmployee(emp); setKitchenMode(normalizeKitchenRole(emp.role)); }} />;
   }
 
   // ─── Navigation tabs ─────────────────────────────────────────────────────────

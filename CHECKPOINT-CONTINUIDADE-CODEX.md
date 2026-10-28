@@ -102,3 +102,10 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 
 - Depois de atualizar a senha, OwnerAuth remove hash e parametros de callback da URL. Assim, atualizar a tela nao inicia novamente o fluxo PASSWORD_RECOVERY.
 - Typecheck e build passaram. Falta commit/push desta limpeza de URL.
+
+### Finalizacao da tentativa de funcionario
+
+- Confirmado no log: Auth recusou o email existente (email_exists); nenhum funcionario duplicado foi criado.
+- O dono pode pular a criacao e finalizar com a conta principal. Commit 156e866 incluiu essa opcao; as Edge Functions criar-funcionario e finalizar-onboarding foram publicadas.
+- Commit b68f179 limpa tokens de recovery depois da definicao de senha. GitHub Pages workflow 40734998738 concluiu build e deploy com sucesso.
+- Proximo passo: atualizar/recarregar a pagina, selecionar Continuar sem funcionario e concluir. Se o reload reapresentar Defina sua senha por causa do link ja usado, entrar pelo login de estabelecimento com a senha definida e retornar ao onboarding.

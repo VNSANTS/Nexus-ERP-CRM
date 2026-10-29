@@ -206,4 +206,4 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 
 - Há alterações locais em `supabase/functions/_shared/helpers.ts`, `supabase/functions/gerenciar-dados/index.ts` e a nova pasta `supabase/migrations/`.
 - `supabase/.temp/cli-latest` estava modificado antes desta sessão; não incluir em commit. Conferir `git status -sb` antes de continuar.
-- O checkpoint anterior está em `c3d61b9`; o frontend foi publicado no commit `ce26568`. Esta nova atualização do checkpoint ainda está local; os patches de helper, função e migração permanecem locais e ainda não foram publicados nem aplicados ao Supabase.
+- O checkpoint anterior está em `c3d61b9`; o frontend foi publicado no commit `ce26568` e este checkpoint foi atualizado no commit `6a9e0e1`. Os patches de helper, função e migração permanecem locais e ainda não foram publicados nem aplicados ao Supabase.

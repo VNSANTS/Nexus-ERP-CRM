@@ -178,6 +178,10 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 
 - `supabase/functions/_shared/helpers.ts`: `requireEmployee` passa a devolver estabelecimento e flags de acesso lidas do banco, valida estabelecimento ativo e inclui fallback de compatibilidade para registros legados sem estabelecimento quando há exatamente um.
 - `supabase/functions/gerenciar-dados/index.ts`: adiciona verificação de permissões e filtros por `establishment_id` em ações administrativas/financeiras.
+- `supabase/functions/pedidos/index.ts`: checkout público agora valida estabelecimento ativo, limita tentativas, valida carrinho/estoque e grava com o tenant; `manual` exige autenticação e acesso de caixa/ADM; confirmar retirada exige sessão e permissão; ações de cozinha filtram pelo estabelecimento.
+- `supabase/functions/estoque`, `clientes`, `promocoes`, `fornecedores` e `gerenciar-funcionarios`: consultas e escritas passaram a incluir o tenant autenticado e controles de permissão. CRM, promoções e fornecedores exigem ADM; estoque exige cozinha/ADM. Funcionários podem ter acessos de cozinha/caixa/ADM configurados no formulário, com validação no servidor e proteção para manter um ADM ativo.
+- `supabase/functions/_shared/security.ts`: rate limit falha de forma fechada quando a leitura/gravação no log falha.
+- `artifacts/cantinas-nexus/src/lib/api.ts` e `src/pages/Kitchen.tsx`: confirmação de retirada passou a enviar sessão; formulário de funcionário permite editar permissões.
 - `supabase/migrations/20261029170000_establishment_tenant_isolation.sql`: rascunho para adicionar tenant IDs, backfill, chaves estrangeiras compostas e remover leituras públicas sensíveis. A revisão contra o esquema vivo corrigiu a ordem de criação/backfill, removeu o uso de `min(uuid)`, antepôs a chave única de clientes à FK composta e incluiu o endurecimento de `cleanup_rate_limit_log()`. Ainda precisa de revisão integral contra as operações do produto. NÃO aplicar nem fazer deploy parcial.
 - `artifacts/cantinas-nexus/src/App.tsx`: páginas convertidas para carregamento sob demanda; commit `ce26568` enviado para `main`. O GitHub Actions run `40925947341` concluiu build e deploy com sucesso.
 - Essas alterações são uma etapa incompleta, não uma entrega comercial pronta. Em especial, outras Edge Functions e chamadas diretas do frontend ainda não foram migradas para `establishment_id`.
@@ -186,6 +190,7 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 ### Verificações executadas
 
 - `npm.cmd run typecheck` em `artifacts/cantinas-nexus`: passou.
+- Após os controles de permissão no formulário de funcionários, `npm.cmd run typecheck` passou novamente.
 - `npm.cmd run build` em `artifacts/cantinas-nexus`: passou. A primeira saída desta sessão manteve chunk de aprox. 850 kB; depois, `App.tsx` passou a carregar as páginas sob demanda (React `lazy`/`Suspense`) e o chunk inicial caiu para aprox. 486 kB, sem aviso de chunk acima de 500 kB. Kitchen (92 kB) e páginas são carregadas em chunks próprios.
 - `git diff --check`: passou antes da última revisão do SQL; repetir após as alterações pendentes. Não foi possível validar Edge Functions com Deno porque `deno` não está instalado/disponível neste ambiente.
 - Nenhum teste automatizado foi executado.

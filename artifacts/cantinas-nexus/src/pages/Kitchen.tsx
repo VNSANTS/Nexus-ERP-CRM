@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import {
   api, formatCurrency, isOrderLate, computeOrderEta, computeCustomerInsights,
+  normalizePhoneIdentity,
   PAYMENT_LABELS, CATEGORY_LABELS,
   type ApiOrder, type ApiProduct, type ApiEmployee, type ApiStockItem,
   type ApiPromotion, type ApiCustomer, type ApiCustomerInteraction,
@@ -356,6 +357,10 @@ export function Kitchen() {
   // ─── CRM forms ───────────────────────────────────────────────────────────────
 
   const [crmTab, setCrmTab] = useState<'clientes' | 'interacoes'>('clientes');
+  const [crmSearch, setCrmSearch] = useState('');
+  const [crmSegment, setCrmSegment] = useState<'todos' | 'novo' | 'ativo' | 'em-risco' | 'inativo'>('todos');
+  const [crmSort, setCrmSort] = useState<'recentes' | 'maior-gasto' | 'mais-pedidos' | 'alfabetica'>('recentes');
+  const [crmVisibleCount, setCrmVisibleCount] = useState(30);
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
   const [interactionForm, setInteractionForm] = useState<{ tipo: string; nota: string } | null>(null);
   const [customerForm, setCustomerForm] = useState<{ telefone: string; nome: string; tags: string; observacoes: string } | null>(null);
@@ -363,10 +368,12 @@ export function Kitchen() {
   const addInteractionMut = useMutation({
     mutationFn: () => api.customers.addInteraction(selectedCustomer!, interactionForm!.tipo, interactionForm!.nota),
     onSuccess: () => { toast.success('Interação registrada!'); setInteractionForm(null); qc.invalidateQueries({ queryKey: ['customer-interactions'] }); qc.invalidateQueries({ queryKey: ['customers'] }); },
+    onError: (error: Error) => toast.error(error.message || 'Não foi possível salvar a interação.'),
   });
   const upsertCustomerMut = useMutation({
     mutationFn: () => api.customers.upsert(customerForm!.telefone, { nome: customerForm!.nome, tags: customerForm!.tags.split(',').map((t) => t.trim()).filter(Boolean), observacoes: customerForm!.observacoes }),
     onSuccess: () => { toast.success('Cliente salvo!'); setCustomerForm(null); qc.invalidateQueries({ queryKey: ['customers'] }); },
+    onError: (error: Error) => toast.error(error.message || 'Não foi possível salvar o cliente.'),
   });
 
   // ─── Supplier forms ──────────────────────────────────────────────────────────
@@ -407,6 +414,15 @@ export function Kitchen() {
       qc.invalidateQueries({ queryKey: ['report-hourly'] });
     },
   });
+  const confirmTransactionMut = useMutation({
+    mutationFn: api.reports.confirmTransaction,
+    onSuccess: () => {
+      toast.success('Pagamento confirmado.');
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+      qc.invalidateQueries({ queryKey: ['report-daily'] });
+    },
+    onError: (error: Error) => toast.error(error.message || 'Não foi possível confirmar o pagamento.'),
+  });
 
   // ─── derived data ────────────────────────────────────────────────────────────
 
@@ -415,10 +431,38 @@ export function Kitchen() {
     const now = new Date();
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
   });
+  const todayTransactions = transactions.filter((transaction: ApiTransaction) => {
+    const date = new Date(transaction.createdAt);
+    const now = new Date();
+    return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
+  });
 
   const activeOrders = todayOrders.filter((o: ApiOrder) => !['retirado', 'cancelado'].includes(o.status));
   const lowStockItems = stock.filter((s: ApiStockItem) => s.quantidade <= s.minimo);
   const customerInsights = computeCustomerInsights(orders, customers);
+  const crmFilteredCustomers = customerInsights
+    .filter((customer) => crmSegment === 'todos' || customer.status === crmSegment)
+    .filter((customer) => {
+      const query = crmSearch.trim().toLocaleLowerCase('pt-BR');
+      if (!query) return true;
+      const phoneQuery = normalizePhoneIdentity(query);
+      return customer.nome.toLocaleLowerCase('pt-BR').includes(query)
+        || (phoneQuery.length > 0 && normalizePhoneIdentity(customer.telefone).includes(phoneQuery))
+        || customer.tags.some((tag) => tag.toLocaleLowerCase('pt-BR').includes(query));
+    })
+    .sort((a, b) => {
+      if (crmSort === 'maior-gasto') return b.totalGasto - a.totalGasto;
+      if (crmSort === 'mais-pedidos') return b.pedidos - a.pedidos;
+      if (crmSort === 'alfabetica') return (a.nome || a.telefone).localeCompare(b.nome || b.telefone, 'pt-BR');
+      return (b.ultimoPedidoEm ?? 0) - (a.ultimoPedidoEm ?? 0);
+    });
+  const crmSummary = {
+    total: customerInsights.length,
+    ativos: customerInsights.filter((customer) => customer.status === 'ativo').length,
+    recuperar: customerInsights.filter((customer) => customer.status === 'em-risco' || customer.status === 'inativo').length,
+    novos: customerInsights.filter((customer) => customer.status === 'novo').length,
+    receita: customerInsights.reduce((total, customer) => total + customer.totalGasto, 0),
+  };
 
   const manualTotal = Object.entries(manualItems)
     .filter(([, q]) => q > 0)
@@ -846,11 +890,12 @@ export function Kitchen() {
         {activeTab === 'dashboard' && (
           <div className="max-w-5xl mx-auto space-y-6">
             <h2 className="text-2xl font-display font-black text-gray-900">Dashboard de Hoje</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
               {[
-                { label: 'Faturamento', value: formatCurrency(dailyReport?.totalVendas ?? 0), icon: DollarSign, color: 'bg-emerald-500' },
+                { label: 'Recebido hoje', value: formatCurrency(dailyReport?.totalVendas ?? 0), icon: DollarSign, color: 'bg-emerald-500' },
+                { label: 'Aguardando pagamento', value: formatCurrency(dailyReport?.totalPendente ?? 0), icon: Clock, color: 'bg-amber-500' },
                 { label: 'Pedidos', value: dailyReport?.quantidadePedidos ?? 0, icon: ShoppingBag, color: 'bg-blue-500' },
-                { label: 'Ticket Médio', value: formatCurrency(dailyReport?.ticketMedio ?? 0), icon: TrendingUp, color: 'bg-primary' },
+                { label: 'Ticket recebido', value: formatCurrency(dailyReport?.ticketMedio ?? 0), icon: TrendingUp, color: 'bg-primary' },
                 { label: 'Ativos Agora', value: activeOrders.length, icon: Activity, color: 'bg-amber-500' },
               ].map((card) => (
                 <div key={card.label} className="bg-white rounded-2xl shadow-sm p-5">
@@ -961,10 +1006,7 @@ export function Kitchen() {
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="p-5 border-b border-gray-100 flex items-center justify-between">
                 <h3 className="font-black text-gray-700">Transações do Dia</h3>
-                <span className="text-sm font-bold text-gray-400">{transactions.filter((t: ApiTransaction) => {
-                  const d = new Date(t.createdAt); const now = new Date();
-                  return d.getDate() === now.getDate() && d.getMonth() === now.getMonth();
-                }).length} transações</span>
+                <span className="text-sm font-bold text-gray-400">{todayTransactions.length} transações</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -976,17 +1018,35 @@ export function Kitchen() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {transactions.slice(0, 50).map((t: ApiTransaction) => (
+                    {todayTransactions.map((t: ApiTransaction) => (
                       <tr key={t.id}>
                         <td className="px-4 py-3 font-black text-gray-900">#{t.orderCode}</td>
                         <td className="px-4 py-3 font-bold text-gray-600">{PAYMENT_LABELS[t.method] ?? t.method}</td>
                         <td className="px-4 py-3 font-black text-primary">{formatCurrency(Number(t.valor))}</td>
                         <td className="px-4 py-3">
-                          <span className={`px-2 py-1 rounded-full text-xs font-black ${t.status === 'estornado' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>{t.status}</span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`rounded-full px-2 py-1 text-xs font-black ${
+                              t.status === 'confirmado' ? 'bg-emerald-100 text-emerald-700' :
+                              t.status === 'pendente' ? 'bg-amber-100 text-amber-800' :
+                              t.status === 'estornado' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
+                              {t.status === 'confirmado' ? 'Recebido' : t.status === 'pendente' ? 'Pendente' : t.status === 'estornado' ? 'Estornado' : 'Cancelado'}
+                            </span>
+                            {t.status === 'pendente' && (
+                              <button type="button" onClick={() => confirmTransactionMut.mutate(t.id)}
+                                disabled={confirmTransactionMut.isPending}
+                                title="Use depois de receber o pagamento no balcão ou na maquininha"
+                                className="rounded-lg border border-emerald-200 px-2 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">
+                                Confirmar recebimento
+                              </button>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-400 font-medium">{new Date(t.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
                       </tr>
                     ))}
+                    {todayTransactions.length === 0 && (
+                      <tr><td colSpan={5} className="px-4 py-10 text-center text-sm text-gray-400">Nenhum pagamento registrado hoje.</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1013,11 +1073,32 @@ export function Kitchen() {
         {activeTab === 'crm' && kitchenMode === 'admin' && (
           <div className="max-w-5xl mx-auto space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
-              <h2 className="text-2xl font-display font-black text-gray-900">CRM — Clientes</h2>
+              <div>
+                <h2 className="text-2xl font-display font-black text-gray-900">Relacionamento com clientes</h2>
+                <p className="mt-1 text-sm text-gray-500">Entenda quem compra, acompanhe retornos e encontre clientes para reativar.</p>
+              </div>
               <button onClick={() => setCustomerForm({ telefone: '', nome: '', tags: '', observacoes: '' })}
                 className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-orange-600 transition-colors flex items-center gap-2">
                 <Plus className="w-4 h-4" /> Novo Cliente
               </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+              {[
+                { label: 'Clientes', value: crmSummary.total, tone: 'text-gray-900', icon: Users },
+                { label: 'Ativos · últimos 14 dias', value: crmSummary.ativos, tone: 'text-emerald-700', icon: Activity },
+                { label: 'Para reativar', value: crmSummary.recuperar, tone: 'text-amber-700', icon: MessageCircle },
+                { label: 'Sem compras', value: crmSummary.novos, tone: 'text-blue-700', icon: UserPlus },
+                { label: 'Vendas identificadas', value: formatCurrency(crmSummary.receita), tone: 'text-primary', icon: TrendingUp },
+              ].map(({ label, value, tone, icon: Icon }) => (
+                <div key={label} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-gray-500">{label}</p>
+                    <Icon className={`h-4 w-4 shrink-0 ${tone}`} />
+                  </div>
+                  <p className={`mt-2 text-xl font-black ${tone}`}>{value}</p>
+                </div>
+              ))}
             </div>
 
             <div className="flex gap-2 bg-white rounded-2xl shadow-sm p-1 w-fit">
@@ -1031,19 +1112,57 @@ export function Kitchen() {
 
             {crmTab === 'clientes' && (
               <div className="space-y-4">
-                {/* Search */}
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buscar cliente por nome ou telefone..."
-                    className="w-full border-2 border-gray-200 rounded-xl pl-10 pr-4 py-3 font-medium focus:border-primary focus:outline-none" />
+                <div className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm lg:flex-row lg:items-center">
+                  <div className="relative min-w-0 flex-1">
+                    <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input value={crmSearch} onChange={(e) => { setCrmSearch(e.target.value); setCrmVisibleCount(30); }} placeholder="Buscar nome, telefone ou tag..."
+                      className="w-full rounded-xl border border-gray-200 py-3 pl-10 pr-4 font-medium focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10" />
+                  </div>
+                  <select value={crmSort} onChange={(e) => setCrmSort(e.target.value as typeof crmSort)}
+                    className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm font-semibold text-gray-700 focus:border-primary focus:outline-none">
+                    <option value="recentes">Compra mais recente</option>
+                    <option value="maior-gasto">Maior valor gasto</option>
+                    <option value="mais-pedidos">Mais pedidos</option>
+                    <option value="alfabetica">Nome A–Z</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => downloadCsv(`clientes-crm-${new Date().toISOString().slice(0, 10)}.csv`, [
+                      ['Nome', 'Telefone', 'Segmento', 'Pedidos', 'Valor gasto', 'Ticket médio', 'Última compra', 'Tags', 'Observações'],
+                      ...crmFilteredCustomers.map((customer) => [
+                        customer.nome || 'Sem nome', customer.telefone, customer.status,
+                        customer.pedidos, customer.totalGasto.toFixed(2), customer.ticketMedio.toFixed(2),
+                        customer.ultimoPedidoEm ? new Date(customer.ultimoPedidoEm).toLocaleDateString('pt-BR') : 'Sem compras',
+                        customer.tags.join(', '), customer.observacoes,
+                      ]),
+                    ])}
+                    disabled={crmFilteredCustomers.length === 0}
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Download className="h-4 w-4" /> Exportar segmento
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    ['todos', 'Todos', crmSummary.total], ['ativo', 'Ativos', crmSummary.ativos],
+                    ['em-risco', 'Em risco', customerInsights.filter((c) => c.status === 'em-risco').length],
+                    ['inativo', 'Inativos', customerInsights.filter((c) => c.status === 'inativo').length],
+                    ['novo', 'Sem compras', crmSummary.novos],
+                  ] as const).map(([segment, label, count]) => (
+                    <button key={segment} type="button" onClick={() => { setCrmSegment(segment); setCrmVisibleCount(30); }}
+                      className={`rounded-full px-4 py-2 text-sm font-bold transition ${crmSegment === segment ? 'bg-[#172333] text-white shadow-sm' : 'border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900'}`}>
+                      {label}<span className={`ml-2 ${crmSegment === segment ? 'text-white/70' : 'text-gray-400'}`}>{count}</span>
+                    </button>
+                  ))}
+                  <p className="ml-auto self-center text-sm text-gray-400">{crmFilteredCustomers.length} resultado(s)</p>
                 </div>
 
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {customerInsights
-                    .filter((c) => !searchQuery || c.nome.toLowerCase().includes(searchQuery.toLowerCase()) || c.telefone.includes(searchQuery))
-                    .slice(0, 30)
+                  {crmFilteredCustomers
+                    .slice(0, crmVisibleCount)
                     .map((c) => (
-                      <div key={c.telefone} className="bg-white rounded-2xl shadow-sm p-5 space-y-3">
+                      <div key={c.telefone} className="flex flex-col rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
                         <div className="flex items-start justify-between">
                           <div>
                             <p className="font-black text-gray-900">{c.nome || 'Sem nome'}</p>
@@ -1054,10 +1173,10 @@ export function Kitchen() {
                             c.status === 'em-risco' ? 'bg-amber-100 text-amber-700 border-amber-300' :
                             c.status === 'inativo' ? 'bg-red-100 text-red-700 border-red-300' :
                             'bg-gray-100 text-gray-600 border-gray-300'}`}>
-                            {c.status}
+                            {c.status === 'em-risco' ? 'Em risco' : c.status === 'inativo' ? 'Inativo' : c.status === 'novo' ? 'Sem compras' : 'Ativo'}
                           </span>
                         </div>
-                        <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                           <div className="bg-gray-50 rounded-xl p-2">
                             <p className="text-xs text-gray-400 font-bold">Pedidos</p>
                             <p className="font-black text-gray-900">{c.pedidos}</p>
@@ -1076,42 +1195,89 @@ export function Kitchen() {
                             {c.tags.map((tag) => <span key={tag} className="bg-orange-100 text-primary text-xs font-bold px-2 py-0.5 rounded-full">{tag}</span>)}
                           </div>
                         )}
-                        {c.diasSemComprar !== null && c.diasSemComprar > 0 && (
-                          <p className="text-xs text-gray-400 font-medium">Última compra: {c.diasSemComprar} dias atrás</p>
-                        )}
-                        <div className="flex gap-2 pt-1">
+                        <p className="mt-3 text-xs font-medium text-gray-400">
+                          {c.ultimoPedidoEm ? `Última compra ${new Date(c.ultimoPedidoEm).toLocaleDateString('pt-BR')}` : 'Ainda sem compras registradas'}
+                        </p>
+                        <div className="mt-auto flex gap-2 pt-4">
+                          <button onClick={() => {
+                            const digits = c.telefone.replace(/\D/g, '');
+                            const phone = c.telefone.trim().startsWith('+') || digits.startsWith('55') ? digits : `55${digits}`;
+                            const message = `Olá${c.nome ? `, ${c.nome}` : ''}! Como posso ajudar?`;
+                            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+                          }}
+                            className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 py-2 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100 flex items-center justify-center gap-1">
+                            <MessageCircle className="h-3 w-3" /> WhatsApp
+                          </button>
                           <button onClick={() => { setSelectedCustomer(c.telefone); setInteractionForm({ tipo: 'whatsapp', nota: '' }); }}
-                            className="flex-1 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg py-2 font-bold hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1">
-                            <MessageCircle className="w-3 h-3" /> Interação
+                            className="flex-1 rounded-lg border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50 flex items-center justify-center gap-1">
+                            <Plus className="h-3 w-3" /> Registrar
                           </button>
                           <button onClick={() => setCustomerForm({ telefone: c.telefone, nome: c.nome, tags: c.tags.join(', '), observacoes: c.observacoes })}
-                            className="flex-1 text-xs bg-gray-50 text-gray-700 border border-gray-200 rounded-lg py-2 font-bold hover:bg-gray-100 transition-colors flex items-center justify-center gap-1">
+                            className="flex-1 rounded-lg border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50 flex items-center justify-center gap-1">
                             <Edit2 className="w-3 h-3" /> Editar
                           </button>
                         </div>
                       </div>
                     ))}
                 </div>
+                {crmFilteredCustomers.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
+                    <Users className="mx-auto h-8 w-8 text-gray-300" />
+                    <p className="mt-3 font-bold text-gray-700">Nenhum cliente neste segmento</p>
+                    <p className="mt-1 text-sm text-gray-500">Tente outra busca ou selecione outro filtro.</p>
+                  </div>
+                )}
+                {crmVisibleCount < crmFilteredCustomers.length && (
+                  <button type="button" onClick={() => setCrmVisibleCount((count) => count + 30)}
+                    className="w-full rounded-xl border border-gray-200 bg-white py-3 text-sm font-bold text-gray-600 hover:bg-gray-50">
+                    Carregar mais {Math.min(30, crmFilteredCustomers.length - crmVisibleCount)} clientes
+                  </button>
+                )}
               </div>
             )}
 
             {crmTab === 'interacoes' && (
-              <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>{['Telefone', 'Tipo', 'Nota', 'Data'].map((h) => <th key={h} className="text-left px-4 py-3 text-xs font-black text-gray-400 uppercase tracking-wider">{h}</th>)}</tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {interactions.slice(0, 50).map((i: ApiCustomerInteraction) => (
-                      <tr key={i.id}>
-                        <td className="px-4 py-3 font-bold text-gray-800">{i.telefone}</td>
-                        <td className="px-4 py-3"><span className="bg-blue-100 text-blue-700 text-xs font-black px-2 py-0.5 rounded-full">{i.tipo}</span></td>
-                        <td className="px-4 py-3 text-sm text-gray-600 font-medium max-w-xs truncate">{i.nota}</td>
-                        <td className="px-4 py-3 text-xs text-gray-400 font-medium">{new Date(i.createdAt).toLocaleDateString('pt-BR')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+                <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+                  <div>
+                    <h3 className="font-black text-gray-900">Histórico de contatos</h3>
+                    <p className="mt-1 text-sm text-gray-500">{interactions.length} interações registradas, da mais recente para a mais antiga.</p>
+                  </div>
+                  <MessageCircle className="h-5 w-5 text-emerald-600" />
+                </div>
+                {interactions.length === 0 ? (
+                  <div className="px-6 py-12 text-center">
+                    <MessageCircle className="mx-auto h-8 w-8 text-gray-300" />
+                    <p className="mt-3 font-bold text-gray-700">Nenhuma interação ainda</p>
+                    <p className="mt-1 text-sm text-gray-500">Registre ligações, conversas e atendimentos nos cartões de clientes.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[640px]">
+                      <thead className="bg-gray-50">
+                        <tr>{['Cliente', 'Tipo', 'Registro', 'Data'].map((h) => <th key={h} className="px-4 py-3 text-left text-xs font-black uppercase tracking-wider text-gray-400">{h}</th>)}</tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {interactions.slice(0, 100).map((i: ApiCustomerInteraction) => {
+                          const customerName = customers.find((customer: ApiCustomer) => normalizePhoneIdentity(customer.telefone) === normalizePhoneIdentity(i.telefone))?.nome;
+                          const typeLabels: Record<string, string> = { ligacao: 'Ligação', whatsapp: 'WhatsApp', presencial: 'Presencial', outro: 'Outro' };
+                          return (
+                            <tr key={i.id} className="hover:bg-gray-50/70">
+                              <td className="px-4 py-3">
+                                <p className="font-bold text-gray-800">{customerName || i.telefone}</p>
+                                {customerName && <p className="text-xs text-gray-400">{i.telefone}</p>}
+                              </td>
+                              <td className="px-4 py-3"><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{typeLabels[i.tipo] ?? i.tipo}</span></td>
+                              <td className="max-w-sm truncate px-4 py-3 text-sm text-gray-600">{i.nota}</td>
+                              <td className="whitespace-nowrap px-4 py-3 text-xs font-medium text-gray-400">{new Date(i.createdAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    {interactions.length > 100 && <p className="border-t border-gray-100 px-5 py-3 text-xs text-gray-400">Mostrando as 100 interações mais recentes.</p>}
+                  </div>
+                )}
               </div>
             )}
 

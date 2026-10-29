@@ -26,9 +26,9 @@ function effectivePrice(productId: string, basePrice: number, promos: Promotion[
 
 async function createOrder(
   supabase: ReturnType<typeof createClient>,
-  params: { cartItems: CartItem[]; paymentMethod: string; observacoes?: string; telefone?: string },
+  params: { cartItems: CartItem[]; paymentMethod: string; observacoes?: string; telefone?: string; transactionStatus?: 'pendente' | 'confirmado' },
 ) {
-  const { cartItems, paymentMethod, observacoes, telefone } = params;
+  const { cartItems, paymentMethod, observacoes, telefone, transactionStatus = 'pendente' } = params;
   if (!cartItems?.length) throw { status: 400, message: 'Carrinho vazio.' };
 
   const [{ data: promos }, { data: allProducts }] = await Promise.all([
@@ -104,7 +104,7 @@ async function createOrder(
     order_code: code,
     method: paymentMethod,
     valor: total,
-    status: 'confirmado',
+    status: transactionStatus,
     created_at: now,
   });
 
@@ -147,6 +147,7 @@ Deno.serve(async (req: Request) => {
         paymentMethod: body.paymentMethod,
         observacoes: body.observacoes,
         telefone: body.telefone,
+        transactionStatus: action === 'manual' ? 'confirmado' : 'pendente',
       });
       return jsonResponse(result, 201);
     }
@@ -192,7 +193,8 @@ Deno.serve(async (req: Request) => {
       if (!updated) return errorResponse('Pedido não encontrado.', 404);
 
       if (status === 'cancelado') {
-        await supabase.from('transactions').update({ status: 'estornado' }).eq('order_id', id);
+        await supabase.from('transactions').update({ status: 'estornado' }).eq('order_id', id).eq('status', 'confirmado');
+        await supabase.from('transactions').update({ status: 'cancelado' }).eq('order_id', id).eq('status', 'pendente');
       }
       return jsonResponse(updated);
     }

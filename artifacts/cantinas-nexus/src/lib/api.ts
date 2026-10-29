@@ -313,6 +313,7 @@ export const api = {
     products: () => callFn<ApiProductRanking[]>('gerenciar-dados', { action: 'report-products' }),
     hourly: () => callFn<ApiHourlyBucket[]>('gerenciar-dados', { action: 'report-hourly' }),
     transactions: () => callFn<ApiTransaction[]>('gerenciar-dados', { action: 'report-transactions' }),
+    confirmTransaction: (id: string) => callFn<{ ok: boolean }>('gerenciar-dados', { action: 'confirm-transaction', id }),
     waste: () => callFn<ApiWasteReport>('gerenciar-dados', { action: 'report-waste' }),
     loyalty: () => callFn<ApiLoyaltyRecord[]>('gerenciar-dados', { action: 'report-loyalty' }),
     clearSales: () => callFn<{ ok: boolean }>('gerenciar-dados', { action: 'clear-sales' }),
@@ -456,6 +457,8 @@ export interface ApiSettings {
 
 export interface ApiDailyReport {
   totalVendas: number;
+  totalPendente: number;
+  pagamentosPendentes: number;
   quantidadePedidos: number;
   ticketMedio: number;
   byMethod: Record<string, number>;
@@ -560,6 +563,12 @@ export function computeOrderEta(order: ApiOrder, products: ApiProduct[]): { min:
   return { min, max };
 }
 
+export function normalizePhoneIdentity(phone: string): string {
+  let digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) digits = digits.slice(2);
+  return digits;
+}
+
 export function computeCustomerInsights(
   orders: ApiOrder[],
   customers: ApiCustomer[]
@@ -577,7 +586,7 @@ export function computeCustomerInsights(
 }> {
   const map = new Map<string, { pedidos: number; total: number; ultimo: number }>();
   for (const order of orders) {
-    const tel = order.telefone.trim();
+    const tel = normalizePhoneIdentity(order.telefone);
     if (!tel || order.status === 'cancelado') continue;
     const entry = map.get(tel) ?? { pedidos: 0, total: 0, ultimo: 0 };
     entry.pedidos += 1;
@@ -585,12 +594,22 @@ export function computeCustomerInsights(
     entry.ultimo = Math.max(entry.ultimo, new Date(order.createdAt).getTime());
     map.set(tel, entry);
   }
-  const telefones = new Set<string>([...map.keys(), ...customers.map((c) => c.telefone)]);
+  const customerByPhone = new Map<string, ApiCustomer>();
+  for (const customer of customers) {
+    const key = normalizePhoneIdentity(customer.telefone);
+    if (!key) continue;
+    const previous = customerByPhone.get(key);
+    if (!previous || new Date(customer.updatedAt).getTime() > new Date(previous.updatedAt).getTime()) {
+      customerByPhone.set(key, customer);
+    }
+  }
+  const telefones = new Set<string>([...map.keys(), ...customerByPhone.keys()]);
   const now = Date.now();
   const result: ReturnType<typeof computeCustomerInsights> = [];
-  for (const telefone of telefones) {
-    const agg = map.get(telefone);
-    const cadastro = customers.find((c) => c.telefone === telefone);
+  for (const phoneKey of telefones) {
+    const agg = map.get(phoneKey);
+    const cadastro = customerByPhone.get(phoneKey);
+    const telefone = cadastro?.telefone ?? phoneKey;
     const diasSemComprar = agg?.ultimo ? Math.floor((now - agg.ultimo) / (24 * 60 * 60 * 1000)) : null;
     let status: 'novo' | 'ativo' | 'em-risco' | 'inativo' = 'novo';
     if (agg) {

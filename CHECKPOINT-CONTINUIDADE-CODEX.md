@@ -141,3 +141,19 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 
 - Vinícius confirmou que o formulário de login unificado está funcionando. Considerar esta etapa validada e seguir para a próxima solicitação do projeto; só reabrir a investigação do login se surgir um novo erro relatado.
 - O próximo trabalho não foi especificado ainda.
+## Revisao de produto e CRM (29/10/2026)
+
+- CRM reorganizado para trabalho comercial: indicadores, filtros por segmento, busca por nome/telefone/tag, ordenacao, exportacao CSV, atalho de WhatsApp, registro de contato e carregamento progressivo. Telefones com formatos brasileiros diferentes sao agrupados pela identidade normalizada.
+- Painel do estabelecimento recebeu navegacao revisada, com um unico acesso para Administracao e Cozinha, mais Cardapio e Dispositivos. A tela de dispositivos agora direciona claramente ao painel operacional.
+- Removido o QR Pix demonstrativo que nao processava pagamentos. Pedidos publicos ficam pendentes ate a equipe confirmar o recebimento; vendas manuais do caixa sao registradas como recebidas. Cancelamentos distinguem pagamentos pendentes de pagamentos confirmados.
+- Dashboard e relatorio diario passaram a separar recebido e pendente; o inicio do dia usa o fuso de Sao Paulo. Administradores podem confirmar o recebimento pelo relatorio de transacoes.
+- Typecheck e build passaram. Build ainda informa bundle principal de aproximadamente 850 KB (acima do limite de aviso de 500 KB).
+
+### Lacunas antes de vender como SaaS multiestabelecimento
+
+- O cardapio, os pedidos e as tabelas operacionais ainda usam dados globais. A cozinha legada so e liberada quando existe exatamente um estabelecimento. Nao cadastrar clientes de estabelecimentos diferentes ate migrar todas as tabelas, funcoes, consultas e politicas para isolamento por `establishment_id`.
+- Pix/cartao ainda nao tem provedor de pagamento. A confirmacao manual atual serve para prototipo/operacao local; nao representa conciliacao automatica nem cobranca real.
+- Nao ha fluxo completo de entrega com taxa, endereco, despacho e acompanhamento do entregador.
+- As permissoes individuais de funcionario ainda precisam ser aplicadas no servidor em cada operacao; antes de comercializar, revisar tambem trilha de auditoria e recuperacao/backup.
+- Publicacao atual e um prototipo em GitHub Pages; definir dominio, disponibilidade, monitoramento, suporte, politica de privacidade e termos/LGPD para clientes pagantes.
+- Nenhum banco foi alterado nesta revisao. `supabase/.temp/cli-latest` continua local e deve ficar fora do commit.

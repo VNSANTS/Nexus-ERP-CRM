@@ -82,19 +82,45 @@ Deno.serve(async (req: Request) => {
     // Relatórios
     // -----------------------------------------------------------------
     if (action === 'report-daily') {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const { data: todayOrders } = await supabase.from('orders').select('*').gte('created_at', todayStart.toISOString());
+      const now = new Date();
+      const localDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+      }).formatToParts(now).reduce<Record<string, string>>((parts, part) => {
+        if (part.type !== 'literal') parts[part.type] = part.value;
+        return parts;
+      }, {});
+      const localMidnightAsUtc = Date.UTC(Number(localDate.year), Number(localDate.month) - 1, Number(localDate.day));
+      const offsetAtMidnight = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+      }).formatToParts(new Date(localMidnightAsUtc)).reduce<Record<string, string>>((parts, part) => {
+        if (part.type !== 'literal') parts[part.type] = part.value;
+        return parts;
+      }, {});
+      const representedLocalAsUtc = Date.UTC(
+        Number(offsetAtMidnight.year), Number(offsetAtMidnight.month) - 1, Number(offsetAtMidnight.day),
+        Number(offsetAtMidnight.hour), Number(offsetAtMidnight.minute), Number(offsetAtMidnight.second),
+      );
+      const timezoneOffset = representedLocalAsUtc - localMidnightAsUtc;
+      const todayStart = new Date(localMidnightAsUtc - timezoneOffset);
+      const [{ data: todayOrders }, { data: todayTransactions }] = await Promise.all([
+        supabase.from('orders').select('id, total, status, created_at').gte('created_at', todayStart.toISOString()),
+        supabase.from('transactions').select('valor, method, status').gte('created_at', todayStart.toISOString()),
+      ]);
       const valid = (todayOrders ?? []).filter((o) => o.status !== 'cancelado');
-
-      const totalVendas = valid.reduce((s, o) => s + Number(o.total), 0);
+      const confirmedTransactions = (todayTransactions ?? []).filter((transaction) => transaction.status === 'confirmado');
+      const pendingTransactions = (todayTransactions ?? []).filter((transaction) => transaction.status === 'pendente');
+      const totalVendas = confirmedTransactions.reduce((sum, transaction) => sum + Number(transaction.valor), 0);
+      const totalPendente = pendingTransactions.reduce((sum, transaction) => sum + Number(transaction.valor), 0);
       const quantidadePedidos = valid.length;
-      const ticketMedio = quantidadePedidos > 0 ? totalVendas / quantidadePedidos : 0;
+      const ticketMedio = confirmedTransactions.length > 0 ? totalVendas / confirmedTransactions.length : 0;
 
       const byMethod: Record<string, number> = {};
-      for (const o of valid) byMethod[o.payment_method] = (byMethod[o.payment_method] ?? 0) + Number(o.total);
+      for (const transaction of confirmedTransactions) {
+        byMethod[transaction.method] = (byMethod[transaction.method] ?? 0) + Number(transaction.valor);
+      }
 
-      return jsonResponse({ totalVendas, quantidadePedidos, ticketMedio, byMethod });
+      return jsonResponse({ totalVendas, totalPendente, pagamentosPendentes: pendingTransactions.length, quantidadePedidos, ticketMedio, byMethod });
     }
 
     if (action === 'report-products') {
@@ -136,6 +162,22 @@ Deno.serve(async (req: Request) => {
     if (action === 'report-transactions') {
       const { data } = await supabase.from('transactions').select('*').order('created_at', { ascending: false }).limit(500);
       return jsonResponse(data ?? []);
+    }
+
+    if (action === 'confirm-transaction') {
+      if (caller.employeeRole !== 'admin') return errorResponse('Apenas administradores podem confirmar pagamentos.', 403);
+      const { id } = body;
+      if (!id) return errorResponse('id é obrigatório.', 400);
+      const { data, error } = await supabase
+        .from('transactions')
+        .update({ status: 'confirmado' })
+        .eq('id', id)
+        .eq('status', 'pendente')
+        .select('id')
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return errorResponse('Pagamento pendente não encontrado. Atualize a lista.', 409);
+      return jsonResponse({ ok: true });
     }
 
     if (action === 'report-waste') {

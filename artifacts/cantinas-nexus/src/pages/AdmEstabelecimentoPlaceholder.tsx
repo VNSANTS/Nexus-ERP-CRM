@@ -75,9 +75,17 @@ export function AdmEstabelecimentoPlaceholder() {
         </div>
 
         <p className="mt-2 text-sm text-neutral-500">
-          Cardápio, estoque e pedidos chegam em breve. Por enquanto, gerencie os
-          dispositivos (tablets/totens) que acessam o cardápio.
+          Gerencie os tablets e totens vinculados ao cardápio. Para pedidos,
+          equipe, estoque e relatórios, abra o painel de administração e cozinha.
         </p>
+
+        <button
+          type="button"
+          onClick={() => navigate('/cozinha')}
+          className="mt-4 rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-800"
+        >
+          Abrir administração e cozinha
+        </button>
 
         <DeviceManager devices={devices} carregando={carregando} onChange={carregarDevices} />
       </div>

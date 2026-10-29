@@ -16,7 +16,7 @@ import {
   Trash2, Plus, Minus, CreditCard, Wallet, Banknote, QrCode,
   ArrowLeft, CheckCircle2, ShoppingCart, X, MessageCircle,
   Sparkles, Heart, XCircle, Loader2,
-  Search,
+  Search, Info,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -326,7 +326,7 @@ export function Home() {
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full px-4 sm:px-0">
               {[
-                { id: 'pix', label: PAYMENT_LABELS.pix, sub: 'QR Code', icon: QrCode, color: 'text-teal-600', bg: 'bg-teal-50', hover: 'hover:border-teal-500' },
+                { id: 'pix', label: 'Pix', sub: 'Confirmar com a equipe', icon: QrCode, color: 'text-teal-600', bg: 'bg-teal-50', hover: 'hover:border-teal-500' },
                 { id: 'credito', label: 'Crédito', sub: 'Na maquininha', icon: CreditCard, color: 'text-blue-600', bg: 'bg-blue-50', hover: 'hover:border-blue-500' },
                 { id: 'debito', label: 'Débito', sub: 'Na maquininha', icon: Wallet, color: 'text-indigo-600', bg: 'bg-indigo-50', hover: 'hover:border-indigo-500' },
                 { id: 'dinheiro', label: PAYMENT_LABELS.dinheiro, sub: 'No balcão', icon: Banknote, color: 'text-emerald-600', bg: 'bg-emerald-50', hover: 'hover:border-emerald-500' },
@@ -358,7 +358,7 @@ export function Home() {
               className="w-24 h-24 sm:w-32 sm:h-32 bg-success text-white rounded-full flex items-center justify-center shadow-[0_0_60px_rgba(22,163,74,0.5)] mb-6 sm:mb-8">
               <CheckCircle2 className="w-12 h-12 sm:w-16 sm:h-16" strokeWidth={3} />
             </motion.div>
-            <h2 className="text-3xl sm:text-6xl font-display font-extrabold text-foreground mb-4">Pedido Confirmado!</h2>
+            <h2 className="text-3xl sm:text-6xl font-display font-extrabold text-foreground mb-4">Pedido recebido!</h2>
             <p className="text-lg sm:text-2xl text-muted-foreground font-bold mb-6 sm:mb-8">Seu número de chamada é:</p>
             <div className="text-6xl sm:text-9xl font-display font-black text-primary bg-white px-12 sm:px-24 py-8 sm:py-12 rounded-[3rem] shadow-2xl mb-6 sm:mb-8 border-4 border-white/50">
               {createdOrder.code}
@@ -367,17 +367,17 @@ export function Home() {
               CÓDIGO: {createdOrder.paymentCode}
             </div>
 
-            {createdOrder.paymentMethod === 'pix' && (
-              <div className="bg-white p-6 sm:p-8 rounded-[2rem] shadow-2xl mb-8 flex flex-col sm:flex-row items-center gap-6 sm:gap-10 border-4 border-teal-100 max-w-2xl w-full">
-                <div className="bg-gray-50 p-4 rounded-2xl">
-                  <QRCodeSVG value={`PIX-DEMO-${createdOrder.paymentCode}`} size={160} level="Q" />
-                </div>
-                <div className="text-center sm:text-left">
-                  <h3 className="text-2xl sm:text-3xl font-display font-bold text-gray-900 mb-2">Pague com PIX</h3>
-                  <p className="text-gray-500 font-medium text-sm sm:text-lg">Escaneie o QR Code com o aplicativo do seu banco para concluir o pagamento.</p>
-                </div>
+            <div className="mb-8 flex w-full max-w-2xl items-start gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-left sm:p-6">
+              <Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+              <div>
+                <h3 className="font-black text-amber-900">Pagamento pendente de confirmação</h3>
+                <p className="mt-1 text-sm leading-relaxed text-amber-800">
+                  {createdOrder.paymentMethod === 'pix'
+                    ? 'O sistema ainda não gera cobrança Pix. Peça a chave ao atendente e aguarde a confirmação do pagamento.'
+                    : 'Faça o pagamento no balcão ou na maquininha. A equipe confirmará o recebimento no painel.'}
+                </p>
               </div>
-            )}
+            </div>
 
             <div className="bg-card p-6 sm:p-8 rounded-[2rem] flex flex-col sm:flex-row items-center gap-6 sm:gap-8 mb-8 sm:mb-12 max-w-2xl w-full border border-border shadow-sm text-foreground">
               <div className="bg-white p-3 rounded-2xl shadow-lg">

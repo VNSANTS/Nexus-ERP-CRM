@@ -137,3 +137,7 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 3. Se funcionário não entrar, anotar exatamente se usou username ou e-mail, a mensagem exibida e conferir se `employees.username` coincide com o identificador cadastrado e se `ativo=true`.
 4. Verificar que o projeto ainda tem um único estabelecimento; o acesso legado da cozinha bloqueia funcionários vinculados quando houver mais de um, por segurança.
 5. As notas anteriores deste checkpoint registram etapas históricas; este bloco é o estado mais recente e substitui pendências antigas de publicação já resolvidas.
+## Confirmação do usuário — 29/10/2026
+
+- Vinícius confirmou que o formulário de login unificado está funcionando. Considerar esta etapa validada e seguir para a próxima solicitação do projeto; só reabrir a investigação do login se surgir um novo erro relatado.
+- O próximo trabalho não foi especificado ainda.

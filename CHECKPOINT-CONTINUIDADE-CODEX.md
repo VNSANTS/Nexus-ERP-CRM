@@ -157,3 +157,52 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 - As permissoes individuais de funcionario ainda precisam ser aplicadas no servidor em cada operacao; antes de comercializar, revisar tambem trilha de auditoria e recuperacao/backup.
 - Publicacao atual e um prototipo em GitHub Pages; definir dominio, disponibilidade, monitoramento, suporte, politica de privacidade e termos/LGPD para clientes pagantes.
 - Nenhum banco foi alterado nesta revisao. `supabase/.temp/cli-latest` continua local e deve ficar fora do commit.
+
+## Auditoria de prontidao comercial e isolamento multiestabelecimento — 29/10/2026
+
+### Contexto e objetivo
+
+- Objetivo: preparar o Nexus para ser vendido como SaaS para vários estabelecimentos. A integração real de Pix/cartão fica para depois; o modelo de transações deve permitir adicionar um provedor sem simular pagamento confirmado.
+- Premissa de trabalho: aplicação compartilhada com dados isolados por estabelecimento. A confirmação do usuário sobre modelo de hospedagem e divisão de permissões ainda está pendente; tratar como premissa até nova resposta.
+- Foi instalada e lida a skill oficial `security-threat-model` do repositório `openai/skills`, junto das referências. O relatório final dessa skill ainda não foi produzido porque ela exige validação do contexto com o usuário; perguntas já foram enviadas na conversa.
+
+### Estado do banco real consultado
+
+- Projeto Supabase `phckbsoygqdbkvuxgobr`: uma linha em `establishments`, dois funcionários ativos e tabelas operacionais sem pedidos/produtos/estoque/CRM; existe uma linha de configurações. `employees.establishment_id` dos dois funcionários está nulo no estado consultado.
+- Há zero migrações registradas no Supabase, embora o banco tenha sido configurado anteriormente fora do histórico versionado. Antes de qualquer migração, comparar o SQL com o esquema vivo; não presumir que o diretório local descreve o banco.
+- RLS está habilitado em tabelas operacionais, mas há políticas de leitura pública amplas em `orders`, `order_items`, `loyalty`, `products`, `settings` e `establishments`. A política de `establishments` expõe a linha inteira, que contém dados sensíveis do titular. As consultas do frontend usam diretamente pedidos por código curto, pedidos/itens, estoque, produtos, promoções, fidelidade e configurações.
+- Edge Functions usam `service_role`, que ignora RLS. As funções antigas de pedidos, estoque, clientes, fornecedores e promoções fazem consultas globais e precisam filtrar explicitamente pelo estabelecimento autenticado. `cozinha-login` também ainda contém lógica legada que pressupõe haver um só estabelecimento.
+- Parecer de produção: não cadastrar um segundo estabelecimento e não aplicar a migração preparada até que frontend e funções tenham sido migrados juntos para chamadas tenant-scoped. A migração isolada quebraria leituras atuais e o checkout.
+
+### Alterações locais desta sessão (ainda não commitadas)
+
+- `supabase/functions/_shared/helpers.ts`: `requireEmployee` passa a devolver estabelecimento e flags de acesso lidas do banco, valida estabelecimento ativo e inclui fallback de compatibilidade para registros legados sem estabelecimento quando há exatamente um.
+- `supabase/functions/gerenciar-dados/index.ts`: adiciona verificação de permissões e filtros por `establishment_id` em ações administrativas/financeiras.
+- `supabase/migrations/20261029170000_establishment_tenant_isolation.sql`: rascunho para adicionar tenant IDs, backfill, chaves estrangeiras compostas e remover leituras públicas sensíveis. A ordem de criação/backfill de colunas foi corrigida nesta sessão, mas o arquivo ainda precisa de revisão integral contra o esquema vivo e contra todas as operações do produto. NÃO aplicar nem fazer deploy parcial.
+- Essas alterações são uma etapa incompleta, não uma entrega comercial pronta. Em especial, outras Edge Functions e chamadas diretas do frontend ainda não foram migradas para `establishment_id`.
+- O helper preserva uma trava global: as APIs legadas só autorizam acesso enquanto há exatamente um estabelecimento ativo e ele corresponde ao usuário. Não remover essa trava antes de migrar e revisar todas as funções globais; ela é o que impede que o segundo tenant passe a usar caminhos legados sem filtro.
+
+### Verificações executadas
+
+- `npm.cmd run typecheck` em `artifacts/cantinas-nexus`: passou.
+- `npm.cmd run build` em `artifacts/cantinas-nexus`: passou. O bundle principal continua grande (aprox. 850 kB) e gera o aviso de chunk acima de 500 kB.
+- `git diff --check`: passou. Não foi possível validar Edge Functions com Deno porque `deno` não está instalado/disponível neste ambiente.
+- Nenhum teste automatizado foi executado.
+- Nenhuma migração de banco, deploy de Edge Function, commit ou push foi feito nesta etapa.
+
+### Próximas etapas obrigatórias antes de vender
+
+1. Confirmar o modelo de hospedagem e as permissões de dono, ADM, cozinha e caixa.
+2. Fazer inventário tabela por tabela e ação por ação das Edge Functions com base no esquema vivo; garantir que toda query com `service_role` fixa o tenant derivado da sessão, nunca do payload confiado do cliente.
+3. Projetar primeiro caminhos seguros para cardápio público e dispositivos (credencial aleatória revogável, não ID do dispositivo), checkout com idempotência/validação de preço no servidor e acompanhamento com token aleatório, além de limitar por estabelecimento.
+4. Migrar clientes, fidelidade e dados operacionais para tenant-scoped; retirar políticas públicas que expõem dados pessoais/financeiros e substituir apenas o que precisa ser público por projeções mínimas.
+5. Aplicar autorização por função no servidor para cada ação; a interface pode esconder ações, mas não é controle de segurança.
+6. Corrigir privilégios da função `cleanup_rate_limit_log()` e verificar os avisos do Security/Performance Advisor após a migração.
+7. Criar/validar migrações versionadas; fazer deploy coordenado somente quando o cliente e as funções estiverem compatíveis. Depois revisar logs, advisors e fluxos de ponta a ponta.
+8. Antes da venda: domínio e publicação confiável, backup/recuperação, monitoramento, suporte, termos e privacidade/LGPD; Pix/cartão fica explicitamente pendente de seleção de provedor.
+
+### Estado do Git ao salvar este bloco
+
+- Há alterações locais em `supabase/functions/_shared/helpers.ts`, `supabase/functions/gerenciar-dados/index.ts` e a nova pasta `supabase/migrations/`.
+- `supabase/.temp/cli-latest` estava modificado antes desta sessão; não incluir em commit. Conferir `git status -sb` antes de continuar.
+- Este checkpoint foi commitado/enviado separadamente; os patches de helper, função e migração acima permanecem apenas locais e ainda não foram publicados nem aplicados ao Supabase.

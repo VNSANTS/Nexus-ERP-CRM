@@ -194,7 +194,7 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 - `npm.cmd run build` em `artifacts/cantinas-nexus`: passou. A primeira saída desta sessão manteve chunk de aprox. 850 kB; depois, `App.tsx` passou a carregar as páginas sob demanda (React `lazy`/`Suspense`) e o chunk inicial caiu para aprox. 486 kB, sem aviso de chunk acima de 500 kB. Kitchen (92 kB) e páginas são carregadas em chunks próprios.
 - `git diff --check`: passou antes da última revisão do SQL; repetir após as alterações pendentes. Não foi possível validar Edge Functions com Deno porque `deno` não está instalado/disponível neste ambiente.
 - Nenhum teste automatizado foi executado.
-- Nenhuma migração de banco, deploy de Edge Function, commit ou push foi feito nesta etapa.
+- Nenhuma migração de banco nem deploy de Edge Function foi feito; o código desta auditoria continua sem commit/push. Commits de documentação e do frontend lazy-loading estão registrados abaixo.
 
 ### Próximas etapas obrigatórias antes de vender
 
@@ -212,3 +212,60 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 - Há alterações locais em `supabase/functions/_shared/helpers.ts`, `supabase/functions/gerenciar-dados/index.ts` e a nova pasta `supabase/migrations/`.
 - `supabase/.temp/cli-latest` estava modificado antes desta sessão; não incluir em commit. Conferir `git status -sb` antes de continuar.
 - O checkpoint anterior está em `c3d61b9`; o frontend foi publicado no commit `ce26568` e este checkpoint foi atualizado no commit `6a9e0e1`. Os patches de helper, função e migração permanecem locais e ainda não foram publicados nem aplicados ao Supabase.
+
+## Handoff completo para trocar de conta Codex no mesmo PC — 29/10/2026
+
+### Como retomar sem perder este workspace
+
+- Pasta aberta no VS Code: `D:\Vini\Nexus company\Nexus-ERP-CRM`.
+- Fazer logout/login em outra conta Codex não apaga por si só os arquivos locais. Depois de entrar, manter/abrir exatamente essa mesma pasta no VS Code e iniciar a nova conversa pedindo para ler este checkpoint e conferir `git status --short`.
+- O contexto da conversa e a autenticação do Codex não migram automaticamente. Este arquivo guarda o resumo do projeto e o estado do trabalho; a nova conta pode precisar autenticar novamente no GitHub e no Supabase. As alterações abaixo estão neste disco, não no GitHub.
+- Antes de qualquer `git pull`, troca de branch, checkout, reset, clean ou restauração do VS Code, conferir e preservar as alterações locais. Não rodar `git reset --hard`, `git clean`, nem sobrescrever os arquivos locais. O arquivo SQL novo está untracked; um stash comum não o inclui sem `-u`.
+- Estado Git de origem deste handoff: branch `main`, HEAD `0cac235`. Este novo handoff será commitado somente como documentação; as alterações de código abaixo continuam locais. `supabase/.temp/cli-latest` é uma modificação preexistente do CLI, sem relação com o trabalho; preservar e não incluir em commit.
+
+### Inventário exato das alterações locais a preservar
+
+- `artifacts/cantinas-nexus/src/lib/api.ts`: checkout aceita `establishmentId`; confirmação de retirada passou de chamada pública para chamada autenticada.
+- `artifacts/cantinas-nexus/src/pages/Home.tsx`: envia o `nexus:establishmentId` da sessão no checkout.
+- `artifacts/cantinas-nexus/src/pages/Kitchen.tsx`: formulário ADM passa a editar permissões cozinha/caixa/ADM; inclui flags no usuário local que representa o dono.
+- `supabase/functions/_shared/helpers.ts`: claims de funcionário incluem tenant e permissões; autenticação é baseada em Auth + linha protegida em employees; verifica status ativo e mantém trava para somente um estabelecimento enquanto há endpoints globais. Fallback de dono também só libera APIs legadas com um estabelecimento.
+- `supabase/functions/_shared/security.ts`: `checkRateLimit` agora falha fechado se consulta ou gravação de log falhar.
+- `supabase/functions/cozinha-login/index.ts`: login legado também exige exatamente um estabelecimento ativo e rejeita funcionário vinculado a outro ID.
+- `supabase/functions/pedidos/index.ts`: consultas e gravações planejadas com `establishment_id`; checkout valida estabelecimento ativo, carrinho, método e estoque, limita tentativas por IP e estabelecimento; venda manual exige JWT e caixa/ADM; confirmação de retirada exige JWT e caixa/ADM; status/avanço/observações exigem cozinha/ADM e escopo do tenant.
+- `supabase/functions/estoque/index.ts`: tenant nas consultas/gravações, valida quantidades inteiras e limites da coluna integer, limita desperdício ao estoque existente, exige cozinha/ADM.
+- `supabase/functions/clientes/index.ts`: ações de CRM filtradas por tenant e protegidas para ADM.
+- `supabase/functions/promocoes/index.ts`: operações por tenant e protegidas para ADM.
+- `supabase/functions/fornecedores/index.ts`: fornecedores e solicitações por tenant e protegidos para ADM.
+- `supabase/functions/gerenciar-funcionarios/index.ts`: lista/edição/exclusão escopadas ao tenant; cria Auth + funcionário com estabelecimento e permissões; valida combinações de cargo/permissões e tenta manter pelo menos um ADM ativo.
+- `supabase/functions/gerenciar-dados/index.ts`: relatórios e operações já alterados para filtros por tenant/permissões, mas é preciso revisar cada action e dependência antes de deploy.
+- `supabase/migrations/20261029170000_establishment_tenant_isolation.sql` (arquivo novo, untracked): rascunho de backfill, colunas tenant, constraints/FKs compostas, revogação de políticas públicas sensíveis e endurecimento da função de limpeza de rate limit. Foram corrigidos alguns erros encontrados na revisão: colunas antes do backfill, seleção de UUID sem `min(uuid)`, chave composta de customer antes da FK e `search_path`/EXECUTE da função definer. Continua sem validação integral e não deve ser aplicada ainda.
+
+### Limites importantes desta etapa
+
+- Nenhum SQL foi aplicado ao Supabase nesta etapa; nenhuma Edge Function foi implantada. As funções acima esperam colunas `establishment_id` que ainda não existem nas tabelas operacionais do banco vivo. Deploy isolado pode falhar em runtime.
+- Ainda não há isolamento completo: menu e estoque públicos no frontend, acompanhamento por código curto, leituras públicas diretas e outras ações/funções (incluindo fluxos de cliente, onboarding, dispositivos, diretório, tracking e as actions restantes de pedidos) precisam de inventário e migração. A autenticação single-tenant no helper é uma trava temporária essencial; não removê-la enquanto houver endpoint global.
+- Checkout ainda precisa de transação atômica/estoque concorrente, idempotência real e token secreto de acompanhamento. O código curto de pedido não deve ser usado como segredo. A venda de cartão/Pix continua manual/pedente; não existe integração com provedor.
+- O processo de funcionário foi ampliado localmente, mas não foi exercitado com conta real. Não publique essas alterações antes de migrar o banco e validar todas as funções que consultam as novas colunas.
+- O relatório formal `Nexus-ERP-CRM-threat-model.md` ainda não existe. A skill `security-threat-model` oficial foi instalada localmente e lida. Ela pede validar premissas com o usuário antes de concluir. Perguntas já feitas e sem resposta: (1) SaaS compartilhado multiestabelecimento ou implantação separada por cliente? (2) divisão de permissões desejada para dono/ADM/cozinha/caixa e demais funcionários?
+
+### Verificações mais recentes
+
+- `npm.cmd run typecheck` passou depois do formulário de permissões.
+- `git diff --check` passou antes de salvar este handoff.
+- O build completo mais recente foi anterior ao formulário de permissões; naquele build, o chunk inicial ficou em aproximadamente 486 kB após lazy loading. Rodar build novamente quando retomar.
+- O build/deploy GitHub Pages do commit `ce26568` foi confirmado com sucesso no Actions run `40925947341`. Commits posteriores (`6a9e0e1`, `b0ce316`, `0cac235`) só atualizaram documentação/checkpoint.
+- `deno` não está instalado no ambiente; nenhuma checagem de tipos das Edge Functions foi feita. Nenhum teste automatizado foi executado.
+- O banco Supabase consultado é `phckbsoygqdbkvuxgobr`; havia uma establishment ativa, dois employees sem tenant link e sem dados operacionais (uma linha de settings). O histórico de migrations do projeto estava vazio, apesar de o schema já existir por alterações anteriores fora de migrations versionadas. Conferir novamente antes de DDL.
+
+### Próxima sequência para a conta nova
+
+1. Ler este handoff inteiro e executar apenas `git status --short` no começo. Confirmar que os arquivos locais citados continuam presentes; não fazer pull/reset/checkout.
+2. Ler a skill Supabase em `C:\Users\VNSANTS\.codex\plugins\cache\openai-curated-remote\supabase\1.0.0\skills\supabase\SKILL.md` e a skill de ameaça em `C:\Users\VNSANTS\.codex\skills\security-threat-model\SKILL.md` se esse mesmo perfil Windows ainda existir. Se outra conta não tiver as skills, reinstalar pelo instalador oficial, sem sobrescrever fontes locais.
+3. Revisar os diffs das funções e migration contra o schema vivo, corrigir problemas; instalar/usar Deno ou a ferramenta de validação disponível e validar cada Edge Function. Rodar typecheck e build; o build mais recente precisa ser repetido.
+4. Completar inventário de todas as funções e chamadas frontend, especialmente `pedidos`, menu público, tracking/QR, cliente/fidelidade, estoque público, login/dispositivos, funções de onboarding e diretório. Não criar segundo estabelecimento até concluir isso.
+5. Confirmar com Vinícius premissas multi-tenant e matriz de permissões; então concluir o threat model em `Nexus-ERP-CRM-threat-model.md` com âncoras de arquivo, fluxos, ameaças e mitigação.
+6. Só quando app, functions, policies e migração estiverem compatíveis: validar migration em ambiente seguro, comparar impacto no banco, executar deploy coordenado, revisar advisors/logs e só então commit/push do código. Pix/cartão real e provedor seguem fora do escopo imediato.
+
+### Prompt para iniciar a nova conversa Codex
+
+> Continue o Nexus neste mesmo workspace aberto no VS Code. Leia `CHECKPOINT-CONTINUIDADE-CODEX.md` inteiro e confira `git status --short` antes de editar. Preserve todas as alterações locais descritas no checkpoint, incluindo `supabase/migrations/20261029170000_establishment_tenant_isolation.sql`; não faça pull/reset/clean nem deploy agora. Continue a revisão de segurança multiestabelecimento a partir do estado local, valide as Edge Functions antes de publicar e atualize este checkpoint no final. `supabase/.temp/cli-latest` é preexistente e deve ficar fora dos commits.

@@ -1,23 +1,24 @@
 import { Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
-import { useEffect, type ReactNode } from 'react';
-import { Home } from './pages/Home';
-import { Tracking } from './pages/Tracking';
-import { Kitchen } from './pages/Kitchen';
-import { SolicitarEstabelecimento } from './pages/SolicitarEstabelecimento';
-import { Login } from './pages/Login';
-import { CompletarCadastro } from './pages/CompletarCadastro';
-import { SelecionarEstabelecimento } from './pages/SelecionarEstabelecimento';
-import { PainelRaiz } from './pages/PainelRaiz';
-import { OnboardingEstabelecimento } from './pages/OnboardingEstabelecimento';
-import { PainelEstabelecimento } from './pages/PainelEstabelecimento';
-import { AdmEstabelecimentoPlaceholder } from './pages/AdmEstabelecimentoPlaceholder';
-import { CardapioTablet } from './pages/CardapioTablet';
-import NotFound from './pages/not-found';
+import { lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { Toaster } from 'sonner';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { CustomerAuthProvider, useCustomerAuth } from './lib/customer-auth';
 import { AdminAuthProvider } from './lib/admin-auth';
 import { OwnerAuthProvider, useOwnerAuth } from './lib/owner-auth';
+
+const Home = lazy(() => import('./pages/Home').then((module) => ({ default: module.Home })));
+const Tracking = lazy(() => import('./pages/Tracking').then((module) => ({ default: module.Tracking })));
+const Kitchen = lazy(() => import('./pages/Kitchen').then((module) => ({ default: module.Kitchen })));
+const SolicitarEstabelecimento = lazy(() => import('./pages/SolicitarEstabelecimento').then((module) => ({ default: module.SolicitarEstabelecimento })));
+const Login = lazy(() => import('./pages/Login').then((module) => ({ default: module.Login })));
+const CompletarCadastro = lazy(() => import('./pages/CompletarCadastro').then((module) => ({ default: module.CompletarCadastro })));
+const SelecionarEstabelecimento = lazy(() => import('./pages/SelecionarEstabelecimento').then((module) => ({ default: module.SelecionarEstabelecimento })));
+const PainelRaiz = lazy(() => import('./pages/PainelRaiz').then((module) => ({ default: module.PainelRaiz })));
+const OnboardingEstabelecimento = lazy(() => import('./pages/OnboardingEstabelecimento').then((module) => ({ default: module.OnboardingEstabelecimento })));
+const PainelEstabelecimento = lazy(() => import('./pages/PainelEstabelecimento').then((module) => ({ default: module.PainelEstabelecimento })));
+const AdmEstabelecimentoPlaceholder = lazy(() => import('./pages/AdmEstabelecimentoPlaceholder').then((module) => ({ default: module.AdmEstabelecimentoPlaceholder })));
+const CardapioTablet = lazy(() => import('./pages/CardapioTablet').then((module) => ({ default: module.CardapioTablet })));
+const NotFound = lazy(() => import('./pages/not-found'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -124,7 +125,9 @@ function App() {
           <OwnerAuthProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
               <RecoveryRedirect />
-              <Router />
+              <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">Carregando...</div>}>
+                <Router />
+              </Suspense>
             </WouterRouter>
             <Toaster position="top-center" />
           </OwnerAuthProvider>

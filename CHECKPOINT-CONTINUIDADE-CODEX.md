@@ -185,7 +185,7 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 ### Verificações executadas
 
 - `npm.cmd run typecheck` em `artifacts/cantinas-nexus`: passou.
-- `npm.cmd run build` em `artifacts/cantinas-nexus`: passou. O bundle principal continua grande (aprox. 850 kB) e gera o aviso de chunk acima de 500 kB.
+- `npm.cmd run build` em `artifacts/cantinas-nexus`: passou. A primeira saída desta sessão manteve chunk de aprox. 850 kB; depois, `App.tsx` passou a carregar as páginas sob demanda (React `lazy`/`Suspense`) e o chunk inicial caiu para aprox. 486 kB, sem aviso de chunk acima de 500 kB. Kitchen (92 kB) e páginas são carregadas em chunks próprios.
 - `git diff --check`: passou. Não foi possível validar Edge Functions com Deno porque `deno` não está instalado/disponível neste ambiente.
 - Nenhum teste automatizado foi executado.
 - Nenhuma migração de banco, deploy de Edge Function, commit ou push foi feito nesta etapa.
@@ -205,4 +205,4 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 
 - Há alterações locais em `supabase/functions/_shared/helpers.ts`, `supabase/functions/gerenciar-dados/index.ts` e a nova pasta `supabase/migrations/`.
 - `supabase/.temp/cli-latest` estava modificado antes desta sessão; não incluir em commit. Conferir `git status -sb` antes de continuar.
-- Este checkpoint foi commitado/enviado separadamente; os patches de helper, função e migração acima permanecem apenas locais e ainda não foram publicados nem aplicados ao Supabase.
+- O commit anterior deste checkpoint é `c3d61b9`. A atualização com a divisão de chunks ainda precisa ser commitada junto do frontend se for aprovada para publicação; os patches de helper, função e migração permanecem locais e ainda não foram publicados nem aplicados ao Supabase.

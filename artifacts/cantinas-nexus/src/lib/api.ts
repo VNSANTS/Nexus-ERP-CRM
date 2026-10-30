@@ -151,13 +151,14 @@ export const api = {
 
   orders: {
     list: () => callFn<ApiOrder[]>('pedidos', { action: 'list' }),
-    byCode: async (code: string) => {
+    byCode: (token: string) => callPublicFn<ApiOrder>('pedidos', { action: 'track', token }),
+    /*
       const { data, error } = await supabase.from('orders').select('*').eq('code', code).maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) throw new Error('Pedido não encontrado.');
       const { data: items } = await supabase.from('order_items').select('*').eq('order_id', data.id);
       return camelizeKeys<ApiOrder>({ ...data, items: items ?? [] });
-    },
+    },*/
     checkout: (data: {
       establishmentId?: string;
       cartItems: Array<{ productId: string; qty: number }>;
@@ -338,6 +339,7 @@ export interface ApiOrderItem {
 
 export interface ApiOrder {
   id: string;
+  trackingToken?: string;
   code: string;
   paymentCode: string;
   total: string;

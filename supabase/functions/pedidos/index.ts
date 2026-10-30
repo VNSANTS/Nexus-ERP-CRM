@@ -201,6 +201,34 @@ Deno.serve(async (req: Request) => {
       return jsonResponse(result, 201);
     }
 
+    if (action === 'track') {
+      const token = typeof body.token === 'string' ? body.token.trim() : '';
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token)) {
+        return errorResponse('Token de acompanhamento inválido.', 400);
+      }
+
+      const ip = getClientIp(req);
+      const rate = await checkRateLimit(supabase, 'track_ip', ip, 120, 15);
+      if (!rate.allowed) return errorResponse('Muitas consultas. Tente novamente mais tarde.', 429);
+
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select('id, establishment_id, code, payment_code, total, payment_method, status, observacoes, created_at, updated_at, tracking_token')
+        .eq('tracking_token', token)
+        .maybeSingle();
+      if (orderError) throw orderError;
+      if (!order) return errorResponse('Pedido não encontrado.', 404);
+
+      const { data: items, error: itemsError } = await supabase
+        .from('order_items')
+        .select('id, order_id, product_id, name, price, qty')
+        .eq('establishment_id', order.establishment_id)
+        .eq('order_id', order.id);
+      if (itemsError) throw itemsError;
+      const { establishment_id: _establishmentId, ...publicOrder } = order;
+      return jsonResponse({ ...publicOrder, items: items ?? [] });
+    }
+
     if (action === 'confirm-pickup') {
       const pickupCaller = await requireEmployee(req);
       if (!pickupCaller) return errorResponse('Nao autenticado.', 401);

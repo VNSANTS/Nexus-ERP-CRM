@@ -382,7 +382,7 @@ export function Home() {
 
             <div className="bg-card p-6 sm:p-8 rounded-[2rem] flex flex-col sm:flex-row items-center gap-6 sm:gap-8 mb-8 sm:mb-12 max-w-2xl w-full border border-border shadow-sm text-foreground">
               <div className="bg-white p-3 rounded-2xl shadow-lg">
-                <QRCodeSVG value={`${window.location.origin}${import.meta.env.BASE_URL}acompanhar/${createdOrder.code}`} size={100} />
+                <QRCodeSVG value={`${window.location.origin}${import.meta.env.BASE_URL}acompanhar/${createdOrder.trackingToken ?? createdOrder.code}`} size={100} />
               </div>
               <div className="text-center sm:text-left">
                 <p className="font-display font-bold text-xl sm:text-2xl mb-2">Acompanhe pelo celular</p>

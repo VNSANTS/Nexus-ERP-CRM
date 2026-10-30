@@ -348,3 +348,9 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 - A listagem remota do CLI confirmou o projeto `phckbsoygqdbkvuxgobr` como `ACTIVE_HEALTHY` e a pasta local como vinculada. O `supabase init` gerou `supabase/config.toml` e `supabase/.gitignore`; esses arquivos podem ser versionados. Arquivos de `supabase/.temp/` continuam fora do commit.
 - O estado local e a migration/funções/frontend foram commitados e enviados para `origin/main` no commit `0068a9c` (`feat: apply establishment tenant isolation`). O build final do frontend passou com chunk inicial de 485,60 kB. A publicação do GitHub Pages deve ser acompanhada pelo workflow acionado por esse commit; o GitHub CLI não está instalado neste ambiente para consultar o run por terminal.
 - Estado final esperado do Git: apenas `supabase/.temp/cli-latest`, `supabase/.temp/storage-migration` e `supabase/.temp/storage-version` permanecem modificados localmente por metadados do CLI; não incluir esses arquivos em commit.
+
+### Correção pós-migration: acompanhamento seguro — 30/10/2026
+
+- A migration revogou a leitura pública direta de `orders` e `order_items`, então o acompanhamento antigo por `.from('orders')` deixaria de funcionar. Foi adicionada a action pública `pedidos?action=track`, que aceita somente o UUID `tracking_token`, aplica rate limit por IP e retorna apenas os campos necessários e os itens do pedido escopados pelo tenant.
+- `api.orders.byCode` agora usa essa action; o QR Code do checkout grava `trackingToken` no link. Códigos curtos continuam sendo exibidos como número de chamada, mas não são usados como segredo de consulta.
+- `pedidos` foi publicado novamente com `verify_jwt=false`; typecheck, build e `git diff --check` passaram após a alteração. Falta apenas commit/push desta correção frontend/backend.

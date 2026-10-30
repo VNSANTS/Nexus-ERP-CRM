@@ -54,6 +54,7 @@ const STATUS_COLOR: Record<StatusEfetivo, string> = {
 
 export function PainelRaiz() {
   const { session, isAdmin, loading, signOut } = useAdminAuth();
+  const [secao, setSecao] = useState<'estabelecimentos' | 'usuarios'>('estabelecimentos');
 
   if (loading) {
     return (
@@ -67,7 +68,10 @@ export function PainelRaiz() {
     return <AdminLogin deniedAccess={Boolean(session) && !isAdmin} />;
   }
 
-  return <AdminDashboard onSignOut={signOut} adminId={session.user.id} />;
+  if (secao === 'usuarios') {
+    return <UsuariosPlataforma onBack={() => setSecao('estabelecimentos')} onSignOut={signOut} adminId={session.user.id} />;
+  }
+  return <AdminDashboard onSignOut={signOut} onUsers={() => setSecao('usuarios')} adminId={session.user.id} />;
 }
 
 // === Tela de login do admin ===
@@ -152,8 +156,7 @@ function formatEndereco(s: Solicitacao): string {
 }
 
 // === Dashboard com as solicitações pendentes ===
-function AdminDashboard({ onSignOut, adminId }: { onSignOut: () => void; adminId: string }) {
-  const [secao, setSecao] = useState<'estabelecimentos' | 'usuarios'>('estabelecimentos');
+function AdminDashboard({ onSignOut, onUsers, adminId }: { onSignOut: () => void; onUsers: () => void; adminId: string }) {
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [processandoId, setProcessandoId] = useState<string | null>(null);
@@ -167,10 +170,6 @@ function AdminDashboard({ onSignOut, adminId }: { onSignOut: () => void; adminId
   useEffect(() => {
     carregar();
   }, []);
-
-  if (secao === 'usuarios') {
-    return <UsuariosPlataforma onBack={() => setSecao('estabelecimentos')} onSignOut={onSignOut} adminId={adminId} />;
-  }
 
   async function carregar() {
     setCarregando(true);
@@ -314,7 +313,7 @@ function AdminDashboard({ onSignOut, adminId }: { onSignOut: () => void; adminId
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold text-neutral-900">Solicitações de estabelecimento</h1>
           <div className="flex items-center gap-4">
-            <button type="button" onClick={() => setSecao('usuarios')} className="rounded-lg bg-neutral-900 px-3 py-2 text-sm font-semibold text-white hover:bg-neutral-800">
+            <button type="button" onClick={onUsers} className="rounded-lg bg-neutral-900 px-3 py-2 text-sm font-semibold text-white hover:bg-neutral-800">
               Usuários do sistema
             </button>
             <button

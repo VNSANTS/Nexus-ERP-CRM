@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import { useOwnerAuth } from '../lib/owner-auth';
 import { isValidCpfCnpj, formatCpfCnpj, isValidEmail } from '../lib/validators';
+import { PasswordField } from '../components/PasswordField';
 
 type Funcionario = {
   id: string;
@@ -126,11 +127,11 @@ export function OnboardingEstabelecimento() {
           <h1 className="text-xl font-semibold text-neutral-900">Conclua seu cadastro</h1>
           <p className="mt-2 text-sm text-neutral-500">Crie sua senha para ativar o acesso e seguir para a configuração do estabelecimento.</p>
           <label className="mb-1 mt-6 block text-sm font-medium text-neutral-700">Nova senha</label>
-          <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)}
+          <PasswordField value={senha} onChange={(e) => setSenha(e.target.value)}
             autoComplete="new-password" minLength={8} required
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
           <label className="mb-1 mt-4 block text-sm font-medium text-neutral-700">Confirme a nova senha</label>
-          <input type="password" value={confirmacaoSenha} onChange={(e) => setConfirmacaoSenha(e.target.value)}
+          <PasswordField value={confirmacaoSenha} onChange={(e) => setConfirmacaoSenha(e.target.value)}
             autoComplete="new-password" minLength={8} required
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" />
           <button type="submit" disabled={salvandoSenha}
@@ -396,7 +397,7 @@ function Passo2({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-neutral-700">Senha</label>
-          <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)}
+          <PasswordField value={senha} onChange={(e) => setSenha(e.target.value)}
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" required minLength={8} />
         </div>
 

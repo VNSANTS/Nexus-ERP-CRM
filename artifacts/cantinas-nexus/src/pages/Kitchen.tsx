@@ -24,6 +24,7 @@ import {
 import { downloadCsv } from '../lib/csv';
 import { convertImageToWebp } from '../lib/image-convert';
 import { useOwnerAuth } from '../lib/owner-auth';
+import { PasswordField } from '../components/PasswordField';
 import { Login } from './Login';
 
 // ─── types ───────────────────────────────────────────────────────────────────
@@ -1857,8 +1858,7 @@ export function Kitchen() {
                     ].map(({ field, label }) => (
                       <div key={field}>
                         <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">{label}</label>
-                        <input type={field === 'password' ? 'password' : 'text'} value={(empForm as any)[field]} placeholder={field === 'password' && empForm.id ? 'Deixe em branco para manter' : undefined} autoComplete={field === 'password' ? 'new-password' : undefined} onChange={(e) => setEmpForm({ ...empForm!, [field]: e.target.value })}
-                          className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none" />
+                        {field === 'password' ? <PasswordField value={(empForm as any)[field]} placeholder={empForm.id ? 'Deixe em branco para manter' : undefined} autoComplete="new-password" onChange={(e) => setEmpForm({ ...empForm!, [field]: e.target.value })} className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none" /> : <input type="text" value={(empForm as any)[field]} onChange={(e) => setEmpForm({ ...empForm!, [field]: e.target.value })} className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none" />}
                       </div>
                     ))}
                     <div className="grid grid-cols-2 gap-4">

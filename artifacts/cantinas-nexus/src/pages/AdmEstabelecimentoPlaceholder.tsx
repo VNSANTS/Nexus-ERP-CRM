@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import { useOwnerAuth } from '../lib/owner-auth';
+import { PasswordField } from '../components/PasswordField';
 
 type Device = {
   id: string;
@@ -266,7 +267,7 @@ function NovoDispositivoModal({ onClose, onCriado }: { onClose: () => void; onCr
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-neutral-500">Senha</label>
-                <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} minLength={8}
+                <PasswordField value={senha} onChange={(e) => setSenha(e.target.value)} minLength={8}
                   className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm" required />
               </div>
               <div className="flex gap-2 pt-2">

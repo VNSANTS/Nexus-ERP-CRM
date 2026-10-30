@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { api, type ApiEmployee } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { isValidCpf, isValidEmail, suggestEmailCorrection } from '../lib/validators';
+import { PasswordField } from '../components/PasswordField';
 
 type Mode = 'login' | 'signup';
 type LinkedAccount = { accountId: string; kind: 'customer' | 'owner'; label: string; email: string };
@@ -271,7 +272,7 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
             <span className="mt-1 block text-xs text-neutral-600">{account.email}</span>
             {account.accountId === authenticatedAccountId && <span className="mt-1 block text-xs font-semibold text-emerald-700">Autenticada agora</span>}
           </button>)}
-          {accountSwitchNeedsPassword && <div><label className="mb-1 block text-sm font-semibold text-neutral-800">Senha da conta selecionada</label><input type="password" autoComplete="current-password" value={accountSwitchPassword} onChange={(event) => setAccountSwitchPassword(event.target.value)} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm" /></div>}
+          {accountSwitchNeedsPassword && <div><label className="mb-1 block text-sm font-semibold text-neutral-800">Senha da conta selecionada</label><PasswordField autoComplete="current-password" value={accountSwitchPassword} onChange={(event) => setAccountSwitchPassword(event.target.value)} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm" /></div>}
         </section>}
 
         {postLoginAccounts.length === 0 && mode === 'login' && (
@@ -291,8 +292,7 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-neutral-700">Senha</label>
-              <input
-                type="password"
+              <PasswordField
                 value={loginSenha}
                 onChange={(e) => setLoginSenha(e.target.value)}
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
@@ -366,8 +366,7 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-neutral-700">Senha</label>
-              <input
-                type="password"
+              <PasswordField
                 value={signupSenha}
                 onChange={(e) => setSignupSenha(e.target.value)}
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
@@ -377,8 +376,7 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-neutral-700">Confirmar senha</label>
-              <input
-                type="password"
+              <PasswordField
                 value={signupSenhaConfirm}
                 onChange={(e) => setSignupSenhaConfirm(e.target.value)}
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"

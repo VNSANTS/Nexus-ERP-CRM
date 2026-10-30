@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Home } from './Home';
+import { PasswordField } from '../components/PasswordField';
 
 const DEVICE_TOKEN_KEY = 'nexus:deviceToken';
 const DEVICE_ESTABLISHMENT_KEY = 'nexus:deviceEstablishmentId';
@@ -93,8 +94,7 @@ function DeviceLoginScreen({ onLogin }: { onLogin: (token: string, establishment
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-neutral-500">Senha</label>
-            <input
-              type="password"
+            <PasswordField
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
               className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { PasswordField } from '../components/PasswordField';
 
 export function LoginEstabelecimento() {
   const [, navigate] = useLocation();
@@ -87,8 +88,7 @@ export function LoginEstabelecimento() {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-neutral-700">Senha</label>
-            <input
-              type="password"
+            <PasswordField
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
               className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"

@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import { useOwnerAuth } from '../lib/owner-auth';
+import { PasswordField } from '../components/PasswordField';
 
 export function RedefinirSenha() {
   const [, navigate] = useLocation();
@@ -62,11 +63,11 @@ export function RedefinirSenha() {
         </div>
         <label className="block text-sm font-medium text-neutral-700">
           Nova senha
-          <input className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2" type="password" autoComplete="new-password" minLength={8} required value={senha} onChange={(event) => setSenha(event.target.value)} />
+          <PasswordField className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2" autoComplete="new-password" minLength={8} required value={senha} onChange={(event) => setSenha(event.target.value)} />
         </label>
         <label className="block text-sm font-medium text-neutral-700">
           Confirmar nova senha
-          <input className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2" type="password" autoComplete="new-password" minLength={8} required value={confirmacao} onChange={(event) => setConfirmacao(event.target.value)} />
+          <PasswordField className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2" autoComplete="new-password" minLength={8} required value={confirmacao} onChange={(event) => setConfirmacao(event.target.value)} />
         </label>
         <button className="w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-semibold text-white disabled:opacity-60" type="submit" disabled={salvando}>
           {salvando ? 'Salvando...' : 'Salvar nova senha'}

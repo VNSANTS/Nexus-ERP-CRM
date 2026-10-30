@@ -13,6 +13,7 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse, requireEmployee, hasEmployeeAccess } from '../_shared/helpers.ts';
+import { checkRateLimit } from '../_shared/security.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -33,7 +34,7 @@ Deno.serve(async (req: Request) => {
       if (!hasEmployeeAccess(caller, 'caixa') && !hasEmployeeAccess(caller, 'adm')) {
         return errorResponse('Acesso restrito ao caixa ou à administração.', 403);
       }
-    } else if (['list-products', 'get-settings'].includes(action)) {
+    } else if (['list-products', 'list-stock', 'get-settings'].includes(action)) {
       if (!hasEmployeeAccess(caller, 'cozinha') && !hasEmployeeAccess(caller, 'caixa') && !hasEmployeeAccess(caller, 'adm')) {
         return errorResponse('Acesso restrito a cozinha ou caixa.', 403);
       }
@@ -41,9 +42,34 @@ Deno.serve(async (req: Request) => {
       return errorResponse('Acesso restrito à administração.', 403);
     }
 
+    if (action === 'create-product-image-upload') {
+      const { productId, contentType, size } = body;
+      if (typeof productId !== 'string' || !/^[a-zA-Z0-9_-]{1,120}$/.test(productId)) {
+        return errorResponse('Identificador de produto inválido.', 400);
+      }
+      if (contentType !== 'image/webp' || !Number.isInteger(size) || size < 1 || size > 5 * 1024 * 1024) {
+        return errorResponse('A imagem deve ser WebP e ter no máximo 5 MB.', 400);
+      }
+      const uploadRate = await checkRateLimit(supabase, 'product_image_upload', caller.employeeId, 30, 60);
+      if (!uploadRate.allowed) return errorResponse('Limite de envios de imagem atingido. Tente novamente mais tarde.', 429);
+      const path = `${caller.establishmentId}/products/${productId}/${crypto.randomUUID()}.webp`;
+      const { data, error } = await supabase.storage.from('product-images').createSignedUploadUrl(path, { upsert: false });
+      if (error || !data) throw error ?? new Error('Não foi possível criar o envio.');
+      return jsonResponse({ path: data.path, token: data.token });
+    }
+
     // -----------------------------------------------------------------
     if (action === 'list-products') {
       const { data, error } = await supabase.from('products')
+        .select('*')
+        .eq('establishment_id', caller.establishmentId)
+        .order('name');
+      if (error) throw error;
+      return jsonResponse(data ?? []);
+    }
+
+    if (action === 'list-stock') {
+      const { data, error } = await supabase.from('stock')
         .select('*')
         .eq('establishment_id', caller.establishmentId)
         .order('name');

@@ -7,6 +7,7 @@ import {
   getEffectivePrice,
   CATEGORY_LABELS,
   PAYMENT_LABELS,
+  normalizePhoneIdentity,
   type ApiOrder,
   type ApiProduct,
 } from '../lib/api';
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useCustomerAuth } from '../lib/customer-auth';
 
 const REFERENCE_ASSET = `${import.meta.env.BASE_URL}reference/`;
 
@@ -45,6 +47,7 @@ function referenceFoodImage(product: ApiProduct) {
 
 export function Home() {
   const qc = useQueryClient();
+  const { profile } = useCustomerAuth();
   const [view, setView] = useState<'menu' | 'payment' | 'success'>('menu');
   const [createdOrder, setCreatedOrder] = useState<ApiOrder | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -63,8 +66,8 @@ export function Home() {
     refetchInterval: 30_000,
   });
   const { data: stock = [] } = useQuery({
-    queryKey: ['stock'],
-    queryFn: api.stock.list,
+    queryKey: ['menu-stock'],
+    queryFn: api.stock.listForMenu,
     refetchInterval: 15_000,
   });
   const { data: promotions = [] } = useQuery({
@@ -73,10 +76,12 @@ export function Home() {
     refetchInterval: 30_000,
   });
   const telefoneTrim = telefone.trim();
+  const isAccountPhone = Boolean(profile?.telefone && telefoneTrim &&
+    normalizePhoneIdentity(profile.telefone) === normalizePhoneIdentity(telefoneTrim));
   const { data: loyaltyRecord = null } = useQuery({
-    queryKey: ['loyalty', telefoneTrim],
-    queryFn: () => api.customers.loyaltyByPhone(telefoneTrim),
-    enabled: telefoneTrim.length > 0,
+    queryKey: ['loyalty', profile?.id, sessionStorage.getItem('nexus:establishmentId')],
+    queryFn: api.customers.myLoyalty,
+    enabled: isAccountPhone,
     refetchInterval: 60_000,
   });
   const { data: settings } = useQuery({
@@ -100,7 +105,7 @@ export function Home() {
       setView('success');
       setCartOpen(false);
       setObservacoes('');
-      qc.invalidateQueries({ queryKey: ['stock'] });
+      qc.invalidateQueries({ queryKey: ['menu-stock'] });
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['loyalty'] });
     },
@@ -123,6 +128,10 @@ export function Home() {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (profile?.telefone && !telefone) setTelefone(profile.telefone);
+  }, [profile?.telefone, telefone]);
+
   const totalCart = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0);
 
@@ -135,7 +144,9 @@ export function Home() {
     });
   }, [products, categoryFilter]);
 
-  const loyaltyStatus = telefoneTrim ? computeLoyaltyStatus(telefoneTrim, loyaltyRecord ? [loyaltyRecord] : []) : null;
+  const loyaltyStatus = isAccountPhone && loyaltyRecord
+    ? computeLoyaltyStatus(telefoneTrim, [loyaltyRecord])
+    : null;
 
   const getStock = (productId: string) => stock.find((s) => s.productId === productId)?.quantidade ?? 0;
 

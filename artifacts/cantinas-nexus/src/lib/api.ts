@@ -92,15 +92,29 @@ function camelizeKeys<T>(obj: unknown): T {
   return obj as T;
 }
 
-async function publicSelect<T>(
-  table: string,
-  build?: (q: any) => any,
-): Promise<T> {
-  let query: any = supabase.from(table).select('*');
-  if (build) query = build(query);
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  return camelizeKeys<T>(data ?? []);
+interface PublicMenu {
+  establishmentId: string;
+  products: ApiProduct[];
+  stock: Array<{ productId: string; quantidade: number }>;
+  promotions: ApiPromotion[];
+  settings: ApiSettings;
+}
+
+let publicMenuCache: { key: string; expiresAt: number; promise: Promise<PublicMenu> } | null = null;
+
+function getPublicMenu(): Promise<PublicMenu> {
+  const establishmentId = sessionStorage.getItem('nexus:establishmentId') ?? '';
+  const now = Date.now();
+  if (publicMenuCache?.key === establishmentId && publicMenuCache.expiresAt > now) {
+    return publicMenuCache.promise;
+  }
+
+  const promise = callPublicFn<PublicMenu>('pedidos', {
+    action: 'menu',
+    establishmentId: establishmentId || undefined,
+  });
+  publicMenuCache = { key: establishmentId, expiresAt: now + 5_000, promise };
+  return promise;
 }
 
 // ---------------------------------------------------------------------------
@@ -124,22 +138,27 @@ export interface ApiProduct {
 
 export const api = {
   products: {
-    list: () => publicSelect<ApiProduct[]>('products'),
+    list: async () => (await getPublicMenu()).products,
     listForEmployee: () => callFn<ApiProduct[]>('gerenciar-dados', { action: 'list-products' }),
     create: (data: Omit<ApiProduct, 'createdAt' | 'updatedAt'> & { quantidadeInicial?: number }) =>
       callFn<ApiProduct>('gerenciar-dados', { action: 'create-product', ...data }),
     update: (id: string, data: Partial<ApiProduct>) =>
       callFn<ApiProduct>('gerenciar-dados', { action: 'update-product', id, ...data }),
     remove: (id: string) => callFn<{ ok: boolean }>('gerenciar-dados', { action: 'delete-product', id }),
-    // Envia a imagem (já convertida para WebP) direto para o Supabase Storage.
-    // Requer sessão autenticada (login da cozinha) — não passa por Edge Function.
+    // A URL assinada só é emitida pela Edge Function para o estabelecimento do funcionário.
     uploadImage: async (productId: string, file: File): Promise<string> => {
-      const path = `${productId}/${Date.now()}.webp`;
-      const { error } = await supabase.storage.from('product-images').upload(path, file, {
-        contentType: 'image/webp',
-        upsert: true,
+      if (file.type !== 'image/webp' || file.size < 1 || file.size > 5 * 1024 * 1024) {
+        throw new Error('A imagem deve ser WebP e ter no máximo 5 MB.');
+      }
+      const upload = await callFn<{ path: string; token: string }>('gerenciar-dados', {
+        action: 'create-product-image-upload', productId, contentType: file.type, size: file.size,
       });
-      if (error) throw new Error(error.message);
+      const { error } = await supabase.storage.from('product-images').uploadToSignedUrl(upload.path, upload.token, file, {
+        contentType: 'image/webp',
+        upsert: false,
+      });
+      if (error) throw new Error('Não foi possível enviar a imagem.');
+      const path = upload.path;
       const { data } = supabase.storage.from('product-images').getPublicUrl(path);
       return data.publicUrl;
     },
@@ -185,7 +204,8 @@ export const api = {
   // ---------------------------------------------------------------------------
 
   stock: {
-    list: () => publicSelect<ApiStockItem[]>('stock'),
+    list: () => callFn<ApiStockItem[]>('gerenciar-dados', { action: 'list-stock' }),
+    listForMenu: async () => (await getPublicMenu()).stock,
     history: () => callFn<ApiStockMovement[]>('gerenciar-dados', { action: 'report-stock-history' }),
     waste: async () => {
       const report = await callFn<ApiWasteReport>('gerenciar-dados', { action: 'report-waste' });
@@ -244,8 +264,8 @@ export const api = {
   // ---------------------------------------------------------------------------
 
   promotions: {
-    // Leitura pública (usada pelo totem para calcular preço com desconto) — via RLS, sem login.
-    listActive: () => publicSelect<ApiPromotion[]>('promotions', (q) => q.eq('ativo', true)),
+    // Somente promoções ativas do estabelecimento atual chegam ao cardápio público.
+    listActive: async () => (await getPublicMenu()).promotions,
     // Listagem completa (inclusive inativas) — painel da cozinha, requer login.
     list: () => callFn<ApiPromotion[]>('promocoes', { action: 'list' }),
     create: (data: Omit<ApiPromotion, 'id' | 'createdAt'>) => callFn<ApiPromotion>('promocoes', { action: 'create', ...data }),
@@ -261,12 +281,25 @@ export const api = {
     list: () => callFn<ApiCustomer[]>('clientes', { action: 'list' }),
     interactions: () => callFn<ApiCustomerInteraction[]>('clientes', { action: 'list-interactions' }),
     loyalty: () => callFn<ApiLoyaltyRecord[]>('clientes', { action: 'list-loyalty' }),
-    // Leitura pública de UM registro por telefone — usada pelo totem, via RLS, sem login.
-    // Não expõe a lista completa de clientes (privacidade).
-    loyaltyByPhone: async (telefone: string) => {
-      const { data, error } = await supabase.from('loyalty').select('*').eq('telefone', telefone).maybeSingle();
-      if (error) throw new Error(error.message);
-      return camelizeKeys<ApiLoyaltyRecord | null>(data);
+    // Busca apenas a fidelidade da conta autenticada; o servidor deriva telefone e tenant.
+    myLoyalty: async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error('Entre na sua conta para consultar a fidelidade.');
+      const { data, error } = await supabase.functions.invoke('pedidos', {
+        body: {
+          action: 'my-loyalty',
+          establishmentId: sessionStorage.getItem('nexus:establishmentId') ?? undefined,
+        },
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (error) {
+        const context = (error as { context?: Response }).context;
+        const payload = context ? await context.json().catch(() => null) : null;
+        throw new Error(payload?.error ?? error.message);
+      }
+      if (data?.error) throw new Error(data.error);
+      return data as ApiLoyaltyRecord;
     },
     get: (telefone: string) => callFn<ApiCustomer & { interactions: ApiCustomerInteraction[] }>('clientes', { action: 'get', telefone }),
     upsert: (telefone: string, data: Partial<ApiCustomer>) =>
@@ -299,11 +332,7 @@ export const api = {
   // ---------------------------------------------------------------------------
 
   settings: {
-    get: async () => {
-      const { data, error } = await supabase.from('settings').select('*').eq('id', 1).single();
-      if (error) throw new Error(error.message);
-      return camelizeKeys<ApiSettings>(data);
-    },
+    get: async () => (await getPublicMenu()).settings,
     getForEmployee: () => callFn<ApiSettings>('gerenciar-dados', { action: 'get-settings' }),
     update: (data: Partial<ApiSettings>) => callFn<ApiSettings>('gerenciar-dados', { action: 'update-settings', ...data }),
   },

@@ -109,7 +109,7 @@ export function hasEmployeeAccess(caller: EmployeeClaims, access: 'cozinha' | 'c
   return caller.accessAdmin;
 }
 
-export function adminClient(): SupabaseClient {
+export function adminClient(): SupabaseClient<any> {
   return createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -170,6 +170,8 @@ export async function requireEmployee(req: Request): Promise<EmployeeClaims | nu
       .select('id, status')
       .limit(2);
     if (activeEstablishmentsError || activeEstablishments?.length !== 1 || activeEstablishments[0].id !== establishmentId || activeEstablishments[0].status !== 'ativo') return null;
+
+    if (!establishmentId) return null;
 
     const legacyAdmin = employee.establishment_id == null && employee.role === 'admin';
     const legacyStaff = employee.establishment_id == null && employee.role !== 'admin';

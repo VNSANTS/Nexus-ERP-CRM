@@ -45,28 +45,20 @@ export function Login({ onKitchenLogin }: { onKitchenLogin?: (employee: ApiEmplo
         return;
       }
 
-      let email = identifier.trim().toLowerCase();
-
-      // Se não for e-mail, resolve via Edge Function (telefone ou CPF)
-      if (!identifier.includes('@')) {
-        const { data, error } = await supabase.functions.invoke('customer-login-lookup', {
-          body: { identifier: identifier.trim() },
-        });
-        if (error || data?.error || !data?.email) {
-          toast.error('E-mail, telefone, CPF ou senha incorretos.');
-          setSubmitting(false);
-          return;
-        }
-        email = data.email;
+      const { data: signInData, error: signInError } = await supabase.functions.invoke('customer-login-lookup', {
+        body: { identifier: identifier.trim(), password: loginSenha },
+      });
+      if (signInError || signInData?.error || !signInData?.accessToken || !signInData?.refreshToken) {
+        toast.error('E-mail, telefone, CPF ou senha incorretos.');
+        return;
       }
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password: loginSenha,
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: signInData.accessToken,
+        refresh_token: signInData.refreshToken,
       });
-
-      if (signInError) {
-        toast.error('E-mail, telefone, CPF ou senha incorretos.');
+      if (sessionError) {
+        toast.error('Não foi possível iniciar sua sessão. Tente novamente.');
         return;
       }
 

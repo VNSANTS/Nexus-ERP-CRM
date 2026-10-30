@@ -4,6 +4,11 @@
 # working directory name when running `supabase init`.
 project_id = "Nexus-ERP-CRM"
 
+# Public login endpoint validates credentials internally and applies its own
+# IP rate limit; requests may carry a publishable key rather than a JWT.
+[functions.customer-login-lookup]
+verify_jwt = false
+
 [api]
 enabled = true
 # Port to use for the API URL.

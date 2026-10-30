@@ -9,7 +9,7 @@
 // 'checkout' e 'manual' são públicos (o totem não tem login).
 // As demais ações exigem JWT de funcionário (painel da cozinha).
 
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse, uid, shortCode, todayKey, requireEmployee, hasEmployeeAccess } from '../_shared/helpers.ts';
 import { getClientIp, checkRateLimit } from '../_shared/security.ts';
 
@@ -26,7 +26,7 @@ function effectivePrice(productId: string, basePrice: number, promos: Promotion[
 }
 
 async function createOrder(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient<any>,
   params: { establishmentId: string; cartItems: CartItem[]; paymentMethod: string; observacoes?: string; telefone?: string; transactionStatus?: 'pendente' | 'confirmado' },
 ) {
   const { establishmentId, cartItems, paymentMethod, observacoes, telefone, transactionStatus = 'pendente' } = params;
@@ -175,6 +175,85 @@ Deno.serve(async (req: Request) => {
     // -----------------------------------------------------------------
     // Ações públicas (totem — sem login)
     // -----------------------------------------------------------------
+    if (action === 'menu') {
+      const requestedEstablishmentId = typeof body.establishmentId === 'string' ? body.establishmentId : '';
+      let establishmentQuery = supabase.from('establishments').select('id, status');
+      if (requestedEstablishmentId) establishmentQuery = establishmentQuery.eq('id', requestedEstablishmentId);
+      else establishmentQuery = establishmentQuery.limit(2);
+      const { data: establishment, error: establishmentError } = await establishmentQuery.maybeSingle();
+      if (establishmentError || !establishment || establishment.status !== 'ativo') {
+        return errorResponse('Estabelecimento indisponível.', 404);
+      }
+
+      const rate = await checkRateLimit(supabase, 'menu_ip', getClientIp(req), 300, 15);
+      if (!rate.allowed) return errorResponse('Muitas consultas. Tente novamente mais tarde.', 429);
+
+      const [productsResult, stockResult, promotionsResult, settingsResult] = await Promise.all([
+        supabase.from('products')
+          .select('id, name, price, emoji, categoria, sazonal, disponivel, image_url, created_at, updated_at')
+          .eq('establishment_id', establishment.id)
+          .eq('disponivel', true),
+        supabase.from('stock')
+          .select('product_id, quantidade')
+          .eq('establishment_id', establishment.id),
+        supabase.from('promotions')
+          .select('id, nome, tipo, valor, product_ids, ativo, created_at')
+          .eq('establishment_id', establishment.id)
+          .eq('ativo', true),
+        supabase.from('settings')
+          .select('id, nome_loja, whatsapp_numero')
+          .eq('establishment_id', establishment.id)
+          .eq('id', 1)
+          .maybeSingle(),
+      ]);
+      const menuError = productsResult.error ?? stockResult.error ?? promotionsResult.error ?? settingsResult.error;
+      if (menuError) throw menuError;
+      const visibleProductIds = new Set((productsResult.data ?? []).map((product) => product.id));
+
+      return jsonResponse({
+        establishmentId: establishment.id,
+        products: productsResult.data ?? [],
+        stock: (stockResult.data ?? []).filter((row) => visibleProductIds.has(row.product_id)),
+        promotions: promotionsResult.data ?? [],
+        settings: settingsResult.data ?? { id: 1, nome_loja: '', whatsapp_numero: '' },
+      });
+    }
+
+    if (action === 'my-loyalty') {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader?.startsWith('Bearer ')) return errorResponse('Não autenticado.', 401);
+      const { data: authData, error: authError } = await supabase.auth.getUser(authHeader.slice('Bearer '.length));
+      if (authError || !authData.user) return errorResponse('Sessão inválida ou expirada.', 401);
+
+      const rate = await checkRateLimit(supabase, 'my_loyalty_user', authData.user.id, 60, 60);
+      if (!rate.allowed) return errorResponse('Muitas consultas. Tente novamente mais tarde.', 429);
+
+      const { data: customer } = await supabase.from('customer_accounts')
+        .select('telefone, cadastro_completo')
+        .eq('id', authData.user.id)
+        .maybeSingle();
+      if (!customer?.cadastro_completo || !customer.telefone) {
+        return errorResponse('Complete seu cadastro para consultar a fidelidade.', 403);
+      }
+
+      const requestedEstablishmentId = typeof body.establishmentId === 'string' ? body.establishmentId : '';
+      let establishmentQuery = supabase.from('establishments').select('id, status');
+      if (requestedEstablishmentId) establishmentQuery = establishmentQuery.eq('id', requestedEstablishmentId);
+      else establishmentQuery = establishmentQuery.limit(2);
+      const { data: establishment, error: establishmentError } = await establishmentQuery.maybeSingle();
+      if (establishmentError || !establishment || establishment.status !== 'ativo') {
+        return errorResponse('Estabelecimento indisponível.', 404);
+      }
+
+      const { data: loyalty, error: loyaltyError } = await supabase.from('loyalty')
+        .select('telefone, pedidos, updated_at')
+        .eq('establishment_id', establishment.id)
+        .eq('telefone', customer.telefone)
+        .maybeSingle();
+      if (loyaltyError) throw loyaltyError;
+      return jsonResponse(loyalty ?? { telefone: customer.telefone, pedidos: 0, updated_at: null });
+    }
+
     if (action === 'checkout') {
       const requestedEstablishmentId = typeof body.establishmentId === 'string' ? body.establishmentId : '';
       let establishmentQuery = supabase.from('establishments').select('id, status');
@@ -370,8 +449,11 @@ Deno.serve(async (req: Request) => {
 
     return errorResponse(`Ação desconhecida: ${action}`, 400);
   } catch (err: unknown) {
-    console.error(err);
     const e = err as { status?: number; message?: string };
-    return errorResponse(e.message ?? 'Erro interno ao processar pedido.', e.status ?? 500);
+    const status = Number.isInteger(e?.status) && (e.status as number) >= 400 && (e.status as number) < 500
+      ? e.status as number
+      : 500;
+    if (status === 500) console.error('Falha interna ao processar pedido.');
+    return errorResponse(status === 500 ? 'Erro interno ao processar pedido.' : e.message ?? 'Não foi possível processar pedido.', status);
   }
 });

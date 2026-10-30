@@ -1,80 +1,81 @@
-// supabase/functions/customer-login-lookup/index.ts
-//
-// Resolve o e-mail real de um cliente a partir de e-mail, telefone ou CPF,
-// para permitir login com qualquer um dos três + senha. O frontend chama
-// esta function primeiro, pega o e-mail resolvido, e então chama
-// supabase.auth.signInWithPassword com esse e-mail.
-//
-// Não expõe se o identificador existe ou não em caso de erro — mas como
-// esta function só devolve o e-mail (que o Supabase Auth já validaria de
-// qualquer forma no passo seguinte), a resposta é sempre genérica quando
-// não encontrado, para não ajudar enumeração de contas.
-//
-// Body esperado: { identifier: string }  (e-mail, telefone ou CPF, em
-// qualquer formato — a function normaliza)
-
+// Autentica clientes por e-mail, telefone ou CPF sem revelar o e-mail
+// associado ao identificador enviado.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse } from '../_shared/helpers.ts';
 import { getClientIp, checkRateLimit } from '../_shared/security.ts';
 
-const RATE_LIMIT_MAX = 30; // por hora, por IP — evita força bruta de enumeração
+const RATE_LIMIT_MAX = 30;
 const RATE_LIMIT_WINDOW_MIN = 60;
+const INVALID_CREDENTIALS = 'E-mail, telefone, CPF ou senha incorretos.';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  const ip = getClientIp(req);
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseAdmin = createClient(
+    supabaseUrl,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
 
   try {
-    const rate = await checkRateLimit(supabase, 'customer_login_lookup', ip, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MIN);
-    if (!rate.allowed) {
-      return errorResponse('Muitas tentativas. Tente novamente mais tarde.', 429);
-    }
+    const rate = await checkRateLimit(
+      supabaseAdmin,
+      'customer_login',
+      getClientIp(req),
+      RATE_LIMIT_MAX,
+      RATE_LIMIT_WINDOW_MIN,
+    );
+    if (!rate.allowed) return errorResponse('Muitas tentativas. Tente novamente mais tarde.', 429);
 
     const body = await req.json();
-    const identifier = String(body?.identifier ?? '').trim();
-    if (!identifier) {
-      return errorResponse('Informe e-mail, telefone ou CPF.', 400);
+    const identifier = typeof body?.identifier === 'string' ? body.identifier.trim() : '';
+    const password = typeof body?.password === 'string' ? body.password : '';
+    if (!identifier || identifier.length > 254 || !password || password.length > 256) {
+      return errorResponse(INVALID_CREDENTIALS, 401);
     }
 
-    const isEmail = identifier.includes('@');
+    let email: string | null = identifier.includes('@') ? identifier.toLowerCase() : null;
     const digits = identifier.replace(/\D/g, '');
 
-    let email: string | null = null;
+    if (!email && digits.length >= 10) {
+      if (digits.length === 11 || digits.length === 14) {
+        const { data: byCpf } = await supabaseAdmin
+          .from('customer_accounts')
+          .select('email')
+          .eq('cpf', digits)
+          .maybeSingle();
+        email = byCpf?.email ?? null;
+      }
 
-    if (isEmail) {
-      email = identifier.toLowerCase();
-    } else if (digits.length === 11 || digits.length === 14) {
-      // CPF (11) — CNPJ (14) não se aplica a cliente final, mas aceitamos
-      // o dígito por segurança/consistência com outros formulários.
-      const { data } = await supabase
-        .from('customer_accounts')
-        .select('email')
-        .eq('cpf', digits)
-        .maybeSingle();
-      email = data?.email ?? null;
-    } else if (digits.length >= 10) {
-      // Telefone
-      const { data } = await supabase
-        .from('customer_accounts')
-        .select('email')
-        .eq('telefone', digits)
-        .maybeSingle();
-      email = data?.email ?? null;
+      if (!email) {
+        const { data: byPhone } = await supabaseAdmin
+          .from('customer_accounts')
+          .select('email')
+          .eq('telefone', digits)
+          .maybeSingle();
+        email = byPhone?.email ?? null;
+      }
     }
+    if (!email) return errorResponse(INVALID_CREDENTIALS, 401);
 
-    if (!email) {
-      // Resposta genérica — não revela se o identificador existe.
-      return errorResponse('Não foi possível localizar uma conta com esses dados.', 404);
-    }
+    const supabaseAuth = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false } },
+    );
+    const { data: authData, error: authError } = await supabaseAuth.auth.signInWithPassword({ email, password });
+    if (authError || !authData.session) return errorResponse(INVALID_CREDENTIALS, 401);
 
-    return jsonResponse({ ok: true, email });
+    // Retorna apenas os artefatos necessários para estabelecer a sessão.
+    return jsonResponse({
+      access_token: authData.session.access_token,
+      refresh_token: authData.session.refresh_token,
+      expires_at: authData.session.expires_at,
+      expires_in: authData.session.expires_in,
+      token_type: authData.session.token_type,
+    });
   } catch (err) {
-    console.error(err);
-    return errorResponse('Erro interno ao processar login.', 500);
+    console.error('Falha na autenticação de cliente:', err instanceof Error ? err.name : 'erro desconhecido');
+    return errorResponse('Não foi possível entrar. Tente novamente.', 500);
   }
 });

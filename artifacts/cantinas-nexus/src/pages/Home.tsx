@@ -348,9 +348,9 @@ export function Home() {
                </AnimatePresence>
              )}
            </motion.div>
-           <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .18 }} className="mt-5 sm:mt-7 rounded-[1.5rem] bg-[#FFF0DC] border border-[#F8D8B1] overflow-hidden relative">
+           <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .18 }} className="mt-5 sm:mt-7 relative aspect-[82/27] overflow-hidden rounded-[1.5rem] border border-[#F8D8B1] bg-[#FFF0DC]">
              <button onClick={() => setCategoryFilter('combo')} className="absolute inset-0 z-10 cursor-pointer" aria-label="Ver combos" />
-           <img src={`${REFERENCE_ASSET}combo-banner.webp`} alt="Combos que cabem no seu fome. Mais sabor por um preço especial." className="mx-auto block h-auto max-h-64 w-full max-w-[820px] object-contain" />
+           <img src={`${REFERENCE_ASSET}combo-banner.webp`} alt="Combos que cabem no seu fome. Mais sabor por um preço especial." className="absolute inset-0 block h-full w-full object-cover object-center" />
            </motion.section>
            </>
         )}

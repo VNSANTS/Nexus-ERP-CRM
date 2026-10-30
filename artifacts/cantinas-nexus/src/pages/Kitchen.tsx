@@ -482,6 +482,24 @@ export function Kitchen() {
       return sum + (p ? Number(p.price) * qty : 0);
     }, 0);
 
+  useEffect(() => {
+    if (!loggedEmployee) return;
+    const allowedTabs: KitchenTab[] = [];
+    if (loggedEmployee.acessoCozinha || loggedEmployee.acessoCaixa) allowedTabs.push('pedidos');
+    if (loggedEmployee.acessoCaixa) allowedTabs.push('caixa');
+    if (loggedEmployee.acessoCozinha) allowedTabs.push('tarefas');
+    if (loggedEmployee.acessoEstoque) allowedTabs.push('estoque');
+    if (loggedEmployee.acessoRelatorios) allowedTabs.push('dashboard');
+    for (const [feature, tab] of [
+      ['acessoRelatorios', 'relatorios'], ['acessoCrm', 'crm'], ['acessoFornecedores', 'fornecedores'],
+      ['acessoProdutos', 'produtos'], ['acessoPromocoes', 'promocoes'], ['acessoFuncionarios', 'funcionarios'],
+      ['acessoConfiguracoes', 'configuracoes'],
+    ] as const) {
+      if (loggedEmployee[feature]) allowedTabs.push(tab);
+    }
+    if (allowedTabs.length > 0 && !allowedTabs.includes(activeTab)) setActiveTab(allowedTabs[0]);
+  }, [activeTab, loggedEmployee]);
+
   // ─── Login guard ─────────────────────────────────────────────────────────────
 
   if (!loggedEmployee && ownerLoading) {
@@ -520,10 +538,6 @@ export function Kitchen() {
     funcionarios: loggedEmployee.acessoFuncionarios, configuracoes: loggedEmployee.acessoConfiguracoes,
   };
   const tabs = TABS_ADMIN.filter((tab) => featureEnabled[tab.key]);
-  useEffect(() => {
-    if (tabs.length > 0 && !tabs.some((tab) => tab.key === activeTab)) setActiveTab(tabs[0].key);
-  }, [activeTab, tabs]);
-
   // ─── Layout ──────────────────────────────────────────────────────────────────
 
   return (

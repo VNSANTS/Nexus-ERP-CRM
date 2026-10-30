@@ -155,28 +155,29 @@ export function Login({ onKitchenLogin }: { onKitchenLogin?: (employee: ApiEmplo
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 py-10">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sm md:p-8">
-        <h1 className="text-center text-2xl font-semibold text-neutral-900">Nexus</h1>
+    <div className="nexus-noise flex min-h-screen items-center justify-center bg-background px-4 py-10">
+      <div className="nexus-surface w-full max-w-md rounded-2xl bg-white p-6 md:p-8">
+        <h1 className="text-center font-display text-3xl font-black tracking-tight text-foreground">Nexus</h1>
+        <p className="mt-1 text-center text-sm text-muted-foreground">Entre para continuar</p>
 
-        <div className="mt-6 flex rounded-lg bg-neutral-100 p-1">
+        <div className="mt-6 flex rounded-xl bg-muted p-1">
           <button
             type="button"
             onClick={() => setMode('login')}
             className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
-              mode === 'login' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'
+              mode === 'login' ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground'
             }`}
           >
-            Log in
+            Entrar
           </button>
           <button
             type="button"
             onClick={() => setMode('signup')}
             className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
-              mode === 'signup' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500'
+              mode === 'signup' ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground'
             }`}
           >
-            Sign up
+            Criar conta
           </button>
         </div>
 

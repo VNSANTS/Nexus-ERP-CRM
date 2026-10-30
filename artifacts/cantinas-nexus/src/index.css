@@ -107,6 +107,70 @@ button {
   transition: transform 180ms ease, background-color 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
 }
 
+/* Shared interaction layer: keyboard focus stays visible across every area. */
+:where(button, a[href], input, textarea, select, [tabindex]):focus-visible {
+  outline: 3px solid hsl(var(--ring) / .72);
+  outline-offset: 2px;
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+textarea,
+select {
+  min-height: 2.75rem;
+  border-radius: .75rem;
+  border-color: hsl(var(--border));
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: hsl(var(--muted-foreground) / .78);
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):focus,
+textarea:focus,
+select:focus {
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 3px hsl(var(--ring) / .14);
+}
+
+/* Legacy utility backgrounds now resolve to the same warm canvas as Kitchen. */
+.bg-neutral-50,
+.bg-gray-50,
+.bg-slate-50 {
+  background-color: hsl(var(--background));
+}
+
+.bg-neutral-900,
+.bg-slate-900 {
+  background-color: #172333;
+}
+
+.text-neutral-900,
+.text-slate-900 {
+  color: hsl(var(--foreground));
+}
+
+@media (pointer: coarse) {
+  button,
+  a[href] {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
 button:active:not(:disabled) {
   transform: scale(.97);
 }

@@ -17,7 +17,7 @@ export function PainelEstabelecimento() {
   }, [loading, session, establishment, navigate]);
 
   if (loading || !session || !establishment) {
-    return <div className="flex min-h-screen items-center justify-center bg-slate-50"><p className="text-sm text-slate-400">Carregando...</p></div>;
+    return <div className="flex min-h-screen items-center justify-center bg-background"><p className="text-sm text-muted-foreground">Carregando...</p></div>;
   }
 
   const areas = [
@@ -27,7 +27,7 @@ export function PainelEstabelecimento() {
   ];
 
   return (
-    <main className="min-h-screen bg-[#f4f6f8] px-4 py-10 sm:px-6 lg:py-16">
+    <main className="nexus-noise min-h-screen bg-background px-4 py-10 sm:px-6 lg:py-16">
       <div className="mx-auto max-w-5xl">
         <header className="mb-8 flex items-start justify-between gap-4">
           <div>
@@ -41,7 +41,7 @@ export function PainelEstabelecimento() {
         </header>
         <section className="grid gap-4 md:grid-cols-3">
           {areas.map(({ title, detail, icon: Icon, href, tone }) => (
-            <button key={href} type="button" onClick={() => navigate(href)} className="group flex min-h-56 flex-col rounded-3xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg">
+            <button key={href} type="button" onClick={() => navigate(href)} className="group flex min-h-56 flex-col rounded-3xl border border-border bg-card p-6 text-left shadow-sm transition hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg">
               <span className={`flex h-12 w-12 items-center justify-center rounded-2xl text-white ${tone}`}><Icon className="h-6 w-6" /></span>
               <span className="mt-6 text-xl font-black text-slate-900">{title}</span>
               <span className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">{detail}</span>

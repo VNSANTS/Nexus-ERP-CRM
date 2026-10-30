@@ -101,7 +101,7 @@ function Router() {
       <Route path="/cozinha" component={Kitchen} />
       <Route path="/cardapio-tablet" component={CardapioTablet} />
       <Route path="/nxs" component={PainelRaiz} />
-      <Route path="/estabelecimento/login">{() => <Login />}</Route>
+      <Route path="/estabelecimento/login">{() => <Login ownerMode />}</Route>
       <Route path="/estabelecimento/onboarding" component={OnboardingEstabelecimento} />
       <Route path="/estabelecimento/adm" component={AdmEstabelecimentoPlaceholder} />
       <Route path="/estabelecimento" component={PainelEstabelecimento} />

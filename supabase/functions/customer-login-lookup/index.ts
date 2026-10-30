@@ -8,6 +8,18 @@ const RATE_LIMIT_MAX = 30;
 const RATE_LIMIT_WINDOW_MIN = 60;
 const INVALID_CREDENTIALS = 'E-mail, telefone, CPF ou senha incorretos.';
 
+function isValidCpf(value: string): boolean {
+  const cpf = value.replace(/\D/g, '');
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
+  const digit = (length: number) => {
+    let sum = 0;
+    for (let i = 0; i < length; i++) sum += Number(cpf[i]) * (length + 1 - i);
+    const result = (sum * 10) % 11;
+    return result === 10 ? 0 : result;
+  };
+  return digit(9) === Number(cpf[9]) && digit(10) === Number(cpf[10]);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -30,15 +42,60 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const identifier = typeof body?.identifier === 'string' ? body.identifier.trim() : '';
     const password = typeof body?.password === 'string' ? body.password : '';
-    if (!identifier || identifier.length > 254 || !password || password.length > 256) {
+    const action = body?.action === 'options' ? 'options' : 'login';
+    const accountId = typeof body?.accountId === 'string' ? body.accountId : '';
+    if (!identifier || identifier.length > 254 || (action === 'login' && (!password || password.length > 256))) {
       return errorResponse(INVALID_CREDENTIALS, 401);
     }
 
     let email: string | null = identifier.includes('@') ? identifier.toLowerCase() : null;
     const digits = identifier.replace(/\D/g, '');
 
+    const maskEmail = (value: string) => {
+      const [local, domain] = value.toLowerCase().split('@');
+      const [host, ...suffix] = domain.split('.');
+      return `${local.slice(0, 1)}${'*'.repeat(Math.min(Math.max(local.length - 1, 2), 6))}@${host.slice(0, 1)}${'*'.repeat(Math.min(Math.max(host.length - 1, 2), 6))}.${suffix.join('.')}`;
+    };
+
+    if (action === 'options') {
+      if (!isValidCpf(digits)) return jsonResponse({ accounts: [] });
+      const [{ data: customers }, { data: establishments }] = await Promise.all([
+        supabaseAdmin.from('customer_accounts').select('id,nome,email').eq('cpf', digits),
+        supabaseAdmin.from('establishments').select('id,apelido,nome_completo,email').eq('cpf_cnpj', digits),
+      ]);
+      const establishmentIds = (establishments ?? []).map((item) => item.id);
+      const { data: owners } = establishmentIds.length
+        ? await supabaseAdmin.from('establishment_owners').select('id,establishment_id').in('establishment_id', establishmentIds)
+        : { data: [] };
+      const accounts = [
+        ...(customers ?? []).filter((item) => item.email).map((item) => ({
+          accountId: item.id, kind: 'customer', label: item.nome || 'Conta de cliente', email: maskEmail(item.email),
+        })),
+        ...(owners ?? []).flatMap((owner) => {
+          const establishment = (establishments ?? []).find((item) => item.id === owner.establishment_id);
+          return establishment?.email ? [{
+            accountId: owner.id, kind: 'owner', label: establishment.apelido || establishment.nome_completo || 'Estabelecimento', email: maskEmail(establishment.email),
+          }] : [];
+        }),
+      ];
+      return jsonResponse({ accounts });
+    }
+
     if (!email && digits.length >= 10) {
-      if (digits.length === 11 || digits.length === 14) {
+      if (accountId && digits.length === 11) {
+        const { data: customer } = await supabaseAdmin
+          .from('customer_accounts').select('email').eq('id', accountId).eq('cpf', digits).maybeSingle();
+        if (customer?.email) email = customer.email;
+        if (!email) {
+          const { data: owner } = await supabaseAdmin
+            .from('establishment_owners').select('establishment_id').eq('id', accountId).maybeSingle();
+          if (owner) {
+            const { data: establishment } = await supabaseAdmin
+              .from('establishments').select('email').eq('id', owner.establishment_id).eq('cpf_cnpj', digits).maybeSingle();
+            email = establishment?.email ?? null;
+          }
+        }
+      } else if (digits.length === 11 || digits.length === 14) {
         const { data: byCpf } = await supabaseAdmin
           .from('customer_accounts')
           .select('email')

@@ -153,23 +153,27 @@ export async function requireEmployee(req: Request): Promise<EmployeeClaims | nu
     if (employee.ativo !== true) return null;
     let establishmentId = employee.establishment_id as string | null;
 
-    // Keep the legacy global APIs behind a single-establishment guard. Some
-    // callers still use unscoped tables, so enabling a second tenant here
-    // would let those APIs cross the tenant boundary.
+    // Legacy employee rows without a tenant link are accepted only while the
+    // project has one active establishment. Tenant-linked employees are
+    // validated against their own establishment and remain usable as the SaaS
+    // adds more tenants.
     if (!establishmentId) {
       const { data: establishments, error: establishmentsError } = await supabase
         .from('establishments')
         .select('id, status')
+        .eq('status', 'ativo')
         .limit(2);
-      if (establishmentsError || establishments?.length !== 1 || establishments[0].status !== 'ativo') return null;
+      if (establishmentsError || establishments?.length !== 1) return null;
       establishmentId = establishments[0].id;
+    } else {
+      const { data: establishment, error: establishmentError } = await supabase
+        .from('establishments')
+        .select('id')
+        .eq('id', establishmentId)
+        .eq('status', 'ativo')
+        .maybeSingle();
+      if (establishmentError || !establishment) return null;
     }
-
-    const { data: activeEstablishments, error: activeEstablishmentsError } = await supabase
-      .from('establishments')
-      .select('id, status')
-      .limit(2);
-    if (activeEstablishmentsError || activeEstablishments?.length !== 1 || activeEstablishments[0].id !== establishmentId || activeEstablishments[0].status !== 'ativo') return null;
 
     if (!establishmentId) return null;
 
@@ -200,13 +204,6 @@ export async function requireEmployee(req: Request): Promise<EmployeeClaims | nu
     .eq('id', owner.establishment_id)
     .maybeSingle();
   if (establishmentError || !establishment || establishment.status !== 'ativo') return null;
-
-  // The owner-facing legacy APIs are also global until they are migrated.
-  const { data: ownerEstablishments, error: ownerEstablishmentsError } = await supabase
-    .from('establishments')
-    .select('id')
-    .limit(2);
-  if (ownerEstablishmentsError || ownerEstablishments?.length !== 1 || ownerEstablishments[0].id !== establishment.id) return null;
 
   return {
     employeeId: data.user.id,

@@ -280,6 +280,7 @@ export const api = {
 
   customers: {
     list: () => callFn<ApiCustomer[]>('clientes', { action: 'list' }),
+    insights: () => callFn<ApiCustomerInsight[]>('clientes', { action: 'insights' }),
     interactions: () => callFn<ApiCustomerInteraction[]>('clientes', { action: 'list-interactions' }),
     loyalty: () => callFn<ApiLoyaltyRecord[]>('clientes', { action: 'list-loyalty' }),
     // Busca apenas a fidelidade da conta autenticada; o servidor deriva telefone e tenant.
@@ -460,6 +461,19 @@ export interface ApiCustomerInteraction {
   tipo: string;
   nota: string;
   createdAt: string;
+}
+
+export interface ApiCustomerInsight {
+  telefone: string;
+  nome: string;
+  tags: string[];
+  observacoes: string;
+  pedidos: number;
+  totalGasto: number;
+  ticketMedio: number;
+  ultimoPedidoEm: string | null;
+  diasSemComprar: number | null;
+  status: 'novo' | 'ativo' | 'em-risco' | 'inativo';
 }
 
 export interface ApiSupplier {

@@ -22,12 +22,14 @@
 
 ## Evidência de produção
 
-- As migrations locais e remotas estão alinhadas até `20261030143711`.
+- As migrations locais e remotas estão alinhadas até `20261030144820`.
 - `anon` e `authenticated` não têm privilégios diretos nas tabelas `products`, `promotions` e `settings`.
 - A única policy de Storage em `product-images` é `SELECT`; bucket limita uploads a WebP e 5 MB.
 - `checkout_order_atomic` é executável por `service_role`; não por `anon` nem `authenticated`.
+- `customer_insights(uuid)` é executável somente por `service_role`; smoke test transacional validou normalização de telefone, agregados do CRM e rollback dos dados temporários.
+- Typecheck do workspace e build de produção do frontend passaram. As Edge Functions afetadas passaram em `deno check` e foram publicadas.
 - O advisor Supabase de segurança não reportou outros avisos `WARN` além do item abaixo.
-- Commits publicados: `5869f03` e `c0a29a4`. Frontend no GitHub Pages e Edge Functions foram publicados.
+- Commits publicados anteriormente: `5869f03` e `c0a29a4`. As mudanças desta revisão ainda aguardam commit/push para publicar o frontend.
 
 ## Pendente no painel Supabase
 
@@ -36,5 +38,11 @@ O advisor `auth_leaked_password_protection` informa que a proteção contra senh
 ## Limites do escopo
 
 - Checkout e cobrança permanecem sem integração de gateway Pix/cartão; conciliação automática depende da escolha de provedor.
-- O helper de autenticação ainda contém uma trava para exatamente um estabelecimento ativo por causa de APIs legadas não tenantizadas. O isolamento no banco está preparado, mas liberar vários estabelecimentos ativos requer migrar essas APIs antes.
+- O login agora valida cada funcionário pelo `establishment_id` associado e pelo estado ativo daquele estabelecimento. Funcionários legados sem tenant associado só são aceitos quando existe exatamente um estabelecimento ativo.
 - `security-threat-model` e advisors só enxergam o repositório/configuração consultada; não substituem revisão recorrente de mudanças futuras, gestão de backup/restauração ou revisão jurídica/operacional de LGPD.
+
+## Revisão funcional adicional
+
+- O CRM deixou de calcular métricas a partir dos 500 pedidos mais recentes e passou a usar agregação completa no banco, limitada ao estabelecimento autenticado.
+- As telas de funcionário respeitam a permissão de cozinha/caixa para mostrar ações disponíveis; relatórios diários e horários usam o dia e hora de `America/Sao_Paulo`.
+- A redefinição de senha de clientes não é mais redirecionada ao onboarding do estabelecimento. Erros ao criar/atualizar produto e estoque agora são retornados ao usuário; criação de produto tenta reverter o registro se o estoque inicial falhar.

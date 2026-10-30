@@ -36,6 +36,14 @@ Deno.serve(async (req: Request) => {
       return jsonResponse(data ?? []);
     }
 
+    if (action === 'insights') {
+      const { data, error } = await supabase.rpc('customer_insights', {
+        p_establishment_id: caller.establishmentId,
+      });
+      if (error) throw error;
+      return jsonResponse(data ?? []);
+    }
+
     if (action === 'get') {
       const tel = String(body.telefone);
       const { data: customer } = await supabase.from('customers').select('*').eq('establishment_id', caller.establishmentId).eq('telefone', tel).maybeSingle();
@@ -52,26 +60,28 @@ Deno.serve(async (req: Request) => {
     if (action === 'upsert') {
       const tel = String(body.telefone).trim();
       const { nome, tags, observacoes } = body;
-
-      const { data: existing } = await supabase.from('customers').select('telefone').eq('establishment_id', caller.establishmentId).eq('telefone', tel).maybeSingle();
-
-      if (existing) {
-        const updates: Record<string, unknown> = { updated_at: now };
-        if (nome != null) updates.nome = nome;
-        if (tags != null) updates.tags = tags;
-        if (observacoes != null) updates.observacoes = observacoes;
-        const { data, error } = await supabase.from('customers').update(updates).eq('establishment_id', caller.establishmentId).eq('telefone', tel).select().single();
-        if (error) throw error;
-        return jsonResponse(data);
+      if (!tel || tel.length > 30) return errorResponse('Telefone inválido.', 400);
+      if (nome != null && (typeof nome !== 'string' || nome.length > 120)) return errorResponse('Nome inválido.', 400);
+      if (observacoes != null && (typeof observacoes !== 'string' || observacoes.length > 2000)) return errorResponse('Observações excedem o limite.', 400);
+      if (tags != null && (!Array.isArray(tags) || tags.length > 20 || tags.some((tag) => typeof tag !== 'string' || tag.length > 40))) {
+        return errorResponse('Etiquetas inválidas.', 400);
       }
 
-      const { data, error } = await supabase
-        .from('customers')
-        .insert({ establishment_id: caller.establishmentId, telefone: tel, nome: nome ?? '', tags: tags ?? [], observacoes: observacoes ?? '', created_at: now, updated_at: now })
+      const values: Record<string, unknown> = {
+        establishment_id: caller.establishmentId,
+        telefone: tel,
+        updated_at: now,
+      };
+      if (nome != null) values.nome = nome.trim();
+      if (tags != null) values.tags = tags.map((tag: string) => tag.trim()).filter(Boolean);
+      if (observacoes != null) values.observacoes = observacoes.trim();
+
+      const { data, error } = await supabase.from('customers')
+        .upsert(values, { onConflict: 'establishment_id,telefone' })
         .select()
         .single();
       if (error) throw error;
-      return jsonResponse(data, 201);
+      return jsonResponse(data);
     }
 
     if (action === 'delete') {
@@ -94,15 +104,18 @@ Deno.serve(async (req: Request) => {
     if (action === 'add-interaction') {
       const tel = String(body.telefone).trim();
       const { tipo, nota } = body;
+      if (!tel || tel.length > 30) return errorResponse('Telefone inválido.', 400);
+      if (typeof tipo !== 'string' || !['ligacao', 'whatsapp', 'presencial', 'email', 'outro'].includes(tipo)) return errorResponse('Tipo de interação inválido.', 400);
+      if (typeof nota !== 'string' || !nota.trim() || nota.length > 2000) return errorResponse('Descreva a interação em até 2.000 caracteres.', 400);
 
-      const { data: existing } = await supabase.from('customers').select('telefone').eq('establishment_id', caller.establishmentId).eq('telefone', tel).maybeSingle();
-      if (!existing) {
-        await supabase.from('customers').insert({ establishment_id: caller.establishmentId, telefone: tel, nome: '', tags: [], observacoes: '', created_at: now, updated_at: now });
-      }
+      const { error: customerError } = await supabase.from('customers').upsert({
+        establishment_id: caller.establishmentId, telefone: tel, nome: '', tags: [], observacoes: '',
+      }, { onConflict: 'establishment_id,telefone', ignoreDuplicates: true });
+      if (customerError) throw customerError;
 
       const { data, error } = await supabase
         .from('customer_interactions')
-        .insert({ establishment_id: caller.establishmentId, id: uid(), telefone: tel, tipo, nota: String(nota).trim(), created_at: now })
+        .insert({ establishment_id: caller.establishmentId, id: uid(), telefone: tel, tipo, nota: nota.trim(), created_at: now })
         .select()
         .single();
       if (error) throw error;

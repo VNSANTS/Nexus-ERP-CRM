@@ -18,6 +18,7 @@ const OnboardingEstabelecimento = lazy(() => import('./pages/OnboardingEstabelec
 const PainelEstabelecimento = lazy(() => import('./pages/PainelEstabelecimento').then((module) => ({ default: module.PainelEstabelecimento })));
 const AdmEstabelecimentoPlaceholder = lazy(() => import('./pages/AdmEstabelecimentoPlaceholder').then((module) => ({ default: module.AdmEstabelecimentoPlaceholder })));
 const CardapioTablet = lazy(() => import('./pages/CardapioTablet').then((module) => ({ default: module.CardapioTablet })));
+const RedefinirSenha = lazy(() => import('./pages/RedefinirSenha').then((module) => ({ default: module.RedefinirSenha })));
 const NotFound = lazy(() => import('./pages/not-found'));
 
 const queryClient = new QueryClient({
@@ -71,6 +72,7 @@ function Router() {
     <Switch>
       <Route path="/">{() => <Login />}</Route>
       <Route path="/completar-cadastro" component={CompletarCadastro} />
+      <Route path="/redefinir-senha" component={RedefinirSenha} />
       <Route path="/estabelecimentos">
         {() => (
           <RequireCustomer>
@@ -108,11 +110,12 @@ function Router() {
 
 function RecoveryRedirect() {
   const [, navigate] = useLocation();
-  const { isPasswordRecovery } = useOwnerAuth();
+  const { isPasswordRecovery, loading, establishment } = useOwnerAuth();
 
   useEffect(() => {
-    if (isPasswordRecovery) navigate('/estabelecimento/onboarding');
-  }, [isPasswordRecovery, navigate]);
+    if (!isPasswordRecovery || loading) return;
+    navigate(establishment ? '/estabelecimento/onboarding' : '/redefinir-senha');
+  }, [isPasswordRecovery, loading, establishment, navigate]);
 
   return null;
 }

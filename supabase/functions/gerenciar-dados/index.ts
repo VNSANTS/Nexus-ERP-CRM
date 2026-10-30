@@ -15,6 +15,28 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse, requireEmployee, hasEmployeeAccess } from '../_shared/helpers.ts';
 import { checkRateLimit } from '../_shared/security.ts';
 
+function saoPauloDayStart(now = new Date()): Date {
+  const dateParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(now).reduce<Record<string, string>>((parts, part) => {
+    if (part.type !== 'literal') parts[part.type] = part.value;
+    return parts;
+  }, {});
+  const localMidnightAsUtc = Date.UTC(Number(dateParts.year), Number(dateParts.month) - 1, Number(dateParts.day));
+  const midnightParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date(localMidnightAsUtc)).reduce<Record<string, string>>((parts, part) => {
+    if (part.type !== 'literal') parts[part.type] = part.value;
+    return parts;
+  }, {});
+  const representedLocalAsUtc = Date.UTC(
+    Number(midnightParts.year), Number(midnightParts.month) - 1, Number(midnightParts.day),
+    Number(midnightParts.hour), Number(midnightParts.minute), Number(midnightParts.second),
+  );
+  return new Date(localMidnightAsUtc - (representedLocalAsUtc - localMidnightAsUtc));
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -34,7 +56,7 @@ Deno.serve(async (req: Request) => {
       if (!hasEmployeeAccess(caller, 'caixa') && !hasEmployeeAccess(caller, 'adm')) {
         return errorResponse('Acesso restrito ao caixa ou à administração.', 403);
       }
-    } else if (['list-products', 'list-stock', 'get-settings'].includes(action)) {
+    } else if (['list-products', 'list-stock', 'get-settings', 'report-products', 'report-hourly'].includes(action)) {
       if (!hasEmployeeAccess(caller, 'cozinha') && !hasEmployeeAccess(caller, 'caixa') && !hasEmployeeAccess(caller, 'adm')) {
         return errorResponse('Acesso restrito a cozinha ou caixa.', 403);
       }
@@ -95,15 +117,30 @@ Deno.serve(async (req: Request) => {
       if (!id || !name || price == null || !categoria || (!emoji && !imageUrl)) {
         return errorResponse('Nome, preço, categoria e (emoji ou foto) são obrigatórios.', 400);
       }
+      if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]{1,120}$/.test(id)
+        || typeof name !== 'string' || name.trim().length > 120
+        || !Number.isFinite(Number(price)) || Number(price) < 0
+        || typeof categoria !== 'string' || categoria.trim().length > 80) {
+        return errorResponse('Dados do produto inválidos.', 400);
+      }
+      const initialQuantity = quantidadeInicial == null ? 0 : Number(quantidadeInicial);
+      if (!Number.isFinite(initialQuantity) || initialQuantity < 0 || initialQuantity > 1_000_000) {
+        return errorResponse('Quantidade inicial inválida.', 400);
+      }
       const { data: product, error } = await supabase
         .from('products')
-        .insert({ id, establishment_id: caller.establishmentId, name, price, emoji: emoji ?? '', categoria, sazonal: !!sazonal, disponivel: disponivel !== false, image_url: imageUrl ?? null })
+        .insert({ id, establishment_id: caller.establishmentId, name: name.trim(), price: Number(price), emoji: emoji ?? '', categoria: categoria.trim(), sazonal: !!sazonal, disponivel: disponivel !== false, image_url: imageUrl ?? null })
         .select()
         .single();
       if (error) throw error;
 
-      const quantidade = Number.isFinite(Number(quantidadeInicial)) ? Math.max(0, Number(quantidadeInicial)) : 0;
-      await supabase.from('stock').upsert({ establishment_id: caller.establishmentId, product_id: id, name, quantidade, minimo: 5 }, { onConflict: 'establishment_id,product_id', ignoreDuplicates: true });
+      const { error: stockError } = await supabase.from('stock').upsert({ establishment_id: caller.establishmentId, product_id: id, name: name.trim(), quantidade: initialQuantity, minimo: 5 }, { onConflict: 'establishment_id,product_id', ignoreDuplicates: true });
+      if (stockError) {
+        const { error: rollbackError } = await supabase.from('products').delete()
+          .eq('establishment_id', caller.establishmentId).eq('id', id);
+        if (rollbackError) console.error('Falha ao reverter produto sem estoque inicial:', rollbackError);
+        throw stockError;
+      }
 
       return jsonResponse(product, 201);
     }
@@ -124,7 +161,8 @@ Deno.serve(async (req: Request) => {
       if (!updated) return errorResponse('Produto não encontrado.', 404);
 
       if (name != null) {
-        await supabase.from('stock').update({ name }).eq('establishment_id', caller.establishmentId).eq('product_id', id);
+        const { error: stockError } = await supabase.from('stock').update({ name }).eq('establishment_id', caller.establishmentId).eq('product_id', id);
+        if (stockError) throw stockError;
       }
       return jsonResponse(updated);
     }
@@ -140,27 +178,7 @@ Deno.serve(async (req: Request) => {
     // Relatórios
     // -----------------------------------------------------------------
     if (action === 'report-daily') {
-      const now = new Date();
-      const localDate = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
-      }).formatToParts(now).reduce<Record<string, string>>((parts, part) => {
-        if (part.type !== 'literal') parts[part.type] = part.value;
-        return parts;
-      }, {});
-      const localMidnightAsUtc = Date.UTC(Number(localDate.year), Number(localDate.month) - 1, Number(localDate.day));
-      const offsetAtMidnight = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
-      }).formatToParts(new Date(localMidnightAsUtc)).reduce<Record<string, string>>((parts, part) => {
-        if (part.type !== 'literal') parts[part.type] = part.value;
-        return parts;
-      }, {});
-      const representedLocalAsUtc = Date.UTC(
-        Number(offsetAtMidnight.year), Number(offsetAtMidnight.month) - 1, Number(offsetAtMidnight.day),
-        Number(offsetAtMidnight.hour), Number(offsetAtMidnight.minute), Number(offsetAtMidnight.second),
-      );
-      const timezoneOffset = representedLocalAsUtc - localMidnightAsUtc;
-      const todayStart = new Date(localMidnightAsUtc - timezoneOffset);
+      const todayStart = saoPauloDayStart();
       const [{ data: todayOrders }, { data: todayTransactions }] = await Promise.all([
         supabase.from('orders').select('id, total, status, created_at').eq('establishment_id', caller.establishmentId).gte('created_at', todayStart.toISOString()),
         supabase.from('transactions').select('valor, method, status').eq('establishment_id', caller.establishmentId).gte('created_at', todayStart.toISOString()),
@@ -182,8 +200,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === 'report-products') {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
+      const todayStart = saoPauloDayStart();
       const { data: todayOrders } = await supabase.from('orders').select('id, status').eq('establishment_id', caller.establishmentId).gte('created_at', todayStart.toISOString());
       const validIds = (todayOrders ?? []).filter((o) => o.status !== 'cancelado').map((o) => o.id);
       if (!validIds.length) return jsonResponse([]);
@@ -200,14 +217,15 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === 'report-hourly') {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
+      const todayStart = saoPauloDayStart();
       const { data: todayOrders } = await supabase.from('orders').select('status, created_at').eq('establishment_id', caller.establishmentId).gte('created_at', todayStart.toISOString());
       const valid = (todayOrders ?? []).filter((o) => o.status !== 'cancelado');
 
       const buckets = new Map<number, number>();
       for (const o of valid) {
-        const hour = new Date(o.created_at).getHours();
+        const hour = Number(new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23',
+        }).formatToParts(new Date(o.created_at)).find((part) => part.type === 'hour')?.value ?? 0);
         buckets.set(hour, (buckets.get(hour) ?? 0) + 1);
       }
       return jsonResponse(

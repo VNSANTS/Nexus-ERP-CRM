@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import {
-  api, formatCurrency, isOrderLate, computeOrderEta, computeCustomerInsights,
+  api, formatCurrency, isOrderLate, computeOrderEta,
   normalizePhoneIdentity,
   PAYMENT_LABELS, CATEGORY_LABELS,
   type ApiOrder, type ApiProduct, type ApiEmployee, type ApiStockItem,
-  type ApiPromotion, type ApiCustomer, type ApiCustomerInteraction,
+  type ApiPromotion, type ApiCustomer, type ApiCustomerInsight, type ApiCustomerInteraction,
   type ApiSupplier, type ApiSupplyRequest, type ApiTransaction,
 } from '../lib/api';
 import { toast } from 'sonner';
@@ -235,14 +235,16 @@ export function Kitchen() {
   const { data: stockHistory = [] } = useQuery({ queryKey: ['stock-history'], queryFn: api.stock.history, enabled: !!loggedEmployee && activeTab === 'estoque' });
   const { data: wasteLog = [] } = useQuery({ queryKey: ['waste-log'], queryFn: api.stock.waste, enabled: !!loggedEmployee && activeTab === 'estoque' });
   const { data: employees = [] } = useQuery({ queryKey: ['employees'], queryFn: api.employees.list, enabled: !!loggedEmployee && kitchenMode === 'admin' });
-  const { data: promotions = [] } = useQuery({ queryKey: ['promotions'], queryFn: api.promotions.list, enabled: !!loggedEmployee });
+  const { data: promotions = [] } = useQuery({ queryKey: ['promotions'], queryFn: api.promotions.list, enabled: !!loggedEmployee && kitchenMode === 'admin' });
   const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: api.customers.list, enabled: !!loggedEmployee && activeTab === 'crm' });
+  const { data: customerInsights = [] } = useQuery<ApiCustomerInsight[]>({ queryKey: ['customer-insights'], queryFn: api.customers.insights, enabled: !!loggedEmployee && kitchenMode === 'admin' && activeTab === 'crm' });
   const { data: interactions = [] } = useQuery({ queryKey: ['customer-interactions'], queryFn: api.customers.interactions, enabled: !!loggedEmployee && activeTab === 'crm' });
-  const { data: loyaltyData = [] } = useQuery({ queryKey: ['loyalty'], queryFn: api.customers.loyalty, enabled: !!loggedEmployee });
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: api.suppliers.list, enabled: !!loggedEmployee && activeTab === 'fornecedores' });
   const { data: supplyRequests = [] } = useQuery({ queryKey: ['supply-requests'], queryFn: api.suppliers.requests, enabled: !!loggedEmployee && activeTab === 'fornecedores' });
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: api.settings.getForEmployee, enabled: !!loggedEmployee });
-  const { data: dailyReport } = useQuery({ queryKey: ['report-daily'], queryFn: api.reports.daily, refetchInterval: 10000, enabled: !!loggedEmployee });
+  const canAccessCashier = ownerAdminAccess || loggedEmployee?.acessoCaixa === true;
+  const canAccessKitchen = ownerAdminAccess || loggedEmployee?.acessoCozinha === true;
+  const { data: dailyReport } = useQuery({ queryKey: ['report-daily'], queryFn: api.reports.daily, refetchInterval: 10000, enabled: !!loggedEmployee && canAccessCashier });
   const { data: productRanking = [] } = useQuery({ queryKey: ['report-products'], queryFn: api.reports.products, refetchInterval: 15000, enabled: !!loggedEmployee && (activeTab === 'dashboard' || activeTab === 'relatorios') });
   const { data: hourlyData = [] } = useQuery({ queryKey: ['report-hourly'], queryFn: api.reports.hourly, refetchInterval: 15000, enabled: !!loggedEmployee && (activeTab === 'dashboard' || activeTab === 'relatorios') });
   const { data: transactions = [] } = useQuery({ queryKey: ['transactions'], queryFn: api.reports.transactions, enabled: !!loggedEmployee && activeTab === 'relatorios' });
@@ -370,12 +372,12 @@ export function Kitchen() {
 
   const addInteractionMut = useMutation({
     mutationFn: () => api.customers.addInteraction(selectedCustomer!, interactionForm!.tipo, interactionForm!.nota),
-    onSuccess: () => { toast.success('Interação registrada!'); setInteractionForm(null); qc.invalidateQueries({ queryKey: ['customer-interactions'] }); qc.invalidateQueries({ queryKey: ['customers'] }); },
+    onSuccess: () => { toast.success('Interação registrada!'); setInteractionForm(null); qc.invalidateQueries({ queryKey: ['customer-interactions'] }); qc.invalidateQueries({ queryKey: ['customers'] }); qc.invalidateQueries({ queryKey: ['customer-insights'] }); },
     onError: (error: Error) => toast.error(error.message || 'Não foi possível salvar a interação.'),
   });
   const upsertCustomerMut = useMutation({
     mutationFn: () => api.customers.upsert(customerForm!.telefone, { nome: customerForm!.nome, tags: customerForm!.tags.split(',').map((t) => t.trim()).filter(Boolean), observacoes: customerForm!.observacoes }),
-    onSuccess: () => { toast.success('Cliente salvo!'); setCustomerForm(null); qc.invalidateQueries({ queryKey: ['customers'] }); },
+    onSuccess: () => { toast.success('Cliente salvo!'); setCustomerForm(null); qc.invalidateQueries({ queryKey: ['customers'] }); qc.invalidateQueries({ queryKey: ['customer-insights'] }); },
     onError: (error: Error) => toast.error(error.message || 'Não foi possível salvar o cliente.'),
   });
 
@@ -442,7 +444,6 @@ export function Kitchen() {
 
   const activeOrders = todayOrders.filter((o: ApiOrder) => !['retirado', 'cancelado'].includes(o.status));
   const lowStockItems = stock.filter((s: ApiStockItem) => s.quantidade <= s.minimo);
-  const customerInsights = computeCustomerInsights(orders, customers);
   const crmFilteredCustomers = customerInsights
     .filter((customer) => crmSegment === 'todos' || customer.status === crmSegment)
     .filter((customer) => {
@@ -457,7 +458,8 @@ export function Kitchen() {
       if (crmSort === 'maior-gasto') return b.totalGasto - a.totalGasto;
       if (crmSort === 'mais-pedidos') return b.pedidos - a.pedidos;
       if (crmSort === 'alfabetica') return (a.nome || a.telefone).localeCompare(b.nome || b.telefone, 'pt-BR');
-      return (b.ultimoPedidoEm ?? 0) - (a.ultimoPedidoEm ?? 0);
+      return (b.ultimoPedidoEm ? new Date(b.ultimoPedidoEm).getTime() : 0)
+        - (a.ultimoPedidoEm ? new Date(a.ultimoPedidoEm).getTime() : 0);
     });
   const crmSummary = {
     total: customerInsights.length,
@@ -504,7 +506,12 @@ export function Kitchen() {
     { key: 'configuracoes', label: 'Configurações', icon: Settings },
   ];
 
-  const tabs = kitchenMode === 'admin' ? TABS_ADMIN : TABS_FUNCIONARIO;
+  const tabs = kitchenMode === 'admin' ? TABS_ADMIN : TABS_FUNCIONARIO.filter((tab) => {
+    if (tab.key === 'pedidos') return canAccessKitchen || canAccessCashier;
+    if (tab.key === 'caixa') return canAccessCashier;
+    if (tab.key === 'dashboard') return canAccessCashier || canAccessKitchen;
+    return canAccessKitchen;
+  });
 
   // ─── Layout ──────────────────────────────────────────────────────────────────
 
@@ -577,14 +584,14 @@ export function Kitchen() {
               <div className="flex items-center gap-3">
                 <button onClick={() => qc.invalidateQueries({ queryKey: ['orders'] })} className="p-2 text-gray-500 hover:text-primary hover:bg-orange-50 rounded-xl transition-colors"><RefreshCw className="w-5 h-5" /></button>
                 {/* Pickup by code */}
-                <div className="flex items-center gap-2">
+                {canAccessCashier && <div className="flex items-center gap-2">
                   <input value={pickupCode} onChange={(e) => { setPickupCode(e.target.value); setPickupMsg(null); }}
                     placeholder="Código retirada" className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-bold w-32 focus:border-primary focus:outline-none" />
                   <button onClick={() => confirmPickupMut.mutate(pickupCode)} disabled={!pickupCode || confirmPickupMut.isPending}
                     className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50">
                     {confirmPickupMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                   </button>
-                </div>
+                </div>}
               </div>
             </div>
             {pickupMsg && (
@@ -593,7 +600,22 @@ export function Kitchen() {
               </div>
             )}
 
-            {['recebido', 'preparo', 'pronto', 'retirado', 'cancelado'].map((status) => {
+            {canAccessCashier && !canAccessKitchen && (
+              <section className="space-y-3">
+                <h3 className="text-sm font-black uppercase tracking-widest text-gray-400">Pedidos em andamento</h3>
+                {todayOrders.filter((order: ApiOrder) => !['retirado', 'cancelado'].includes(order.status)).map((order: ApiOrder) => (
+                  <article key={order.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <div>
+                      <p className="font-black text-gray-900">Pedido {order.code} <StatusBadge status={order.status} /></p>
+                      <p className="mt-1 text-xs text-gray-500">{order.telefone || 'Cliente sem telefone'} · {new Date(order.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                    <span className="font-black text-primary">{formatCurrency(Number(order.total))}</span>
+                  </article>
+                ))}
+              </section>
+            )}
+
+            {canAccessKitchen && ['recebido', 'preparo', 'pronto', 'retirado', 'cancelado'].map((status) => {
               const statusOrders = todayOrders.filter((o: ApiOrder) => o.status === status);
               if (statusOrders.length === 0) return null;
               return (
@@ -900,7 +922,7 @@ export function Kitchen() {
                 { label: 'Pedidos', value: dailyReport?.quantidadePedidos ?? 0, icon: ShoppingBag, color: 'bg-blue-500' },
                 { label: 'Ticket recebido', value: formatCurrency(dailyReport?.ticketMedio ?? 0), icon: TrendingUp, color: 'bg-primary' },
                 { label: 'Ativos Agora', value: activeOrders.length, icon: Activity, color: 'bg-amber-500' },
-              ].map((card) => (
+              ].filter((card) => canAccessCashier || card.label === 'Ativos Agora').map((card) => (
                 <div key={card.label} className="bg-white rounded-2xl shadow-sm p-5">
                   <div className={`w-10 h-10 ${card.color} text-white rounded-xl flex items-center justify-center mb-3`}>
                     <card.icon className="w-5 h-5" />

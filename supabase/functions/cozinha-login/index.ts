@@ -63,25 +63,27 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ ok: false, message: 'Usuário ou senha inválidos.' }, 401);
     }
 
-    if (employeeRow.establishment_id) {
-      const { data: establishments, error: establishmentsError } = await admin
+    let establishmentId = employeeRow.establishment_id as string | null;
+    if (!establishmentId) {
+      const { data: activeEstablishments, error: activeEstablishmentsError } = await admin
         .from('establishments')
         .select('id')
+        .eq('status', 'ativo')
         .limit(2);
-      if (establishmentsError || establishments?.length !== 1 || establishments[0].id !== employeeRow.establishment_id) {
-        return jsonResponse({ ok: false, message: 'O acesso da cozinha deste estabelecimento ainda não está disponível.' }, 403);
+      if (activeEstablishmentsError || activeEstablishments?.length !== 1) {
+        return errorResponse('O acesso deste funcionário ainda não está disponível.', 403);
       }
-    }
-
-    const { data: activeEstablishments, error: activeEstablishmentsError } = await admin
-      .from('establishments')
-      .select('id, status')
-      .limit(2);
-    if (activeEstablishmentsError || activeEstablishments?.length !== 1 || activeEstablishments[0].status !== 'ativo') {
-      return errorResponse('Establishment access unavailable.', 403);
-    }
-    if (employeeRow.establishment_id && employeeRow.establishment_id !== activeEstablishments[0].id) {
-      return errorResponse('Establishment access unavailable.', 403);
+      establishmentId = activeEstablishments[0].id;
+    } else {
+      const { data: establishment, error: establishmentError } = await admin
+        .from('establishments')
+        .select('id')
+        .eq('id', establishmentId)
+        .eq('status', 'ativo')
+        .maybeSingle();
+      if (establishmentError || !establishment) {
+        return errorResponse('O estabelecimento está indisponível.', 403);
+      }
     }
 
     const authUserId = employeeRow.auth_user_id ?? employeeRow.id;

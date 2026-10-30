@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { api, type ApiEmployee } from '../lib/api';
 import { supabase } from '../lib/supabase';
-import { isValidEmail, suggestEmailCorrection } from '../lib/validators';
+import { isValidCpf, isValidEmail, suggestEmailCorrection } from '../lib/validators';
 
 type Mode = 'login' | 'signup';
 type LinkedAccount = { accountId: string; kind: 'customer' | 'owner'; label: string; email: string };
@@ -33,6 +33,10 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
     e.preventDefault();
     if (!identifier.trim() || !loginSenha) {
       toast.error('Preencha e-mail/telefone/CPF e senha.');
+      return;
+    }
+    if (!ownerMode && isValidCpf(identifier) && !selectedAccount) {
+      toast.error('Escolha a conta vinculada ao CPF antes de entrar.');
       return;
     }
 
@@ -136,7 +140,7 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
 
   async function findLinkedAccounts() {
     const digits = identifier.replace(/\D/g, '');
-    if (digits.length !== 11) {
+    if (!isValidCpf(digits)) {
       toast.error('Digite um CPF válido para localizar as contas vinculadas.');
       return;
     }
@@ -283,7 +287,7 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
                 required
               />
             </div>
-            {!ownerMode && identifier.replace(/\D/g, '').length === 11 && !identifier.includes('@') && <div className="-mt-2 space-y-2">
+            {!ownerMode && isValidCpf(identifier) && !identifier.includes('@') && <div className="-mt-2 space-y-2">
               <button type="button" onClick={findLinkedAccounts} disabled={findingAccounts} className="text-sm font-semibold text-orange-700 hover:text-orange-900 disabled:opacity-60">
                 {findingAccounts ? 'Buscando contas…' : 'Escolher conta vinculada a este CPF'}
               </button>

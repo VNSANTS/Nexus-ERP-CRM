@@ -67,7 +67,7 @@ export function PainelRaiz() {
     return <AdminLogin deniedAccess={Boolean(session) && !isAdmin} />;
   }
 
-  return <AdminDashboard onSignOut={signOut} />;
+  return <AdminDashboard onSignOut={signOut} adminId={session.user.id} />;
 }
 
 // === Tela de login do admin ===
@@ -152,7 +152,7 @@ function formatEndereco(s: Solicitacao): string {
 }
 
 // === Dashboard com as solicitações pendentes ===
-function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
+function AdminDashboard({ onSignOut, adminId }: { onSignOut: () => void; adminId: string }) {
   const [secao, setSecao] = useState<'estabelecimentos' | 'usuarios'>('estabelecimentos');
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -165,7 +165,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
   const [excluindoEstabelecimentoId, setExcluindoEstabelecimentoId] = useState<string | null>(null);
 
   if (secao === 'usuarios') {
-    return <UsuariosPlataforma onBack={() => setSecao('estabelecimentos')} onSignOut={onSignOut} />;
+    return <UsuariosPlataforma onBack={() => setSecao('estabelecimentos')} onSignOut={onSignOut} adminId={adminId} />;
   }
 
   useEffect(() => {
@@ -738,10 +738,10 @@ function ConfirmarModal({
   );
 }
 
-type UsuarioPlataforma = { id: string; nome: string | null; email: string; telefone: string | null; cpf: string | null; cadastro_completo: boolean; created_at: string };
+type UsuarioPlataforma = { id: string; nome: string | null; email: string; telefone: string | null; cpf: string | null; cadastro_completo: boolean; created_at: string; is_platform_admin: boolean; is_super_admin: boolean };
 type ResumoUsuarios = { total: number; completos: number; novos30Dias: number; pedidos30Dias: number };
 
-function UsuariosPlataforma({ onBack, onSignOut }: { onBack: () => void; onSignOut: () => void }) {
+function UsuariosPlataforma({ onBack, onSignOut, adminId }: { onBack: () => void; onSignOut: () => void; adminId: string }) {
   const [usuarios, setUsuarios] = useState<UsuarioPlataforma[]>([]);
   const [resumo, setResumo] = useState<ResumoUsuarios | null>(null);
   const [busca, setBusca] = useState('');
@@ -774,6 +774,18 @@ function UsuariosPlataforma({ onBack, onSignOut }: { onBack: () => void; onSignO
     void carregar();
   }
 
+  async function alternarSuperAdmin(usuario: UsuarioPlataforma) {
+    const action = usuario.is_super_admin ? 'revoke-super-admin' : 'grant-super-admin';
+    const confirmacao = usuario.is_super_admin
+      ? `Remover o acesso de administrador superior de ${usuario.email}?`
+      : `Conceder acesso de administrador superior a ${usuario.email}? Essa pessoa poderá promover outros administradores.`;
+    if (!window.confirm(confirmacao)) return;
+    const { data, error } = await supabase.functions.invoke('gerenciar-usuarios-plataforma', { body: { action, id: usuario.id } });
+    if (error || data?.error) { toast.error(data?.error ?? 'Não foi possível alterar o acesso.'); return; }
+    toast.success(usuario.is_super_admin ? 'Acesso superior removido.' : 'Acesso superior concedido.');
+    void carregar();
+  }
+
   const filtrados = usuarios.filter((u) => `${u.nome ?? ''} ${u.email} ${u.telefone ?? ''} ${u.cpf ?? ''}`.toLowerCase().includes(busca.toLowerCase()));
   return (
     <div className="min-h-screen bg-neutral-50 px-4 py-8">
@@ -787,7 +799,7 @@ function UsuariosPlataforma({ onBack, onSignOut }: { onBack: () => void; onSignO
         </div>
         <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold text-neutral-900">Contas de usuários finais</h2><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome, e-mail ou telefone" className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm md:w-80" /></div>
-          {carregando ? <p className="py-8 text-sm text-neutral-400">Carregando...</p> : <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead><tr className="border-b text-xs uppercase text-neutral-400"><th className="px-3 py-3">Usuário</th><th className="px-3 py-3">Contato</th><th className="px-3 py-3">Cadastro</th><th className="px-3 py-3">Criado em</th><th className="px-3 py-3" /></tr></thead><tbody>{filtrados.map((u) => <tr key={u.id} className="border-b last:border-0"><td className="px-3 py-3"><p className="font-semibold">{u.nome || 'Sem nome'}</p><p className="text-xs text-neutral-500">{u.email}</p></td><td className="px-3 py-3">{u.telefone || '—'}</td><td className="px-3 py-3"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${u.cadastro_completo ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{u.cadastro_completo ? 'Completo' : 'Incompleto'}</span></td><td className="px-3 py-3 text-neutral-500">{new Date(u.created_at).toLocaleDateString('pt-BR')}</td><td className="px-3 py-3 text-right"><button onClick={() => void excluir(u)} className="font-semibold text-red-600 hover:text-red-800">Excluir</button></td></tr>)}</tbody></table>{!filtrados.length && <p className="py-8 text-center text-sm text-neutral-400">Nenhum usuário encontrado.</p>}</div>}
+          {carregando ? <p className="py-8 text-sm text-neutral-400">Carregando...</p> : <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead><tr className="border-b text-xs uppercase text-neutral-400"><th className="px-3 py-3">Usuário</th><th className="px-3 py-3">Contato</th><th className="px-3 py-3">Acesso</th><th className="px-3 py-3">Cadastro</th><th className="px-3 py-3">Criado em</th><th className="px-3 py-3" /></tr></thead><tbody>{filtrados.map((u) => <tr key={u.id} className="border-b last:border-0"><td className="px-3 py-3"><p className="font-semibold">{u.nome || 'Sem nome'}</p><p className="text-xs text-neutral-500">{u.email}</p></td><td className="px-3 py-3">{u.telefone || '—'}</td><td className="px-3 py-3"><span className="text-xs font-semibold">{u.is_super_admin ? 'ADM superior' : u.is_platform_admin ? 'ADM da plataforma' : 'Usuário'}</span>{u.is_platform_admin && adminId !== u.id && <button onClick={() => void alternarSuperAdmin(u)} className="ml-2 text-xs font-semibold text-primary">{u.is_super_admin ? 'Remover superior' : 'Tornar superior'}</button>}</td><td className="px-3 py-3"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${u.cadastro_completo ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{u.cadastro_completo ? 'Completo' : 'Incompleto'}</span></td><td className="px-3 py-3 text-neutral-500">{new Date(u.created_at).toLocaleDateString('pt-BR')}</td><td className="px-3 py-3 text-right">{u.id !== adminId && <button onClick={() => void excluir(u)} className="font-semibold text-red-600 hover:text-red-800">Excluir</button>}</td></tr>)}</tbody></table>{!filtrados.length && <p className="py-8 text-center text-sm text-neutral-400">Nenhum usuário encontrado.</p>}</div>}
         </div>
       </div>
     </div>

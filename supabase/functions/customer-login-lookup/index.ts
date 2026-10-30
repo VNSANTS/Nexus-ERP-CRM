@@ -59,13 +59,13 @@ Deno.serve(async (req: Request) => {
 
     if (action === 'options') {
       if (!isValidCpf(digits)) return jsonResponse({ accounts: [] });
-      const [{ data: customers }, { data: establishments }] = await Promise.all([
+      const [{ data: customers }, { data: owners }] = await Promise.all([
         supabaseAdmin.from('customer_accounts').select('id,nome,email').eq('cpf', digits),
-        supabaseAdmin.from('establishments').select('id,apelido,nome_completo,email').eq('cpf_cnpj', digits),
+        supabaseAdmin.from('establishment_owners').select('id,establishment_id,nome_completo,email').eq('cpf_cnpj', digits),
       ]);
-      const establishmentIds = (establishments ?? []).map((item) => item.id);
-      const { data: owners } = establishmentIds.length
-        ? await supabaseAdmin.from('establishment_owners').select('id,establishment_id').in('establishment_id', establishmentIds)
+      const establishmentIds = (owners ?? []).map((item) => item.establishment_id);
+      const { data: establishments } = establishmentIds.length
+        ? await supabaseAdmin.from('establishments').select('id,apelido,nome_completo').in('id', establishmentIds)
         : { data: [] };
       const accounts = [
         ...(customers ?? []).filter((item) => item.email).map((item) => ({
@@ -73,8 +73,8 @@ Deno.serve(async (req: Request) => {
         })),
         ...(owners ?? []).flatMap((owner) => {
           const establishment = (establishments ?? []).find((item) => item.id === owner.establishment_id);
-          return establishment?.email ? [{
-            accountId: owner.id, kind: 'owner', label: establishment.apelido || establishment.nome_completo || 'Estabelecimento', email: maskEmail(establishment.email),
+          return owner.email ? [{
+            accountId: owner.id, kind: 'owner', label: establishment?.apelido || establishment?.nome_completo || owner.nome_completo || 'Estabelecimento', email: maskEmail(owner.email),
           }] : [];
         }),
       ];
@@ -88,11 +88,9 @@ Deno.serve(async (req: Request) => {
         if (customer?.email) email = customer.email;
         if (!email) {
           const { data: owner } = await supabaseAdmin
-            .from('establishment_owners').select('establishment_id').eq('id', accountId).maybeSingle();
+            .from('establishment_owners').select('email').eq('id', accountId).eq('cpf_cnpj', digits).maybeSingle();
           if (owner) {
-            const { data: establishment } = await supabaseAdmin
-              .from('establishments').select('email').eq('id', owner.establishment_id).eq('cpf_cnpj', digits).maybeSingle();
-            email = establishment?.email ?? null;
+            email = owner.email ?? null;
           }
         }
       } else if (digits.length === 11 || digits.length === 14) {

@@ -60,7 +60,7 @@ Deno.serve(async (req: Request) => {
     if (action === 'options') {
       if (!isValidCpf(digits)) return jsonResponse({ accounts: [] });
       const [{ data: customers }, { data: owners }] = await Promise.all([
-        supabaseAdmin.from('customer_accounts').select('id,nome,email').eq('cpf', digits),
+        supabaseAdmin.from('customer_accounts').select('id,email').eq('cpf', digits),
         supabaseAdmin.from('establishment_owners').select('id,establishment_id,nome_completo,email').eq('cpf_cnpj', digits),
       ]);
       const establishmentIds = (owners ?? []).map((item) => item.establishment_id);
@@ -69,7 +69,7 @@ Deno.serve(async (req: Request) => {
         : { data: [] };
       const accounts = [
         ...(customers ?? []).filter((item) => item.email).map((item) => ({
-          accountId: item.id, kind: 'customer', label: item.nome || 'Conta de cliente', email: maskEmail(item.email),
+          accountId: item.id, kind: 'customer', label: 'Conta de cliente', email: maskEmail(item.email),
         })),
         ...(owners ?? []).flatMap((owner) => {
           const establishment = (establishments ?? []).find((item) => item.id === owner.establishment_id);

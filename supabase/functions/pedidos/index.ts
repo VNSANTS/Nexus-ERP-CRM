@@ -10,24 +10,14 @@
 // As demais ações exigem JWT de funcionário (painel da cozinha).
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
-import { corsHeaders, jsonResponse, errorResponse, uid, shortCode, todayKey, requireEmployee, hasEmployeeAccess } from '../_shared/helpers.ts';
+import { corsHeaders, jsonResponse, errorResponse, requireEmployee, hasEmployeeAccess } from '../_shared/helpers.ts';
 import { getClientIp, checkRateLimit } from '../_shared/security.ts';
 
 type CartItem = { productId: string; qty: number };
-type Product = { id: string; name: string; price: string | number };
-type Promotion = { product_ids: string[]; tipo: 'percentual' | 'fixo'; valor: string | number };
-
-function effectivePrice(productId: string, basePrice: number, promos: Promotion[]): number {
-  const promo = promos.find((p) => p.product_ids.includes(productId));
-  if (!promo) return basePrice;
-  return promo.tipo === 'percentual'
-    ? Math.max(0, basePrice * (1 - Number(promo.valor) / 100))
-    : Math.max(0, basePrice - Number(promo.valor));
-}
 
 async function createOrder(
   supabase: SupabaseClient<any>,
-  params: { establishmentId: string; cartItems: CartItem[]; paymentMethod: string; observacoes?: string; telefone?: string; transactionStatus?: 'pendente' | 'confirmado' },
+  params: { establishmentId: string; cartItems: CartItem[]; paymentMethod: string; observacoes?: string; telefone?: string; transactionStatus?: 'pendente' | 'confirmado'; idempotencyKey?: string },
 ) {
   const { establishmentId, cartItems, paymentMethod, observacoes, telefone, transactionStatus = 'pendente' } = params;
   if (!cartItems?.length) throw { status: 400, message: 'Carrinho vazio.' };
@@ -45,119 +35,23 @@ async function createOrder(
     throw { status: 400, message: 'Observacoes ou telefone excedem o limite.' };
   }
 
-  const [{ data: promos }, { data: allProducts }] = await Promise.all([
-    supabase.from('promotions').select('product_ids, tipo, valor').eq('establishment_id', establishmentId).eq('ativo', true),
-    supabase.from('products').select('id, name, price').eq('establishment_id', establishmentId).eq('disponivel', true),
-  ]);
-
-  const resolvedItems = cartItems
-    .map((ci) => {
-      const p = (allProducts as Product[] | null)?.find((x) => x.id === ci.productId);
-      if (!p) return null;
-      const basePrice = Number(p.price);
-      if (!Number.isFinite(basePrice) || basePrice < 0) return null;
-      return {
-        productId: p.id,
-        name: p.name,
-        price: effectivePrice(p.id, basePrice, (promos as Promotion[]) ?? []),
-        qty: ci.qty,
-      };
-    })
-    .filter((x): x is NonNullable<typeof x> => x !== null);
-
-  if (!resolvedItems.length) throw { status: 400, message: 'Nenhum item válido no carrinho.' };
-
-  if (resolvedItems.length !== cartItems.length) throw { status: 400, message: 'Um ou mais itens estao indisponiveis.' };
-
-  const productIds = resolvedItems.map((item) => item.productId);
-  const { data: stockRows, error: stockError } = await supabase
-    .from('stock').select('product_id, quantidade')
-    .eq('establishment_id', establishmentId).in('product_id', productIds);
-  if (stockError) throw stockError;
-  const stockByProduct = new Map((stockRows ?? []).map((row) => [row.product_id, row.quantidade]));
-  for (const item of resolvedItems) {
-    if ((stockByProduct.get(item.productId) ?? 0) < item.qty) {
-      throw { status: 409, message: `Estoque insuficiente para ${item.name}.` };
-    }
-  }
-
-  const total = resolvedItems.reduce((s, i) => s + i.price * i.qty, 0);
-
-  // Contador diário (código de 3 dígitos)
-  const today = todayKey();
-  const { data: counter, error: counterError } = await supabase.from('daily_counter').select('count').eq('establishment_id', establishmentId).eq('date', today).maybeSingle();
-  if (counterError) throw counterError;
-  const newCount = (counter?.count ?? 0) + 1;
-  const { error: counterUpsertError } = await supabase.from('daily_counter').upsert({ establishment_id: establishmentId, date: today, count: newCount }, { onConflict: 'establishment_id,date' });
-  if (counterUpsertError) throw counterUpsertError;
-
-  const code = String(newCount).padStart(3, '0');
-  const paymentCode = `PAG-${shortCode()}`;
-  const id = uid();
-  const now = new Date().toISOString();
-
-  const { data: order, error: orderErr } = await supabase
-    .from('orders')
-    .insert({
-      establishment_id: establishmentId,
-      id,
-      code,
-      payment_code: paymentCode,
-      total,
-      payment_method: paymentMethod,
-      status: 'recebido',
-      observacoes: observacoes?.trim() ?? '',
-      telefone: telefone?.trim() ?? '',
-      created_at: now,
-      updated_at: now,
-    })
-    .select()
-    .single();
-  if (orderErr) throw { status: 500, message: orderErr.message };
-
-  const { error: itemsErr } = await supabase.from('order_items').insert(
-    resolvedItems.map((i) => ({ establishment_id: establishmentId, order_id: id, product_id: i.productId, name: i.name, price: i.price, qty: i.qty })),
-  );
-  if (itemsErr) throw { status: 500, message: itemsErr.message };
-
-  // Baixa de estoque (best-effort, item a item — mantém paridade com o Express original)
-  for (const item of resolvedItems) {
-    const { data: s, error: stockReadError } = await supabase.from('stock').select('quantidade').eq('establishment_id', establishmentId).eq('product_id', item.productId).maybeSingle();
-    if (stockReadError) throw stockReadError;
-    if (s) {
-      const { error: stockUpdateError } = await supabase
-        .from('stock')
-        .update({ quantidade: Math.max(0, s.quantidade - item.qty), updated_at: now })
-        .eq('establishment_id', establishmentId)
-        .eq('product_id', item.productId);
-      if (stockUpdateError) throw stockUpdateError;
-    }
-  }
-
-  const { error: transactionError } = await supabase.from('transactions').insert({
-    establishment_id: establishmentId,
-    id: uid(),
-    order_id: id,
-    order_code: code,
-    method: paymentMethod,
-    valor: total,
-    status: transactionStatus,
-    created_at: now,
+  const { data, error } = await supabase.rpc('checkout_order_atomic', {
+    p_establishment_id: establishmentId,
+    p_cart_items: cartItems,
+    p_payment_method: paymentMethod,
+    p_observacoes: observacoes?.trim() ?? '',
+    p_telefone: telefone?.trim() ?? '',
+    p_transaction_status: transactionStatus,
+    p_idempotency_key: params.idempotencyKey ?? crypto.randomUUID(),
   });
-  if (transactionError) throw transactionError;
-
-  const tel = telefone?.trim();
-  if (tel) {
-    const { data: loy } = await supabase.from('loyalty').select('pedidos').eq('establishment_id', establishmentId).eq('telefone', tel).maybeSingle();
-    if (loy) {
-      await supabase.from('loyalty').update({ pedidos: loy.pedidos + 1, updated_at: now }).eq('establishment_id', establishmentId).eq('telefone', tel);
-    } else {
-      await supabase.from('loyalty').insert({ establishment_id: establishmentId, telefone: tel, pedidos: 1, updated_at: now });
-    }
+  if (error) {
+    if (error.message === 'STOCK_INSUFFICIENT') throw { status: 409, message: 'Estoque insuficiente para um ou mais itens.' };
+    if (error.message === 'PRODUCT_UNAVAILABLE') throw { status: 409, message: 'Um ou mais produtos não estão disponíveis.' };
+    if (error.message === 'ESTABLISHMENT_UNAVAILABLE') throw { status: 404, message: 'Estabelecimento indisponível.' };
+    if (error.code === '22023') throw { status: 400, message: 'Dados do pedido inválidos.' };
+    throw error;
   }
-
-  const { data: items } = await supabase.from('order_items').select('*').eq('establishment_id', establishmentId).eq('order_id', id);
-  return { ...order, items: items ?? [] };
+  return data;
 }
 
 Deno.serve(async (req: Request) => {
@@ -276,6 +170,7 @@ Deno.serve(async (req: Request) => {
         observacoes: body.observacoes,
         telefone: body.telefone,
         transactionStatus: 'pendente',
+        idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
       });
       return jsonResponse(result, 201);
     }

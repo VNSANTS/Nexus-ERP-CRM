@@ -184,6 +184,7 @@ export const api = {
       paymentMethod: string;
       observacoes: string;
       telefone: string;
+      idempotencyKey: string;
     }) => callPublicFn<ApiOrder>('pedidos', { action: 'checkout', ...data }),
     manual: (data: {
       items: Array<{ productId: string; qty: number }>;

@@ -57,6 +57,7 @@ export function Home() {
   const [observacoes, setObservacoes] = useState('');
   const [telefone, setTelefone] = useState('');
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const checkoutAttemptRef = useRef<{ fingerprint: string; key: string } | null>(null);
   const cart = useCart();
 
   // Queries
@@ -91,15 +92,24 @@ export function Home() {
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: (paymentMethod: string) =>
-      api.orders.checkout({
-        establishmentId: sessionStorage.getItem('nexus:establishmentId') ?? undefined,
-        cartItems: cart.map((i) => ({ productId: i.productId, qty: i.qty })),
+    mutationFn: (paymentMethod: string) => {
+      const cartItems = cart.map((i) => ({ productId: i.productId, qty: i.qty }));
+      const establishmentId = sessionStorage.getItem('nexus:establishmentId') ?? undefined;
+      const fingerprint = JSON.stringify({ establishmentId, cartItems, paymentMethod, observacoes, telefone });
+      if (checkoutAttemptRef.current?.fingerprint !== fingerprint) {
+        checkoutAttemptRef.current = { fingerprint, key: crypto.randomUUID() };
+      }
+      return api.orders.checkout({
+        establishmentId,
+        cartItems,
         paymentMethod,
         observacoes,
         telefone,
-      }),
+        idempotencyKey: checkoutAttemptRef.current.key,
+      });
+    },
     onSuccess: (order) => {
+      checkoutAttemptRef.current = null;
       cartStore.clear();
       setCreatedOrder(order);
       setView('success');

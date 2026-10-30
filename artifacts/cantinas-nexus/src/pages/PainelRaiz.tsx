@@ -164,13 +164,13 @@ function AdminDashboard({ onSignOut, adminId }: { onSignOut: () => void; adminId
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const [excluindoEstabelecimentoId, setExcluindoEstabelecimentoId] = useState<string | null>(null);
 
-  if (secao === 'usuarios') {
-    return <UsuariosPlataforma onBack={() => setSecao('estabelecimentos')} onSignOut={onSignOut} adminId={adminId} />;
-  }
-
   useEffect(() => {
     carregar();
   }, []);
+
+  if (secao === 'usuarios') {
+    return <UsuariosPlataforma onBack={() => setSecao('estabelecimentos')} onSignOut={onSignOut} adminId={adminId} />;
+  }
 
   async function carregar() {
     setCarregando(true);

@@ -21,6 +21,7 @@ export type OwnerEstablishment = {
   email: string;
   cpfCnpj: string;
   onboardingCompleto: boolean;
+  access: Record<'acessoCozinha' | 'acessoCaixa' | 'acessoAdm' | 'acessoCrm' | 'acessoRelatorios' | 'acessoEstoque' | 'acessoFornecedores' | 'acessoProdutos' | 'acessoPromocoes' | 'acessoFuncionarios' | 'acessoConfiguracoes' | 'acessoDispositivos', boolean>;
 };
 
 type OwnerAuthContextValue = {
@@ -62,6 +63,7 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
       email: est.email,
       cpfCnpj: est.cpfCnpj,
       onboardingCompleto: est.onboardingCompleto,
+      access: data.access,
     };
   }
 

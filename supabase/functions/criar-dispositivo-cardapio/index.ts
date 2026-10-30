@@ -54,18 +54,18 @@ Deno.serve(async (req: Request) => {
 
   const { data: owner } = await supabase
     .from('establishment_owners')
-    .select('establishment_id')
+    .select('establishment_id, acesso_dispositivos')
     .eq('id', userData.user.id)
     .maybeSingle();
 
-  if (owner) {
+  if (owner?.acesso_dispositivos === true) {
     establishmentId = owner.establishment_id;
   } else {
     const { data: adminEmployee } = await supabase
       .from('employees')
       .select('establishment_id')
       .eq('auth_user_id', userData.user.id)
-      .eq('acesso_adm', true)
+      .eq('acesso_dispositivos', true)
       .eq('ativo', true)
       .maybeSingle();
     if (adminEmployee) establishmentId = adminEmployee.establishment_id;

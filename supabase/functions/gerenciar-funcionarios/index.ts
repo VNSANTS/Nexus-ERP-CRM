@@ -7,7 +7,7 @@
 //
 // Body esperado: { action: 'list' | 'create' | 'update' | 'delete', ... }
 
-import { corsHeaders, jsonResponse, errorResponse, requireEmployee, adminClient, usernameToEmail, hasEmployeeAccess } from '../_shared/helpers.ts';
+import { corsHeaders, jsonResponse, errorResponse, requireEmployee, adminClient, usernameToEmail, hasEmployeeAccess, hasFeatureAccess } from '../_shared/helpers.ts';
 
 function validAccess(role: string, cozinha: boolean, caixa: boolean, adm: boolean): boolean {
   if (![cozinha, caixa, adm].every((value) => typeof value === 'boolean')) return false;
@@ -21,7 +21,7 @@ Deno.serve(async (req: Request) => {
   const caller = await requireEmployee(req);
   if (!caller) return errorResponse('Não autenticado.', 401);
 
-  if (!hasEmployeeAccess(caller, 'adm')) return errorResponse('Acesso restrito a administracao.', 403);
+  if (!hasFeatureAccess(caller, 'funcionarios')) return errorResponse('Acesso restrito a funcionarios.', 403);
 
   const supabase = adminClient();
 
@@ -36,7 +36,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Ações abaixo exigem admin
-    if (!hasEmployeeAccess(caller, 'adm')) {
+    if (!hasFeatureAccess(caller, 'funcionarios')) {
       return errorResponse('Apenas administradores podem gerenciar funcionários.', 403);
     }
 

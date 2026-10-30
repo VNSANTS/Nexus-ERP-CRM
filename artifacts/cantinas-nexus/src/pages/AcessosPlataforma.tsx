@@ -7,6 +7,15 @@ type EmployeeAccess = {
   acessoCozinha: boolean;
   acessoCaixa: boolean;
   acessoAdm: boolean;
+  acessoCrm: boolean;
+  acessoRelatorios: boolean;
+  acessoEstoque: boolean;
+  acessoFornecedores: boolean;
+  acessoProdutos: boolean;
+  acessoPromocoes: boolean;
+  acessoFuncionarios: boolean;
+  acessoConfiguracoes: boolean;
+  acessoDispositivos: boolean;
   ativo: boolean;
 };
 
@@ -25,14 +34,38 @@ type Establishment = {
   status: string;
   onboardingCompleto: boolean;
   employees: Employee[];
-  owners: Array<{ id: string; nomeCompleto: string; email: string }>;
+  owners: Array<EmployeeAccess & { id: string; nome: string; nomeCompleto?: string; email: string }>;
 };
 
-function accessOf(employee: Employee): EmployeeAccess {
+const ACCESS_OPTIONS: Array<{ key: Exclude<keyof EmployeeAccess, 'ativo'>; label: string; description: string }> = [
+  { key: 'acessoCozinha', label: 'Cozinha', description: 'Pedidos e operação da cozinha.' },
+  { key: 'acessoCaixa', label: 'Caixa', description: 'Caixa e confirmação de pagamento.' },
+  { key: 'acessoAdm', label: 'Administração', description: 'Painel administrativo geral.' },
+  { key: 'acessoCrm', label: 'CRM', description: 'Clientes, segmentação e interações.' },
+  { key: 'acessoRelatorios', label: 'Relatórios', description: 'Indicadores e histórico financeiro.' },
+  { key: 'acessoEstoque', label: 'Estoque', description: 'Entradas, perdas e quantidades.' },
+  { key: 'acessoFornecedores', label: 'Fornecedores', description: 'Cadastro e pedidos de compra.' },
+  { key: 'acessoProdutos', label: 'Produtos', description: 'Catálogo de produtos e preços.' },
+  { key: 'acessoPromocoes', label: 'Promoções', description: 'Criação e edição de promoções.' },
+  { key: 'acessoFuncionarios', label: 'Funcionários', description: 'Contas e equipe do estabelecimento.' },
+  { key: 'acessoConfiguracoes', label: 'Configurações', description: 'Dados, identidade visual e cardápio.' },
+  { key: 'acessoDispositivos', label: 'Dispositivos', description: 'Tablets e dispositivos do cardápio.' },
+];
+
+function accessOf(employee: EmployeeAccess): EmployeeAccess {
   return {
     acessoCozinha: employee.acessoCozinha,
     acessoCaixa: employee.acessoCaixa,
     acessoAdm: employee.acessoAdm,
+    acessoCrm: employee.acessoCrm,
+    acessoRelatorios: employee.acessoRelatorios,
+    acessoEstoque: employee.acessoEstoque,
+    acessoFornecedores: employee.acessoFornecedores,
+    acessoProdutos: employee.acessoProdutos,
+    acessoPromocoes: employee.acessoPromocoes,
+    acessoFuncionarios: employee.acessoFuncionarios,
+    acessoConfiguracoes: employee.acessoConfiguracoes,
+    acessoDispositivos: employee.acessoDispositivos,
     ativo: employee.ativo,
   };
 }
@@ -41,6 +74,7 @@ export function AcessosPlataforma({ onBack, onSignOut }: { onBack: () => void; o
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [drafts, setDrafts] = useState<Record<string, EmployeeAccess>>({});
+  const [ownerDrafts, setOwnerDrafts] = useState<Record<string, EmployeeAccess>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -56,6 +90,7 @@ export function AcessosPlataforma({ onBack, onSignOut }: { onBack: () => void; o
       setEstablishments(rows);
       setSelectedId((current) => current && rows.some((row) => row.id === current) ? current : rows[0]?.id ?? '');
       setDrafts(Object.fromEntries(rows.flatMap((row) => row.employees.map((employee) => [employee.id, accessOf(employee)]))));
+      setOwnerDrafts(Object.fromEntries(rows.flatMap((row) => row.owners.map((owner) => [owner.id, accessOf(owner)]))));
     } catch (error) {
       console.error(error);
       toast.error('Erro ao carregar os acessos dos estabelecimentos.');
@@ -72,20 +107,25 @@ export function AcessosPlataforma({ onBack, onSignOut }: { onBack: () => void; o
     setDrafts((current) => {
       const previous = current[employeeId];
       if (!previous) return current;
-      const value = !previous[key];
-      if (key === 'acessoAdm' && value) {
-        return { ...current, [employeeId]: { ativo: previous.ativo, acessoCozinha: true, acessoCaixa: true, acessoAdm: true } };
-      }
-      const next = { ...previous, [key]: value };
-      if ((key === 'acessoCozinha' || key === 'acessoCaixa') && !value) next.acessoAdm = false;
-      return { ...current, [employeeId]: next };
+      return { ...current, [employeeId]: { ...previous, [key]: !previous[key] } };
+    });
+  }
+
+  function alterarOwner(ownerId: string, key: keyof EmployeeAccess) {
+    setOwnerDrafts((current) => {
+      const previous = current[ownerId];
+      return previous ? { ...current, [ownerId]: { ...previous, [key]: !previous[key] } } : current;
     });
   }
 
   function temAlteracao(employee: Employee) {
     const draft = drafts[employee.id];
-    return !!draft && (draft.ativo !== employee.ativo || draft.acessoCozinha !== employee.acessoCozinha ||
-      draft.acessoCaixa !== employee.acessoCaixa || draft.acessoAdm !== employee.acessoAdm);
+    return !!draft && Object.keys(draft).some((key) => draft[key as keyof EmployeeAccess] !== employee[key as keyof EmployeeAccess]);
+  }
+
+  function ownerTemAlteracao(owner: Establishment['owners'][number]) {
+    const draft = ownerDrafts[owner.id];
+    return !!draft && Object.keys(draft).some((key) => key !== 'ativo' && draft[key as keyof EmployeeAccess] !== owner[key as keyof EmployeeAccess]);
   }
 
   async function salvar(employee: Employee) {
@@ -109,6 +149,31 @@ export function AcessosPlataforma({ onBack, onSignOut }: { onBack: () => void; o
     } catch (error) {
       console.error(error);
       toast.error('Erro ao salvar as permissões.');
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function salvarOwner(owner: Establishment['owners'][number]) {
+    const permissions = ownerDrafts[owner.id];
+    if (!permissions || !ownerTemAlteracao(owner)) return;
+    setSavingId(owner.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('gerenciar-acessos-plataforma', {
+        body: { action: 'update-owner', ownerId: owner.id, ...permissions },
+      });
+      if (error || data?.error || data?.ok === false) {
+        toast.error(data?.error ?? data?.message ?? 'Não foi possível salvar as permissões.');
+        return;
+      }
+      setEstablishments((current) => current.map((establishment) => establishment.id !== selectedId ? establishment : {
+        ...establishment, owners: establishment.owners.map((row) => row.id === owner.id ? data.owner : row),
+      }));
+      setOwnerDrafts((current) => ({ ...current, [owner.id]: accessOf(data.owner) }));
+      toast.success(`Acessos de ${owner.nome} atualizados.`);
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao salvar as permissões do responsável.');
     } finally {
       setSavingId(null);
     }
@@ -145,13 +210,16 @@ export function AcessosPlataforma({ onBack, onSignOut }: { onBack: () => void; o
         {!loading && selected && (
           <>
             <section className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm leading-relaxed text-blue-900 sm:p-6">
-              <div className="flex items-start gap-3"><Building2 className="mt-0.5 h-5 w-5 shrink-0" /><p><strong>Acesso do estabelecimento:</strong> use os controles de bloqueio/desbloqueio na tela Estabelecimentos para suspender ou reativar a conta inteira. Aqui você controla as permissões de cada funcionário. O dono mantém acesso total.</p></div>
+              <div className="flex items-start gap-3"><Building2 className="mt-0.5 h-5 w-5 shrink-0" /><p><strong>Acesso do estabelecimento:</strong> use os controles de bloqueio/desbloqueio para suspender ou reativar a conta inteira. Aqui você controla permissões individuais do dono e de cada funcionário.</p></div>
             </section>
 
             <section className="mt-5 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
-              <div className="flex items-center gap-3"><UserRound className="h-5 w-5 text-primary" /><div><h2 className="text-lg font-extrabold text-foreground">Responsáveis do estabelecimento</h2><p className="text-sm text-muted-foreground">A conta do dono tem acesso total para administrar o próprio negócio.</p></div></div>
-              {selected.owners.length === 0 ? <p className="mt-4 text-sm text-muted-foreground">Nenhum responsável vinculado.</p> : <div className="mt-4 grid gap-2 sm:grid-cols-2">{selected.owners.map((owner) => <div key={owner.id} className="flex items-center justify-between gap-3 rounded-xl bg-muted/60 p-3"><div className="min-w-0"><p className="truncate text-sm font-bold text-foreground">{owner.nomeCompleto}</p><p className="truncate text-xs text-muted-foreground">{owner.email}</p></div><span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">Acesso total</span></div>)}</div>}
-            </section>
+              <div className="flex items-center gap-3"><UserRound className="h-5 w-5 text-primary" /><div><h2 className="text-lg font-extrabold text-foreground">Responsáveis do estabelecimento</h2><p className="text-sm text-muted-foreground">As permissões do dono também podem ser limitadas por módulo.</p></div></div>
+              {selected.owners.length === 0 ? <p className="mt-4 text-sm text-muted-foreground">Nenhum responsavel vinculado.</p> : <div className="mt-4 space-y-4">{selected.owners.map((owner) => {
+                const draft = ownerDrafts[owner.id] ?? accessOf(owner);
+                const dirty = ownerTemAlteracao(owner);
+                return <article key={owner.id} className="rounded-2xl border border-border p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h3 className="truncate font-bold text-foreground">{owner.nome || owner.nomeCompleto}</h3><p className="truncate text-sm text-muted-foreground">{owner.email}</p></div><button type="button" onClick={() => void salvarOwner(owner)} disabled={!dirty || savingId === owner.id} className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white disabled:opacity-45"><Save className="h-4 w-4" />{savingId === owner.id ? 'Salvando...' : 'Salvar acessos'}</button></div><div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{ACCESS_OPTIONS.map((option) => <PermissionToggle key={option.key} label={option.label} description={option.description} checked={draft[option.key]} onChange={() => alterarOwner(owner.id, option.key)} />)}</div>{dirty && <p className="mt-3 text-xs font-semibold text-amber-700">Ha alteracoes nao salvas para este responsavel.</p>}</article>;
+              })}</div>}            </section>
 
             <section className="mt-5 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
               <div className="flex items-center gap-3"><Users className="h-5 w-5 text-primary" /><div><h2 className="text-lg font-extrabold text-foreground">Funcionários e permissões</h2><p className="text-sm text-muted-foreground">As alterações são aplicadas também nas verificações do backend.</p></div></div>
@@ -164,12 +232,7 @@ export function AcessosPlataforma({ onBack, onSignOut }: { onBack: () => void; o
                       <div><h3 className="font-bold text-foreground">{employee.nome}</h3><p className="mt-0.5 text-sm text-muted-foreground">{employee.username} · {employee.role === 'admin' ? 'Administrador' : 'Funcionário'}</p></div>
                       <button type="button" onClick={() => void salvar(employee)} disabled={!dirty || savingId === employee.id} className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"><Save className="h-4 w-4" />{savingId === employee.id ? 'Salvando...' : 'Salvar acessos'}</button>
                     </div>
-                    <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                      <PermissionToggle label="Conta ativa" description="Pode entrar no sistema." checked={draft.ativo} onChange={() => alterar(employee.id, 'ativo')} />
-                      <PermissionToggle label="Cozinha" description="Pedidos e operação da cozinha." checked={draft.acessoCozinha} onChange={() => alterar(employee.id, 'acessoCozinha')} />
-                      <PermissionToggle label="Caixa" description="Caixa e confirmação de pagamento." checked={draft.acessoCaixa} onChange={() => alterar(employee.id, 'acessoCaixa')} />
-                      <PermissionToggle label="Administração" description="Acesso total às áreas administrativas." checked={draft.acessoAdm} onChange={() => alterar(employee.id, 'acessoAdm')} />
-                    </div>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4"><PermissionToggle label="Conta ativa" description="Pode entrar no sistema." checked={draft.ativo} onChange={() => alterar(employee.id, 'ativo')} />{ACCESS_OPTIONS.map((option) => <PermissionToggle key={option.key} label={option.label} description={option.description} checked={draft[option.key]} onChange={() => alterar(employee.id, option.key)} />)}</div>
                     {dirty && <p className="mt-3 text-xs font-semibold text-amber-700">Há alterações não salvas para este funcionário.</p>}
                   </article>
                 );

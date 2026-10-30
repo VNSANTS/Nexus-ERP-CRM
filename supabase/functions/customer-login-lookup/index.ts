@@ -48,88 +48,107 @@ Deno.serve(async (req: Request) => {
       return errorResponse(INVALID_CREDENTIALS, 401);
     }
 
-    let email: string | null = identifier.includes('@') ? identifier.toLowerCase() : null;
     const digits = identifier.replace(/\D/g, '');
-
-    const maskEmail = (value: string) => {
-      const [local, domain] = value.toLowerCase().split('@');
-      const [host, ...suffix] = domain.split('.');
-      return `${local.slice(0, 1)}${'*'.repeat(Math.min(Math.max(local.length - 1, 2), 6))}@${host.slice(0, 1)}${'*'.repeat(Math.min(Math.max(host.length - 1, 2), 6))}.${suffix.join('.')}`;
-    };
-
-    if (action === 'options') {
-      if (!isValidCpf(digits)) return jsonResponse({ accounts: [] });
+    type Candidate = { accountId: string; kind: 'customer' | 'owner' | 'phone'; email: string; label?: string };
+    const getCpfAccounts = async (cpf: string): Promise<Candidate[]> => {
       const [{ data: customers }, { data: owners }] = await Promise.all([
-        supabaseAdmin.from('customer_accounts').select('id,email').eq('cpf', digits),
-        supabaseAdmin.from('establishment_owners').select('id,establishment_id,nome_completo,email').eq('cpf_cnpj', digits),
+        supabaseAdmin.from('customer_accounts').select('id,email').eq('cpf', cpf),
+        supabaseAdmin.from('establishment_owners').select('id,establishment_id,nome_completo,email').eq('cpf_cnpj', cpf),
       ]);
       const establishmentIds = (owners ?? []).map((item) => item.establishment_id);
       const { data: establishments } = establishmentIds.length
         ? await supabaseAdmin.from('establishments').select('id,apelido,nome_completo').in('id', establishmentIds)
         : { data: [] };
-      const accounts = [
+      return [
         ...(customers ?? []).filter((item) => item.email).map((item) => ({
-          accountId: item.id, kind: 'customer', label: 'Conta de cliente', email: maskEmail(item.email),
+          accountId: item.id, kind: 'customer' as const, email: item.email, label: 'Conta de cliente',
         })),
-        ...(owners ?? []).flatMap((owner) => {
+        ...(owners ?? []).filter((owner) => owner.email).map((owner) => {
           const establishment = (establishments ?? []).find((item) => item.id === owner.establishment_id);
-          return owner.email ? [{
-            accountId: owner.id, kind: 'owner', label: establishment?.apelido || establishment?.nome_completo || owner.nome_completo || 'Estabelecimento', email: maskEmail(owner.email),
-          }] : [];
+          return {
+            accountId: owner.id, kind: 'owner' as const, email: owner.email,
+            label: establishment?.apelido || establishment?.nome_completo || owner.nome_completo || 'Estabelecimento',
+          };
         }),
       ];
-      return jsonResponse({ accounts });
+    };
+
+    if (action === 'options') {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader?.startsWith('Bearer ')) return errorResponse('Autenticação necessária.', 401);
+      const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(authHeader.slice(7));
+      if (authError || !authData.user) return errorResponse('Sessão inválida.', 401);
+      let cpf = isValidCpf(digits) ? digits : '';
+      if (!cpf) {
+        const [{ data: customer }, { data: owner }] = await Promise.all([
+          supabaseAdmin.from('customer_accounts').select('cpf').eq('id', authData.user.id).maybeSingle(),
+          supabaseAdmin.from('establishment_owners').select('cpf_cnpj').eq('id', authData.user.id).maybeSingle(),
+        ]);
+        cpf = customer?.cpf || owner?.cpf_cnpj || '';
+      }
+      if (!isValidCpf(cpf)) return jsonResponse({ accounts: [] });
+      const accounts = await getCpfAccounts(cpf);
+      if (!accounts.some((account) => account.accountId === authData.user.id)) {
+        return errorResponse('A sessão não corresponde a uma das contas vinculadas a este CPF.', 403);
+      }
+      const maskEmail = (value: string) => {
+        const [local, domain = ''] = value.toLowerCase().split('@');
+        const [host = '', ...suffix] = domain.split('.');
+        return local.slice(0, 1) + '*'.repeat(Math.min(Math.max(local.length - 1, 2), 6)) + '@' +
+          host.slice(0, 1) + '*'.repeat(Math.min(Math.max(host.length - 1, 2), 6)) + '.' + suffix.join('.');
+      };
+      return jsonResponse({
+        cpf,
+        accounts: accounts.map((account) => ({
+          accountId: account.accountId, kind: account.kind, label: account.label, email: maskEmail(account.email),
+        })),
+      });
     }
 
-    if (!email && digits.length >= 10) {
-      if (accountId && digits.length === 11) {
-        const { data: customer } = await supabaseAdmin
-          .from('customer_accounts').select('email').eq('id', accountId).eq('cpf', digits).maybeSingle();
-        if (customer?.email) email = customer.email;
-        if (!email) {
-          const { data: owner } = await supabaseAdmin
-            .from('establishment_owners').select('email').eq('id', accountId).eq('cpf_cnpj', digits).maybeSingle();
-          if (owner) {
-            email = owner.email ?? null;
-          }
-        }
-      } else if (digits.length === 11 || digits.length === 14) {
-        const { data: byCpf } = await supabaseAdmin
-          .from('customer_accounts')
-          .select('email')
-          .eq('cpf', digits)
-          .maybeSingle();
-        email = byCpf?.email ?? null;
+    let candidates: Candidate[] = [];
+    if (identifier.includes('@')) {
+      candidates = [{ accountId: '', kind: 'phone', email: identifier.toLowerCase() }];
+    } else if (accountId && isValidCpf(digits)) {
+      const { data: customer } = await supabaseAdmin.from('customer_accounts')
+        .select('id,email').eq('id', accountId).eq('cpf', digits).maybeSingle();
+      if (customer?.email) candidates = [{ accountId: customer.id, kind: 'customer', email: customer.email }];
+      if (!candidates.length) {
+        const { data: owner } = await supabaseAdmin.from('establishment_owners')
+          .select('id,email').eq('id', accountId).eq('cpf_cnpj', digits).maybeSingle();
+        if (owner?.email) candidates = [{ accountId: owner.id, kind: 'owner', email: owner.email }];
       }
-
-      if (!email) {
-        const { data: byPhone } = await supabaseAdmin
-          .from('customer_accounts')
-          .select('email')
-          .eq('telefone', digits)
-          .maybeSingle();
-        email = byPhone?.email ?? null;
-      }
+    } else if (isValidCpf(digits)) {
+      candidates = await getCpfAccounts(digits);
+    } else if (digits.length >= 10) {
+      const { data: byPhone } = await supabaseAdmin.from('customer_accounts')
+        .select('id,email').eq('telefone', digits).maybeSingle();
+      if (byPhone?.email) candidates = [{ accountId: byPhone.id, kind: 'phone', email: byPhone.email }];
     }
-    if (!email) return errorResponse(INVALID_CREDENTIALS, 401);
-
+    if (!candidates.length) return errorResponse(INVALID_CREDENTIALS, 401);
     const supabaseAuth = createClient(
       supabaseUrl,
       Deno.env.get('SUPABASE_ANON_KEY')!,
       { auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false } },
     );
-    const { data: authData, error: authError } = await supabaseAuth.auth.signInWithPassword({ email, password });
-    if (authError || !authData.session) return errorResponse(INVALID_CREDENTIALS, 401);
+    let authData: any = null;
+    for (const candidate of candidates) {
+      const result = await supabaseAuth.auth.signInWithPassword({ email: candidate.email, password });
+      if (!result.error && result.data.session) {
+        authData = { session: result.data.session, userId: result.data.user?.id, accountId: candidate.accountId, kind: candidate.kind };
+        break;
+      }
+    }
+    if (!authData?.session) return errorResponse(INVALID_CREDENTIALS, 401);
 
-    // Retorna apenas os artefatos necessários para estabelecer a sessão.
     return jsonResponse({
       access_token: authData.session.access_token,
       refresh_token: authData.session.refresh_token,
       expires_at: authData.session.expires_at,
       expires_in: authData.session.expires_in,
       token_type: authData.session.token_type,
-    });
-  } catch (err) {
+      accountId: authData.accountId,
+      kind: authData.kind,
+    });  } catch (err) {
     console.error('Falha na autenticação de cliente:', err instanceof Error ? err.name : 'erro desconhecido');
     return errorResponse('Não foi possível entrar. Tente novamente.', 500);
   }

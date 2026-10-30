@@ -10,7 +10,7 @@
 //      mantido aqui também por conveniência de agrupamento de domínio)
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { corsHeaders, jsonResponse, errorResponse, uid, requireEmployee, hasEmployeeAccess } from '../_shared/helpers.ts';
+import { corsHeaders, jsonResponse, errorResponse, uid, requireEmployee, hasEmployeeAccess, hasFeatureAccess } from '../_shared/helpers.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -18,7 +18,7 @@ Deno.serve(async (req: Request) => {
   const caller = await requireEmployee(req);
   if (!caller) return errorResponse('Não autenticado.', 401);
 
-  if (!hasEmployeeAccess(caller, 'adm')) return errorResponse('Acesso restrito a administracao.', 403);
+  if (!hasFeatureAccess(caller, 'crm')) return errorResponse('Acesso restrito ao CRM.', 403);
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,

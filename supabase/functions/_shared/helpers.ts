@@ -100,13 +100,38 @@ export type EmployeeClaims = {
   accessKitchen: boolean;
   accessCashier: boolean;
   accessAdmin: boolean;
+  accessCrm: boolean;
+  accessReports: boolean;
+  accessInventory: boolean;
+  accessSuppliers: boolean;
+  accessProducts: boolean;
+  accessPromotions: boolean;
+  accessEmployees: boolean;
+  accessSettings: boolean;
+  accessDevices: boolean;
 };
 
 export function hasEmployeeAccess(caller: EmployeeClaims, access: 'cozinha' | 'caixa' | 'adm'): boolean {
-  if (caller.isOwner) return true;
   if (access === 'cozinha') return caller.accessKitchen;
   if (access === 'caixa') return caller.accessCashier;
   return caller.accessAdmin;
+}
+
+export type FeatureAccess = 'crm' | 'relatorios' | 'estoque' | 'fornecedores' | 'produtos' | 'promocoes' | 'funcionarios' | 'configuracoes' | 'dispositivos';
+
+export function hasFeatureAccess(caller: EmployeeClaims, feature: FeatureAccess): boolean {
+  const access: Record<FeatureAccess, boolean> = {
+    crm: caller.accessCrm,
+    relatorios: caller.accessReports,
+    estoque: caller.accessInventory,
+    fornecedores: caller.accessSuppliers,
+    produtos: caller.accessProducts,
+    promocoes: caller.accessPromotions,
+    funcionarios: caller.accessEmployees,
+    configuracoes: caller.accessSettings,
+    dispositivos: caller.accessDevices,
+  };
+  return access[feature];
 }
 
 export function adminClient(): SupabaseClient<any> {
@@ -130,7 +155,7 @@ export async function requireEmployee(req: Request): Promise<EmployeeClaims | nu
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data?.user) return null;
 
-  const employeeColumns = 'id, auth_user_id, nome, role, ativo, establishment_id, acesso_cozinha, acesso_caixa, acesso_adm';
+  const employeeColumns = 'id, auth_user_id, nome, role, ativo, establishment_id, acesso_cozinha, acesso_caixa, acesso_adm, acesso_crm, acesso_relatorios, acesso_estoque, acesso_fornecedores, acesso_produtos, acesso_promocoes, acesso_funcionarios, acesso_configuracoes, acesso_dispositivos';
   const { data: byAuthId, error: authIdError } = await supabase
     .from('employees')
     .select(employeeColumns)
@@ -188,12 +213,21 @@ export async function requireEmployee(req: Request): Promise<EmployeeClaims | nu
       accessKitchen: legacyAdmin || legacyStaff || employee.acesso_cozinha === true,
       accessCashier: legacyAdmin || legacyStaff || employee.acesso_caixa === true,
       accessAdmin: legacyAdmin || employee.acesso_adm === true,
+      accessCrm: employee.acesso_crm === true,
+      accessReports: employee.acesso_relatorios === true,
+      accessInventory: employee.acesso_estoque === true,
+      accessSuppliers: employee.acesso_fornecedores === true,
+      accessProducts: employee.acesso_produtos === true,
+      accessPromotions: employee.acesso_promocoes === true,
+      accessEmployees: employee.acesso_funcionarios === true,
+      accessSettings: employee.acesso_configuracoes === true,
+      accessDevices: employee.acesso_dispositivos === true,
     };
   }
 
   const { data: owner, error: ownerError } = await supabase
     .from('establishment_owners')
-    .select('establishment_id')
+    .select('establishment_id, acesso_cozinha, acesso_caixa, acesso_adm, acesso_crm, acesso_relatorios, acesso_estoque, acesso_fornecedores, acesso_produtos, acesso_promocoes, acesso_funcionarios, acesso_configuracoes, acesso_dispositivos')
     .eq('id', data.user.id)
     .maybeSingle();
   if (ownerError || !owner) return null;
@@ -211,8 +245,17 @@ export async function requireEmployee(req: Request): Promise<EmployeeClaims | nu
     employeeName: data.user.user_metadata?.full_name ?? data.user.email ?? 'Administrador',
     establishmentId: establishment.id,
     isOwner: true,
-    accessKitchen: true,
-    accessCashier: true,
-    accessAdmin: true,
+    accessKitchen: owner.acesso_cozinha === true,
+    accessCashier: owner.acesso_caixa === true,
+    accessAdmin: owner.acesso_adm === true,
+    accessCrm: owner.acesso_crm === true,
+    accessReports: owner.acesso_relatorios === true,
+    accessInventory: owner.acesso_estoque === true,
+    accessSuppliers: owner.acesso_fornecedores === true,
+    accessProducts: owner.acesso_produtos === true,
+    accessPromotions: owner.acesso_promocoes === true,
+    accessEmployees: owner.acesso_funcionarios === true,
+    accessSettings: owner.acesso_configuracoes === true,
+    accessDevices: owner.acesso_dispositivos === true,
   };
 }

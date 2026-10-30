@@ -215,9 +215,7 @@ export function Kitchen() {
       role: 'admin',
       horario: '',
       ativo: true,
-      acessoCozinha: true,
-      acessoCaixa: true,
-      acessoAdm: true,
+      ...ownerEstablishment.access,
       createdAt: '',
     });
   }, [ownerLoading, ownerSession, ownerEstablishment]);
@@ -234,17 +232,17 @@ export function Kitchen() {
   const { data: stock = [] } = useQuery({ queryKey: ['stock'], queryFn: api.stock.list, refetchInterval: 15000, enabled: !!loggedEmployee });
   const { data: stockHistory = [] } = useQuery({ queryKey: ['stock-history'], queryFn: api.stock.history, enabled: !!loggedEmployee && activeTab === 'estoque' });
   const { data: wasteLog = [] } = useQuery({ queryKey: ['waste-log'], queryFn: api.stock.waste, enabled: !!loggedEmployee && activeTab === 'estoque' });
-  const { data: employees = [] } = useQuery({ queryKey: ['employees'], queryFn: api.employees.list, enabled: !!loggedEmployee && kitchenMode === 'admin' });
-  const { data: promotions = [] } = useQuery({ queryKey: ['promotions'], queryFn: api.promotions.list, enabled: !!loggedEmployee && kitchenMode === 'admin' });
+  const { data: employees = [] } = useQuery({ queryKey: ['employees'], queryFn: api.employees.list, enabled: !!loggedEmployee && loggedEmployee.acessoFuncionarios });
+  const { data: promotions = [] } = useQuery({ queryKey: ['promotions'], queryFn: api.promotions.list, enabled: !!loggedEmployee && loggedEmployee.acessoPromocoes });
   const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: api.customers.list, enabled: !!loggedEmployee && activeTab === 'crm' });
-  const { data: customerInsights = [] } = useQuery<ApiCustomerInsight[]>({ queryKey: ['customer-insights'], queryFn: api.customers.insights, enabled: !!loggedEmployee && kitchenMode === 'admin' && activeTab === 'crm' });
+  const { data: customerInsights = [] } = useQuery<ApiCustomerInsight[]>({ queryKey: ['customer-insights'], queryFn: api.customers.insights, enabled: !!loggedEmployee && loggedEmployee.acessoCrm && activeTab === 'crm' });
   const { data: interactions = [] } = useQuery({ queryKey: ['customer-interactions'], queryFn: api.customers.interactions, enabled: !!loggedEmployee && activeTab === 'crm' });
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: api.suppliers.list, enabled: !!loggedEmployee && activeTab === 'fornecedores' });
   const { data: supplyRequests = [] } = useQuery({ queryKey: ['supply-requests'], queryFn: api.suppliers.requests, enabled: !!loggedEmployee && activeTab === 'fornecedores' });
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: api.settings.getForEmployee, enabled: !!loggedEmployee });
-  const canAccessCashier = ownerAdminAccess || loggedEmployee?.acessoCaixa === true;
-  const canAccessKitchen = ownerAdminAccess || loggedEmployee?.acessoCozinha === true;
-  const { data: dailyReport } = useQuery({ queryKey: ['report-daily'], queryFn: api.reports.daily, refetchInterval: 10000, enabled: !!loggedEmployee && canAccessCashier });
+  const canAccessCashier = loggedEmployee?.acessoCaixa === true;
+  const canAccessKitchen = loggedEmployee?.acessoCozinha === true;
+  const { data: dailyReport } = useQuery({ queryKey: ['report-daily'], queryFn: api.reports.daily, refetchInterval: 10000, enabled: !!loggedEmployee && loggedEmployee.acessoRelatorios });
   const { data: productRanking = [] } = useQuery({ queryKey: ['report-products'], queryFn: api.reports.products, refetchInterval: 15000, enabled: !!loggedEmployee && (activeTab === 'dashboard' || activeTab === 'relatorios') });
   const { data: hourlyData = [] } = useQuery({ queryKey: ['report-hourly'], queryFn: api.reports.hourly, refetchInterval: 15000, enabled: !!loggedEmployee && (activeTab === 'dashboard' || activeTab === 'relatorios') });
   const { data: transactions = [] } = useQuery({ queryKey: ['transactions'], queryFn: api.reports.transactions, enabled: !!loggedEmployee && activeTab === 'relatorios' });
@@ -514,12 +512,17 @@ export function Kitchen() {
     { key: 'configuracoes', label: 'Configurações', icon: Settings },
   ];
 
-  const tabs = kitchenMode === 'admin' ? TABS_ADMIN : TABS_FUNCIONARIO.filter((tab) => {
-    if (tab.key === 'pedidos') return canAccessKitchen || canAccessCashier;
-    if (tab.key === 'caixa') return canAccessCashier;
-    if (tab.key === 'dashboard') return canAccessCashier || canAccessKitchen;
-    return canAccessKitchen;
-  });
+  const featureEnabled: Record<KitchenTab, boolean> = {
+    pedidos: canAccessKitchen || canAccessCashier, caixa: canAccessCashier, tarefas: canAccessKitchen,
+    estoque: loggedEmployee.acessoEstoque, dashboard: loggedEmployee.acessoRelatorios,
+    relatorios: loggedEmployee.acessoRelatorios, crm: loggedEmployee.acessoCrm, fornecedores: loggedEmployee.acessoFornecedores,
+    produtos: loggedEmployee.acessoProdutos, promocoes: loggedEmployee.acessoPromocoes,
+    funcionarios: loggedEmployee.acessoFuncionarios, configuracoes: loggedEmployee.acessoConfiguracoes,
+  };
+  const tabs = TABS_ADMIN.filter((tab) => featureEnabled[tab.key]);
+  useEffect(() => {
+    if (tabs.length > 0 && !tabs.some((tab) => tab.key === activeTab)) setActiveTab(tabs[0].key);
+  }, [activeTab, tabs]);
 
   // ─── Layout ──────────────────────────────────────────────────────────────────
 
@@ -1017,7 +1020,7 @@ export function Kitchen() {
         )}
 
         {/* ── RELATÓRIOS ── */}
-        {activeTab === 'relatorios' && kitchenMode === 'admin' && (
+        {activeTab === 'relatorios' && loggedEmployee.acessoRelatorios && (
           <div className="max-w-5xl mx-auto space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <h2 className="text-2xl font-display font-black text-gray-900">Relatórios</h2>
@@ -1103,7 +1106,7 @@ export function Kitchen() {
         )}
 
         {/* ── CRM ── */}
-        {activeTab === 'crm' && kitchenMode === 'admin' && (
+        {activeTab === 'crm' && loggedEmployee.acessoCrm && (
           <div className="max-w-5xl mx-auto space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
@@ -1388,7 +1391,7 @@ export function Kitchen() {
         )}
 
         {/* ── FORNECEDORES ── */}
-        {activeTab === 'fornecedores' && kitchenMode === 'admin' && (
+        {activeTab === 'fornecedores' && loggedEmployee.acessoFornecedores && (
           <div className="max-w-5xl mx-auto space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <h2 className="text-2xl font-display font-black text-gray-900">ERP — Fornecedores</h2>
@@ -1527,7 +1530,7 @@ export function Kitchen() {
         )}
 
         {/* ── PRODUTOS ── */}
-        {activeTab === 'produtos' && kitchenMode === 'admin' && (
+        {activeTab === 'produtos' && loggedEmployee.acessoProdutos && (
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <h2 className="text-2xl font-display font-black text-gray-900">Cardápio / Produtos</h2>
@@ -1696,7 +1699,7 @@ export function Kitchen() {
         )}
 
         {/* ── PROMOÇÕES ── */}
-        {activeTab === 'promocoes' && kitchenMode === 'admin' && (
+        {activeTab === 'promocoes' && loggedEmployee.acessoPromocoes && (
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <h2 className="text-2xl font-display font-black text-gray-900">Promoções</h2>
@@ -1788,7 +1791,7 @@ export function Kitchen() {
         )}
 
         {/* ── FUNCIONÁRIOS ── */}
-        {activeTab === 'funcionarios' && kitchenMode === 'admin' && (
+        {activeTab === 'funcionarios' && loggedEmployee.acessoFuncionarios && (
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <h2 className="text-2xl font-display font-black text-gray-900">Funcionários</h2>
@@ -1888,7 +1891,7 @@ export function Kitchen() {
         )}
 
         {/* ── CONFIGURAÇÕES ── */}
-        {activeTab === 'configuracoes' && kitchenMode === 'admin' && (
+        {activeTab === 'configuracoes' && loggedEmployee.acessoConfiguracoes && (
           <div className="max-w-2xl mx-auto space-y-6">
             <h2 className="text-2xl font-display font-black text-gray-900">Configurações</h2>
             <div className="bg-white rounded-2xl shadow-sm p-6 space-y-5">
@@ -1958,7 +1961,7 @@ export function Kitchen() {
               )}
             </div>
 
-            {ownerAdminAccess && (
+            {loggedEmployee.acessoDispositivos && (
               <div className="bg-white rounded-2xl shadow-sm p-6">
                 <h3 className="font-black text-gray-700">Dispositivos do cardápio</h3>
                 <p className="mt-1 text-sm text-gray-500">Crie códigos, configure tablets e remova dispositivos revogados.</p>

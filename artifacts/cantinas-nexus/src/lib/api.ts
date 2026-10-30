@@ -432,6 +432,15 @@ export interface ApiEmployee {
   acessoCozinha: boolean;
   acessoCaixa: boolean;
   acessoAdm: boolean;
+  acessoCrm: boolean;
+  acessoRelatorios: boolean;
+  acessoEstoque: boolean;
+  acessoFornecedores: boolean;
+  acessoProdutos: boolean;
+  acessoPromocoes: boolean;
+  acessoFuncionarios: boolean;
+  acessoConfiguracoes: boolean;
+  acessoDispositivos: boolean;
   createdAt: string;
 }
 

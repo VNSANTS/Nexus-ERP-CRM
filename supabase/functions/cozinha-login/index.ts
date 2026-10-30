@@ -99,7 +99,27 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ ok: false, message: 'Usuário ou senha inválidos.' }, 401);
     }
 
-    const { password: _omit, ...safeEmployee } = employeeRow;
+    const safeEmployee = {
+      id: employeeRow.id,
+      nome: employeeRow.nome,
+      username: employeeRow.username,
+      role: employeeRow.role,
+      horario: employeeRow.horario ?? '',
+      ativo: employeeRow.ativo === true,
+      acessoCozinha: employeeRow.acesso_cozinha === true,
+      acessoCaixa: employeeRow.acesso_caixa === true,
+      acessoAdm: employeeRow.acesso_adm === true,
+      acessoCrm: employeeRow.acesso_crm === true,
+      acessoRelatorios: employeeRow.acesso_relatorios === true,
+      acessoEstoque: employeeRow.acesso_estoque === true,
+      acessoFornecedores: employeeRow.acesso_fornecedores === true,
+      acessoProdutos: employeeRow.acesso_produtos === true,
+      acessoPromocoes: employeeRow.acesso_promocoes === true,
+      acessoFuncionarios: employeeRow.acesso_funcionarios === true,
+      acessoConfiguracoes: employeeRow.acesso_configuracoes === true,
+      acessoDispositivos: employeeRow.acesso_dispositivos === true,
+      createdAt: employeeRow.created_at,
+    };
 
     return jsonResponse({
       ok: true,

@@ -12,7 +12,7 @@
 //   - 'clear-sales'
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { corsHeaders, jsonResponse, errorResponse, requireEmployee, hasEmployeeAccess } from '../_shared/helpers.ts';
+import { corsHeaders, jsonResponse, errorResponse, requireEmployee, hasEmployeeAccess, hasFeatureAccess, type FeatureAccess } from '../_shared/helpers.ts';
 import { checkRateLimit } from '../_shared/security.ts';
 
 function saoPauloDayStart(now = new Date()): Date {
@@ -51,16 +51,25 @@ Deno.serve(async (req: Request) => {
   try {
     const body = await req.json();
     const { action } = body;
-    const financeiro = ['report-daily', 'report-transactions', 'confirm-transaction'].includes(action);
-    if (financeiro) {
+    const featureByAction: Record<string, FeatureAccess> = {
+      'create-product-image-upload': 'produtos', 'create-product': 'produtos',
+      'update-product': 'produtos', 'delete-product': 'produtos', 'list-stock': 'estoque',
+      'get-settings': 'configuracoes', 'create-logo-image-upload': 'configuracoes', 'update-settings': 'configuracoes',
+      'report-daily': 'relatorios', 'report-products': 'relatorios', 'report-hourly': 'relatorios', 'report-transactions': 'relatorios',
+      'report-waste': 'estoque', 'report-stock-history': 'estoque', 'report-loyalty': 'crm',
+    };
+    const requiredFeature = featureByAction[action];
+    if (requiredFeature && !hasFeatureAccess(caller, requiredFeature)) return errorResponse('Acesso restrito a este modulo.', 403);
+    const financeiro = ['confirm-transaction'].includes(action);
+    if (financeiro && !requiredFeature) {
       if (!hasEmployeeAccess(caller, 'caixa') && !hasEmployeeAccess(caller, 'adm')) {
         return errorResponse('Acesso restrito ao caixa ou à administração.', 403);
       }
-    } else if (['list-products', 'list-stock', 'get-settings', 'report-products', 'report-hourly'].includes(action)) {
+    } else if (!requiredFeature && ['list-products', 'list-stock', 'get-settings', 'report-products', 'report-hourly'].includes(action)) {
       if (!hasEmployeeAccess(caller, 'cozinha') && !hasEmployeeAccess(caller, 'caixa') && !hasEmployeeAccess(caller, 'adm')) {
         return errorResponse('Acesso restrito a cozinha ou caixa.', 403);
       }
-    } else if (!hasEmployeeAccess(caller, 'adm')) {
+    } else if (!requiredFeature && !hasEmployeeAccess(caller, 'adm')) {
       return errorResponse('Acesso restrito à administração.', 403);
     }
 

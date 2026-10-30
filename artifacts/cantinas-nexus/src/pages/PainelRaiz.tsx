@@ -153,6 +153,7 @@ function formatEndereco(s: Solicitacao): string {
 
 // === Dashboard com as solicitações pendentes ===
 function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
+  const [secao, setSecao] = useState<'estabelecimentos' | 'usuarios'>('estabelecimentos');
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [processandoId, setProcessandoId] = useState<string | null>(null);
@@ -162,6 +163,10 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
   const [motivo, setMotivo] = useState('');
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const [excluindoEstabelecimentoId, setExcluindoEstabelecimentoId] = useState<string | null>(null);
+
+  if (secao === 'usuarios') {
+    return <UsuariosPlataforma onBack={() => setSecao('estabelecimentos')} onSignOut={onSignOut} />;
+  }
 
   useEffect(() => {
     carregar();
@@ -309,6 +314,9 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold text-neutral-900">Solicitações de estabelecimento</h1>
           <div className="flex items-center gap-4">
+            <button type="button" onClick={() => setSecao('usuarios')} className="rounded-lg bg-neutral-900 px-3 py-2 text-sm font-semibold text-white hover:bg-neutral-800">
+              Usuários do sistema
+            </button>
             <button
               type="button"
               onClick={carregar}
@@ -724,6 +732,62 @@ function ConfirmarModal({
           >
             {processando ? 'Processando...' : isUnblock ? 'Desbloquear' : isBlock ? 'Bloquear' : 'Rejeitar'}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type UsuarioPlataforma = { id: string; nome: string | null; email: string; telefone: string | null; cpf: string | null; cadastro_completo: boolean; created_at: string };
+type ResumoUsuarios = { total: number; completos: number; novos30Dias: number; pedidos30Dias: number };
+
+function UsuariosPlataforma({ onBack, onSignOut }: { onBack: () => void; onSignOut: () => void }) {
+  const [usuarios, setUsuarios] = useState<UsuarioPlataforma[]>([]);
+  const [resumo, setResumo] = useState<ResumoUsuarios | null>(null);
+  const [busca, setBusca] = useState('');
+  const [carregando, setCarregando] = useState(true);
+
+  async function carregar() {
+    setCarregando(true);
+    try {
+      const [lista, dashboard] = await Promise.all([
+        supabase.functions.invoke('gerenciar-usuarios-plataforma', { body: { action: 'list' } }),
+        supabase.functions.invoke('gerenciar-usuarios-plataforma', { body: { action: 'dashboard' } }),
+      ]);
+      if (lista.error || lista.data?.error) throw lista.error ?? new Error(lista.data?.error);
+      if (dashboard.error || dashboard.data?.error) throw dashboard.error ?? new Error(dashboard.data?.error);
+      setUsuarios(lista.data ?? []);
+      setResumo(dashboard.data);
+    } catch (error) {
+      console.error(error);
+      toast.error('Não foi possível carregar os usuários.');
+    } finally { setCarregando(false); }
+  }
+
+  useEffect(() => { void carregar(); }, []);
+
+  async function excluir(usuario: UsuarioPlataforma) {
+    if (!window.confirm(`Excluir definitivamente a conta de ${usuario.nome || usuario.email}?`)) return;
+    const { data, error } = await supabase.functions.invoke('gerenciar-usuarios-plataforma', { body: { action: 'delete', id: usuario.id } });
+    if (error || data?.error) { toast.error(data?.error ?? 'Não foi possível excluir o usuário.'); return; }
+    toast.success('Usuário excluído.');
+    void carregar();
+  }
+
+  const filtrados = usuarios.filter((u) => `${u.nome ?? ''} ${u.email} ${u.telefone ?? ''} ${u.cpf ?? ''}`.toLowerCase().includes(busca.toLowerCase()));
+  return (
+    <div className="min-h-screen bg-neutral-50 px-4 py-8">
+      <div className="mx-auto max-w-6xl">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div><p className="text-sm font-semibold text-neutral-500">Administração Nexus</p><h1 className="text-2xl font-bold text-neutral-900">Usuários do sistema</h1></div>
+          <div className="flex gap-2"><button onClick={onBack} className="rounded-lg border border-neutral-300 px-3 py-2 text-sm font-semibold">Estabelecimentos</button><button onClick={() => void carregar()} className="rounded-lg border border-neutral-300 px-3 py-2 text-sm font-semibold">Atualizar</button><button onClick={onSignOut} className="rounded-lg px-3 py-2 text-sm font-semibold text-neutral-500">Sair</button></div>
+        </div>
+        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+          {[['Usuários cadastrados', resumo?.total ?? 0], ['Cadastros completos', resumo?.completos ?? 0], ['Novos em 30 dias', resumo?.novos30Dias ?? 0], ['Pedidos em 30 dias', resumo?.pedidos30Dias ?? 0]].map(([label, value]) => <div key={String(label)} className="rounded-2xl bg-white p-5 shadow-sm"><p className="text-xs font-semibold uppercase text-neutral-400">{label}</p><p className="mt-2 text-3xl font-bold text-neutral-900">{value}</p></div>)}
+        </div>
+        <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold text-neutral-900">Contas de usuários finais</h2><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome, e-mail ou telefone" className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm md:w-80" /></div>
+          {carregando ? <p className="py-8 text-sm text-neutral-400">Carregando...</p> : <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead><tr className="border-b text-xs uppercase text-neutral-400"><th className="px-3 py-3">Usuário</th><th className="px-3 py-3">Contato</th><th className="px-3 py-3">Cadastro</th><th className="px-3 py-3">Criado em</th><th className="px-3 py-3" /></tr></thead><tbody>{filtrados.map((u) => <tr key={u.id} className="border-b last:border-0"><td className="px-3 py-3"><p className="font-semibold">{u.nome || 'Sem nome'}</p><p className="text-xs text-neutral-500">{u.email}</p></td><td className="px-3 py-3">{u.telefone || '—'}</td><td className="px-3 py-3"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${u.cadastro_completo ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{u.cadastro_completo ? 'Completo' : 'Incompleto'}</span></td><td className="px-3 py-3 text-neutral-500">{new Date(u.created_at).toLocaleDateString('pt-BR')}</td><td className="px-3 py-3 text-right"><button onClick={() => void excluir(u)} className="font-semibold text-red-600 hover:text-red-800">Excluir</button></td></tr>)}</tbody></table>{!filtrados.length && <p className="py-8 text-center text-sm text-neutral-400">Nenhum usuário encontrado.</p>}</div>}
         </div>
       </div>
     </div>

@@ -41,7 +41,14 @@ export function CompletarCadastro() {
       return;
     }
     if (profile?.cadastroCompleto) {
-      navigate('/estabelecimentos');
+      const pendingEstablishmentId = sessionStorage.getItem('nexus:pendingEstablishmentId');
+      if (pendingEstablishmentId) {
+        sessionStorage.removeItem('nexus:pendingEstablishmentId');
+        sessionStorage.setItem('nexus:establishmentId', pendingEstablishmentId);
+        navigate(`/e/${encodeURIComponent(pendingEstablishmentId)}`);
+      } else {
+        navigate('/estabelecimentos');
+      }
     }
   }, [loading, session, profile, navigate]);
 
@@ -148,7 +155,14 @@ export function CompletarCadastro() {
 
       toast.success('Cadastro completado com sucesso!');
       await refreshProfile();
-      navigate('/estabelecimentos');
+      const pendingEstablishmentId = sessionStorage.getItem('nexus:pendingEstablishmentId');
+      if (pendingEstablishmentId) {
+        sessionStorage.removeItem('nexus:pendingEstablishmentId');
+        sessionStorage.setItem('nexus:establishmentId', pendingEstablishmentId);
+        navigate(`/e/${encodeURIComponent(pendingEstablishmentId)}`);
+      } else {
+        navigate('/estabelecimentos');
+      }
     } catch (err) {
       console.error(err);
       toast.error('Erro inesperado. Tente novamente.');

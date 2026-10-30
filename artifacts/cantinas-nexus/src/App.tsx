@@ -60,10 +60,13 @@ function RequireCustomer({ children }: { children: ReactNode }) {
 // migrados para o estabelecimento nº1, ver seção 6 do .md do projeto).
 function AbrirEstabelecimento({ params }: { params: { establishmentId: string } }) {
   const [, navigate] = useLocation();
+  const { session } = useCustomerAuth();
   useEffect(() => {
     sessionStorage.setItem('nexus:establishmentId', params.establishmentId);
+    if (session) sessionStorage.removeItem('nexus:pendingEstablishmentId');
+    else sessionStorage.setItem('nexus:pendingEstablishmentId', params.establishmentId);
     navigate('/cardapio');
-  }, [params.establishmentId, navigate]);
+  }, [params.establishmentId, session, navigate]);
   return null;
 }
 

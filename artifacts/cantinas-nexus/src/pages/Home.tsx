@@ -71,11 +71,16 @@ function hexToHsl(hex: string) {
 export function Home() {
   const qc = useQueryClient();
   const { profile } = useCustomerAuth();
+  const establishmentId = sessionStorage.getItem('nexus:establishmentId');
+  const establishmentMenuUrl = establishmentId
+    ? `${window.location.origin}${import.meta.env.BASE_URL}e/${encodeURIComponent(establishmentId)}`
+    : null;
   const [view, setView] = useState<'menu' | 'payment' | 'success'>('menu');
   const [createdOrder, setCreatedOrder] = useState<ApiOrder | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [cartOpen, setCartOpen] = useState(false);
   const [whatsappOpen, setWhatsappOpen] = useState(false);
+  const [menuQrOpen, setMenuQrOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<'todos' | 'lanche' | 'bebida' | 'combo' | 'sazonal'>('todos');
   const [observacoes, setObservacoes] = useState('');
   const [telefone, setTelefone] = useState('');
@@ -85,17 +90,17 @@ export function Home() {
 
   // Queries
   const { data: products = [], isLoading: loadingProducts } = useQuery({
-    queryKey: ['products'],
+    queryKey: ['products', establishmentId],
     queryFn: api.products.list,
     refetchInterval: 30_000,
   });
   const { data: stock = [] } = useQuery({
-    queryKey: ['menu-stock'],
+    queryKey: ['menu-stock', establishmentId],
     queryFn: api.stock.listForMenu,
     refetchInterval: 15_000,
   });
   const { data: promotions = [] } = useQuery({
-    queryKey: ['promotions-active'],
+    queryKey: ['promotions-active', establishmentId],
     queryFn: api.promotions.listActive,
     refetchInterval: 30_000,
   });
@@ -109,7 +114,7 @@ export function Home() {
     refetchInterval: 60_000,
   });
   const { data: settings } = useQuery({
-    queryKey: ['settings'],
+    queryKey: ['settings', establishmentId],
     queryFn: api.settings.get,
     staleTime: 60_000,
   });
@@ -117,13 +122,12 @@ export function Home() {
   const checkoutMutation = useMutation({
     mutationFn: (paymentMethod: string) => {
       const cartItems = cart.map((i) => ({ productId: i.productId, qty: i.qty }));
-      const establishmentId = sessionStorage.getItem('nexus:establishmentId') ?? undefined;
       const fingerprint = JSON.stringify({ establishmentId, cartItems, paymentMethod, observacoes, telefone });
       if (checkoutAttemptRef.current?.fingerprint !== fingerprint) {
         checkoutAttemptRef.current = { fingerprint, key: crypto.randomUUID() };
       }
       return api.orders.checkout({
-        establishmentId,
+        establishmentId: establishmentId ?? undefined,
         cartItems,
         paymentMethod,
         observacoes,
@@ -184,7 +188,6 @@ export function Home() {
   const getStock = (productId: string) => stock.find((s) => s.productId === productId)?.quantidade ?? 0;
 
   const whatsappUrl = `https://wa.me/${settings?.whatsappNumero ?? '5511999999999'}`;
-
   const menuPrimary = settings?.menuPrimaryColor ?? '#ff6600';
   const menuBackground = settings?.menuBackgroundColor ?? '#f7f3ed';
   const menuTheme = {
@@ -263,7 +266,17 @@ export function Home() {
                <p className="text-primary text-xs sm:text-sm font-black uppercase tracking-[.18em] mb-1">Cardápio de hoje</p>
                <h2 className="text-2xl sm:text-4xl font-display font-black text-foreground leading-tight">Escolha seus favoritos</h2>
              </div>
-             <p className="hidden sm:block text-muted-foreground font-semibold text-sm max-w-[200px] text-right">Toque no item para adicionar ao seu pedido.</p>
+             <div className="flex shrink-0 items-center gap-3">
+               <p className="hidden lg:block text-muted-foreground font-semibold text-sm max-w-[200px] text-right">Toque no item para adicionar ao seu pedido.</p>
+               {establishmentMenuUrl && (
+                 <button type="button" onClick={() => setMenuQrOpen(true)} aria-label="Ampliar QR code do cardápio" className="flex shrink-0 flex-col items-center gap-1 rounded-2xl border border-border bg-card p-2 text-[10px] font-bold text-foreground shadow-sm transition hover:border-primary/50 hover:text-primary sm:p-2.5 sm:text-xs">
+                   <span className="rounded-lg bg-white p-1">
+                     <QRCodeSVG value={establishmentMenuUrl} size={64} level="H" />
+                   </span>
+                   <span>QR do cardápio</span>
+                 </button>
+               )}
+             </div>
            </motion.div>
            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5 pt-2">
             {loadingProducts ? (
@@ -462,6 +475,36 @@ export function Home() {
           </motion.div>
         )}
       </main>
+
+      <AnimatePresence>
+        {menuQrOpen && establishmentMenuUrl && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+            <motion.button
+              type="button"
+              aria-label="Fechar QR code"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-sm"
+              onClick={() => setMenuQrOpen(false)}
+            />
+            <motion.section
+              role="dialog" aria-modal="true" aria-labelledby="menu-qr-title"
+              initial={{ opacity: 0, scale: 0.94, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94, y: 16 }}
+              className="relative z-10 w-full max-w-sm rounded-[2rem] bg-card p-6 text-center shadow-2xl sm:p-8"
+            >
+              <button type="button" onClick={() => setMenuQrOpen(false)} aria-label="Fechar" className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted">
+                <X className="h-5 w-5" />
+              </button>
+              <p className="text-xs font-black uppercase tracking-[.18em] text-primary">Compartilhe</p>
+              <h2 id="menu-qr-title" className="mt-2 text-2xl font-black text-foreground">QR code do cardápio</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Escaneie com outro celular para abrir o cardápio deste estabelecimento.</p>
+              <div className="mx-auto mt-6 inline-flex rounded-2xl bg-white p-4 shadow-sm">
+                <QRCodeSVG value={establishmentMenuUrl} size={240} level="H" includeMargin />
+              </div>
+              <p className="mt-4 break-all text-xs text-muted-foreground">{establishmentMenuUrl}</p>
+            </motion.section>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* WHATSAPP MODAL */}
       <AnimatePresence>

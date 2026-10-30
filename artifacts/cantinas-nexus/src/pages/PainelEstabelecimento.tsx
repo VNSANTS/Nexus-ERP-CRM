@@ -41,7 +41,10 @@ export function PainelEstabelecimento() {
         </header>
         <section className="grid gap-4 md:grid-cols-3">
           {areas.map(({ title, detail, icon: Icon, href, tone }) => (
-            <button key={href} type="button" onClick={() => navigate(href)} className="group flex min-h-56 flex-col rounded-3xl border border-border bg-card p-6 text-left shadow-sm transition hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg">
+            <button key={href} type="button" onClick={() => {
+              if (href === '/cardapio') sessionStorage.setItem('nexus:establishmentId', establishment.id);
+              navigate(href);
+            }} className="group flex min-h-56 flex-col rounded-3xl border border-border bg-card p-6 text-left shadow-sm transition hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg">
               <span className={`flex h-12 w-12 items-center justify-center rounded-2xl text-white ${tone}`}><Icon className="h-6 w-6" /></span>
               <span className="mt-6 text-xl font-black text-slate-900">{title}</span>
               <span className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">{detail}</span>

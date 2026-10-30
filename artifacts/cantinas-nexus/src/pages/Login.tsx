@@ -45,21 +45,34 @@ export function Login({ onKitchenLogin }: { onKitchenLogin?: (employee: ApiEmplo
         return;
       }
 
-      const { data: signInData, error: signInError } = await supabase.functions.invoke('customer-login-lookup', {
-        body: { identifier: identifier.trim(), password: loginSenha },
-      });
-      if (signInError || signInData?.error || !signInData?.accessToken || !signInData?.refreshToken) {
-        toast.error('E-mail, telefone, CPF ou senha incorretos.');
-        return;
-      }
+      if (identifier.trim().includes('@')) {
+        // Donos e clientes usam o e-mail diretamente no Supabase Auth.
+        // A busca em customer_accounts é necessária apenas para CPF/telefone.
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: identifier.trim().toLowerCase(),
+          password: loginSenha,
+        });
+        if (authError) {
+          toast.error('E-mail ou senha incorretos.');
+          return;
+        }
+      } else {
+        const { data: signInData, error: signInError } = await supabase.functions.invoke('customer-login-lookup', {
+          body: { identifier: identifier.trim(), password: loginSenha },
+        });
+        if (signInError || signInData?.error || !signInData?.accessToken || !signInData?.refreshToken) {
+          toast.error('E-mail, telefone, CPF ou senha incorretos.');
+          return;
+        }
 
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: signInData.accessToken,
-        refresh_token: signInData.refreshToken,
-      });
-      if (sessionError) {
-        toast.error('Não foi possível iniciar sua sessão. Tente novamente.');
-        return;
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: signInData.accessToken,
+          refresh_token: signInData.refreshToken,
+        });
+        if (sessionError) {
+          toast.error('Não foi possível iniciar sua sessão. Tente novamente.');
+          return;
+        }
       }
 
       const { data: ownerData, error: ownerError } = await supabase.functions.invoke('obter-estabelecimento-dono');
@@ -71,6 +84,14 @@ export function Login({ onKitchenLogin }: { onKitchenLogin?: (employee: ApiEmplo
       if (ownerError && ownerResponse?.status !== 403) {
         await supabase.auth.signOut();
         toast.error('Não foi possível identificar o tipo da conta. Tente novamente.');
+        return;
+      }
+
+      const pendingEstablishmentId = sessionStorage.getItem('nexus:pendingEstablishmentId');
+      if (pendingEstablishmentId) {
+        sessionStorage.removeItem('nexus:pendingEstablishmentId');
+        sessionStorage.setItem('nexus:establishmentId', pendingEstablishmentId);
+        navigate(`/e/${encodeURIComponent(pendingEstablishmentId)}`);
         return;
       }
 

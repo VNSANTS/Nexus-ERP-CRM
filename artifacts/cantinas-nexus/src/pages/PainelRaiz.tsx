@@ -1,9 +1,10 @@
 ﻿import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Building2, Users, Clock3, ShieldCheck, RefreshCw, LogOut } from 'lucide-react';
+import { Building2, Users, Clock3, ShieldCheck, RefreshCw, LogOut, KeyRound } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAdminAuth } from '../lib/admin-auth';
 import { isValidCpfCnpj, formatCpfCnpj, isValidCep, formatCep, lookupCep } from '../lib/validators';
+import { AcessosPlataforma } from './AcessosPlataforma';
 
 // Campos como chegam do backend: toda resposta passa por camelizeKeys
 // (_shared/helpers.ts), então snake_case do banco vira camelCase aqui.
@@ -73,7 +74,7 @@ function ResumoCard({ label, value, icon: Icon, tone }: { label: string; value: 
 
 export function PainelRaiz() {
   const { session, isAdmin, loading, signOut } = useAdminAuth();
-  const [secao, setSecao] = useState<'estabelecimentos' | 'usuarios'>('estabelecimentos');
+  const [secao, setSecao] = useState<'estabelecimentos' | 'usuarios' | 'acessos'>('estabelecimentos');
 
   if (loading) {
     return (
@@ -90,7 +91,10 @@ export function PainelRaiz() {
   if (secao === 'usuarios') {
     return <UsuariosPlataforma onBack={() => setSecao('estabelecimentos')} onSignOut={signOut} adminId={session.user.id} />;
   }
-  return <AdminDashboard onSignOut={signOut} onUsers={() => setSecao('usuarios')} adminId={session.user.id} />;
+  if (secao === 'acessos') {
+    return <AcessosPlataforma onBack={() => setSecao('estabelecimentos')} onSignOut={signOut} />;
+  }
+  return <AdminDashboard onSignOut={signOut} onUsers={() => setSecao('usuarios')} onAccess={() => setSecao('acessos')} adminId={session.user.id} />;
 }
 
 // === Tela de login do admin ===
@@ -175,7 +179,7 @@ function formatEndereco(s: Solicitacao): string {
 }
 
 // === Dashboard com as solicitações pendentes ===
-function AdminDashboard({ onSignOut, onUsers, adminId }: { onSignOut: () => void; onUsers: () => void; adminId: string }) {
+function AdminDashboard({ onSignOut, onUsers, onAccess, adminId }: { onSignOut: () => void; onUsers: () => void; onAccess: () => void; adminId: string }) {
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [processandoId, setProcessandoId] = useState<string | null>(null);
@@ -355,6 +359,10 @@ function AdminDashboard({ onSignOut, onUsers, adminId }: { onSignOut: () => void
             <button type="button" onClick={onUsers} className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/15">
               <Users className="h-4 w-4" />
               Usuários do sistema
+            </button>
+            <button type="button" onClick={onAccess} className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/15">
+              <KeyRound className="h-4 w-4" />
+              Acessos e permissões
             </button>
             <button
               type="button"

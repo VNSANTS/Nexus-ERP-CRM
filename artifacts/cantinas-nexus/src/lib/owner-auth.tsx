@@ -85,7 +85,9 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
     const callbackType = recoveryParams.get('type') ?? sessionStorage.getItem('nexus:auth-callback-type');
     sessionStorage.removeItem('nexus:auth-callback-type');
     if (callbackType === 'recovery') setIsPasswordRecovery(true);
-    if (callbackType === 'invite' || callbackType === 'signup') setIsAccountInvitation(true);
+    if (callbackType === 'invite' || callbackType === 'signup' || callbackType === 'magiclink') {
+      setIsAccountInvitation(true);
+    }
 
     const syncSession = (newSession: Session | null) => {
       const sequence = ++loadSequence.current;

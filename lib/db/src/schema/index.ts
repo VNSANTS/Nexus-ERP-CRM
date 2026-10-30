@@ -221,6 +221,9 @@ export const settings = pgTable('settings', {
   id: integer('id').primaryKey().default(1),
   nomeLoja: text('nome_loja').notNull().default('Cantinas Nexus'),
   whatsappNumero: text('whatsapp_numero').notNull().default('5511999999999'),
+  logoUrl: text('logo_url'),
+  menuPrimaryColor: text('menu_primary_color').notNull().default('#ff6600'),
+  menuBackgroundColor: text('menu_background_color').notNull().default('#f7f3ed'),
 });
 
 export type Settings = typeof settings.$inferSelect;

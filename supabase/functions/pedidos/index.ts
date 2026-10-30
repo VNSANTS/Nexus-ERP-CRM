@@ -95,7 +95,7 @@ Deno.serve(async (req: Request) => {
           .eq('establishment_id', establishment.id)
           .eq('ativo', true),
         supabase.from('settings')
-          .select('id, nome_loja, whatsapp_numero')
+          .select('id, nome_loja, whatsapp_numero, logo_url, menu_primary_color, menu_background_color')
           .eq('establishment_id', establishment.id)
           .eq('id', 1)
           .maybeSingle(),
@@ -109,7 +109,7 @@ Deno.serve(async (req: Request) => {
         products: productsResult.data ?? [],
         stock: (stockResult.data ?? []).filter((row) => visibleProductIds.has(row.product_id)),
         promotions: promotionsResult.data ?? [],
-        settings: settingsResult.data ?? { id: 1, nome_loja: '', whatsapp_numero: '' },
+        settings: settingsResult.data ?? { id: 1, nome_loja: '', whatsapp_numero: '', logo_url: null, menu_primary_color: '#ff6600', menu_background_color: '#f7f3ed' },
       });
     }
 

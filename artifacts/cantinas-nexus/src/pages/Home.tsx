@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   api,
@@ -43,6 +43,29 @@ function referenceFoodImage(product: ApiProduct) {
   if (name.includes('canjica')) return 'food-canjica.webp';
   if (name.includes('suco')) return 'food-suco.webp';
   return null;
+}
+
+function hexToHsl(hex: string) {
+  const match = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!match) return '24 100% 50%';
+  const value = match[1];
+  const red = parseInt(value.slice(0, 2), 16) / 255;
+  const green = parseInt(value.slice(2, 4), 16) / 255;
+  const blue = parseInt(value.slice(4, 6), 16) / 255;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const delta = max - min;
+  let hue = 0;
+  if (delta) {
+    if (max === red) hue = ((green - blue) / delta) % 6;
+    else if (max === green) hue = (blue - red) / delta + 2;
+    else hue = (red - green) / delta + 4;
+    hue *= 60;
+    if (hue < 0) hue += 360;
+  }
+  const lightness = (max + min) / 2;
+  const saturation = delta ? delta / (1 - Math.abs(2 * lightness - 1)) : 0;
+  return `${Math.round(hue)} ${Math.round(saturation * 100)}% ${Math.round(lightness * 100)}%`;
 }
 
 export function Home() {
@@ -162,13 +185,21 @@ export function Home() {
 
   const whatsappUrl = `https://wa.me/${settings?.whatsappNumero ?? '5511999999999'}`;
 
+  const menuPrimary = settings?.menuPrimaryColor ?? '#ff6600';
+  const menuBackground = settings?.menuBackgroundColor ?? '#f7f3ed';
+  const menuTheme = {
+    '--primary': hexToHsl(menuPrimary),
+    '--ring': hexToHsl(menuPrimary),
+    '--background': hexToHsl(menuBackground),
+  } as CSSProperties;
+
   return (
-    <div className="nexus-noise min-h-[100dvh] flex flex-col overflow-hidden relative bg-background">
+    <div style={menuTheme} className="nexus-noise min-h-[100dvh] flex flex-col overflow-hidden relative bg-background">
       {/* HEADER */}
       <header className="px-3 sm:px-8 lg:px-12 pt-3 sm:pt-7 pb-3 flex justify-between items-start z-10 shrink-0 gap-2 sm:gap-3 max-w-[1500px] w-full mx-auto">
         <div className="flex items-start gap-2 sm:gap-8 min-w-0">
           <div className="relative w-[6rem] sm:w-[10.5rem] h-[6rem] sm:h-[9.5rem] flex items-center justify-center shrink-0">
-            <img src={`${REFERENCE_ASSET}logo.webp`} alt="StarNexus" className="w-full h-full object-contain" />
+            <img src={settings?.logoUrl || `${REFERENCE_ASSET}logo.webp`} alt={settings?.nomeLoja || 'Logo do estabelecimento'} className="h-full w-full object-contain mix-blend-multiply" />
           </div>
           <img
             src={`${REFERENCE_ASSET}greeting.webp`}
@@ -319,7 +350,7 @@ export function Home() {
            </motion.div>
            <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .18 }} className="mt-5 sm:mt-7 rounded-[1.5rem] bg-[#FFF0DC] border border-[#F8D8B1] overflow-hidden relative">
              <button onClick={() => setCategoryFilter('combo')} className="absolute inset-0 z-10 cursor-pointer" aria-label="Ver combos" />
-             <img src={`${REFERENCE_ASSET}combo-banner.webp`} alt="Combos que cabem no seu fome. Mais sabor por um preço especial." className="w-full h-auto object-cover" />
+           <img src={`${REFERENCE_ASSET}combo-banner.webp`} alt="Combos que cabem no seu fome. Mais sabor por um preço especial." className="mx-auto block h-auto max-h-64 w-full max-w-[820px] object-contain" />
            </motion.section>
            </>
         )}

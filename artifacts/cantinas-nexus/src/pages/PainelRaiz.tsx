@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { Building2, Users, Clock3, ShieldCheck, RefreshCw, LogOut } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAdminAuth } from '../lib/admin-auth';
 import { isValidCpfCnpj, formatCpfCnpj, isValidCep, formatCep, lookupCep } from '../lib/validators';
@@ -51,6 +52,24 @@ const STATUS_COLOR: Record<StatusEfetivo, string> = {
   rejeitado: 'bg-neutral-200 text-neutral-600',
   expirado: 'bg-neutral-200 text-neutral-500',
 };
+
+function ResumoCard({ label, value, icon: Icon, tone }: { label: string; value: number; icon: typeof Building2; tone: 'orange' | 'amber' | 'green' | 'red' }) {
+  const styles = {
+    orange: 'bg-orange-100 text-orange-700',
+    amber: 'bg-amber-100 text-amber-700',
+    green: 'bg-emerald-100 text-emerald-700',
+    red: 'bg-red-100 text-red-700',
+  }[tone];
+  return (
+    <article className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+        <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${styles}`}><Icon className="h-4 w-4" /></span>
+      </div>
+      <p className="mt-3 font-display text-3xl font-black text-foreground">{value}</p>
+    </article>
+  );
+}
 
 export function PainelRaiz() {
   const { session, isAdmin, loading, signOut } = useAdminAuth();
@@ -111,7 +130,7 @@ function AdminLogin({ deniedAccess }: { deniedAccess: boolean }) {
           </p>
         )}
 
-        <form onSubmit={handleLogin} className="mt-6 space-y-4">
+        <form onSubmit={handleLogin} className="mt-6 grid gap-4 xl:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-medium text-neutral-700">E-mail</label>
             <input
@@ -308,36 +327,46 @@ function AdminDashboard({ onSignOut, onUsers, adminId }: { onSignOut: () => void
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 px-4 py-8">
-      <div className="mx-auto max-w-3xl">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-neutral-900">Solicitações de estabelecimento</h1>
+    <div className="min-h-screen bg-background px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-[#172333] px-6 py-6 text-white shadow-xl sm:px-8">
+          <h1 className="font-display text-2xl font-extrabold text-white sm:text-3xl">Painel de estabelecimentos</h1>
           <div className="flex items-center gap-4">
-            <button type="button" onClick={onUsers} className="rounded-lg bg-neutral-900 px-3 py-2 text-sm font-semibold text-white hover:bg-neutral-800">
+            <button type="button" onClick={onUsers} className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/15">
+              <Users className="h-4 w-4" />
               Usuários do sistema
             </button>
             <button
               type="button"
               onClick={carregar}
               disabled={carregando}
-              className="text-sm font-medium text-neutral-500 hover:text-neutral-800 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white/75 transition hover:bg-white/10 hover:text-white disabled:opacity-60"
             >
+              <RefreshCw className={`h-4 w-4 ${carregando ? 'animate-spin' : ''}`} />
               {carregando ? 'Atualizando...' : 'Atualizar'}
             </button>
             <button
               type="button"
               onClick={onSignOut}
-              className="text-sm font-medium text-neutral-500 hover:text-neutral-800"
+              className="inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/75 transition hover:bg-white/10 hover:text-white"
             >
+              <LogOut className="h-4 w-4" />
               Sair
             </button>
           </div>
         </div>
 
-        <div className="mt-6 space-y-4">
-          {carregando && <p className="text-sm text-neutral-400">Carregando...</p>}
+        <section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <ResumoCard label="Estabelecimentos" value={solicitacoes.filter((s) => ['aprovado', 'bloqueado'].includes(statusEfetivo(s))).length} icon={Building2} tone="orange" />
+          <ResumoCard label="Aguardando análise" value={solicitacoes.filter((s) => s.status === 'pendente').length} icon={Clock3} tone="amber" />
+          <ResumoCard label="Ativos" value={solicitacoes.filter((s) => statusEfetivo(s) === 'aprovado').length} icon={ShieldCheck} tone="green" />
+          <ResumoCard label="Bloqueados" value={solicitacoes.filter((s) => statusEfetivo(s) === 'bloqueado').length} icon={Building2} tone="red" />
+        </section>
+        <div className="mb-3 mt-9 flex items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-primary">Visão geral</p><h2 className="mt-1 font-display text-2xl font-extrabold text-foreground">Solicitações recentes</h2></div><span className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-bold text-muted-foreground">{solicitacoes.length} registros</span></div>
+        <div className="mt-6 grid gap-4 xl:grid-cols-2">
+          {carregando && <p className="col-span-full rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">Carregando...</p>}
           {!carregando && solicitacoes.length === 0 && (
-            <p className="text-sm text-neutral-400">Nenhuma solicitação pendente.</p>
+            <p className="col-span-full rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">Nenhuma solicitação pendente.</p>
           )}
 
           {solicitacoes.map((s) => {
@@ -346,10 +375,10 @@ function AdminDashboard({ onSignOut, onUsers, adminId }: { onSignOut: () => void
             const ehPendente = s.status === 'pendente';
             const podeBloquear = efetivo === 'pendente' || efetivo === 'aprovado';
             return (
-              <div key={s.id} className="rounded-xl bg-white p-5 shadow-sm">
+              <article key={s.id} className="rounded-2xl border border-border bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-6">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-medium text-neutral-900">{s.ownerNome}</p>
+                    <p className="font-bold text-neutral-900">{s.ownerNome}</p>
                     <p className="text-xs text-neutral-500">
                       {s.createdAt ? new Date(s.createdAt).toLocaleString('pt-BR') : '—'}
                     </p>
@@ -359,13 +388,13 @@ function AdminDashboard({ onSignOut, onUsers, adminId }: { onSignOut: () => void
                   </span>
                 </div>
 
-                <div className="mt-3 grid grid-cols-1 gap-1 text-sm text-neutral-700 md:grid-cols-2">
+                <div className="mt-4 grid grid-cols-1 gap-2 rounded-xl bg-muted/70 p-3 text-sm text-neutral-700 md:grid-cols-2">
                   <p><span className="text-neutral-400">E-mail:</span> {s.ownerEmail}</p>
                   <p><span className="text-neutral-400">Telefone:</span> {s.ownerTelefone}</p>
                   <p><span className="text-neutral-400">CPF/CNPJ:</span> {s.ownerCpfCnpj}</p>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
                   {ehPendente && (
                     <button
                       type="button"
@@ -445,7 +474,7 @@ function AdminDashboard({ onSignOut, onUsers, adminId }: { onSignOut: () => void
                     Ver detalhes
                   </button>
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>
@@ -787,17 +816,17 @@ function UsuariosPlataforma({ onBack, onSignOut, adminId }: { onBack: () => void
 
   const filtrados = usuarios.filter((u) => `${u.nome ?? ''} ${u.email} ${u.telefone ?? ''} ${u.cpf ?? ''}`.toLowerCase().includes(busca.toLowerCase()));
   return (
-    <div className="min-h-screen bg-neutral-50 px-4 py-8">
-      <div className="mx-auto max-w-6xl">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div><p className="text-sm font-semibold text-neutral-500">Administração Nexus</p><h1 className="text-2xl font-bold text-neutral-900">Usuários do sistema</h1></div>
-          <div className="flex gap-2"><button onClick={onBack} className="rounded-lg border border-neutral-300 px-3 py-2 text-sm font-semibold">Estabelecimentos</button><button onClick={() => void carregar()} className="rounded-lg border border-neutral-300 px-3 py-2 text-sm font-semibold">Atualizar</button><button onClick={onSignOut} className="rounded-lg px-3 py-2 text-sm font-semibold text-neutral-500">Sair</button></div>
+    <div className="min-h-screen bg-background px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-[#172333] px-6 py-6 text-white shadow-xl sm:px-8">
+          <div><p className="text-xs font-bold uppercase tracking-[.2em] text-white/60">Nexus Company · Plataforma</p><h1 className="mt-1 font-display text-2xl font-extrabold text-white sm:text-3xl">Usuários do sistema</h1><p className="mt-1 text-sm text-white/70">Acompanhe contas e níveis de acesso.</p></div>
+          <div className="flex flex-wrap gap-2"><button onClick={onBack} className="rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-white">Estabelecimentos</button><button onClick={() => void carregar()} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white">Atualizar</button><button onClick={onSignOut} className="rounded-xl px-3 py-2.5 text-sm font-semibold text-white/75">Sair</button></div>
         </div>
         <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-          {[['Usuários cadastrados', resumo?.total ?? 0], ['Cadastros completos', resumo?.completos ?? 0], ['Novos em 30 dias', resumo?.novos30Dias ?? 0], ['Pedidos em 30 dias', resumo?.pedidos30Dias ?? 0]].map(([label, value]) => <div key={String(label)} className="rounded-2xl bg-white p-5 shadow-sm"><p className="text-xs font-semibold uppercase text-neutral-400">{label}</p><p className="mt-2 text-3xl font-bold text-neutral-900">{value}</p></div>)}
+          {[['Usuários cadastrados', resumo?.total ?? 0], ['Cadastros completos', resumo?.completos ?? 0], ['Novos em 30 dias', resumo?.novos30Dias ?? 0], ['Pedidos em 30 dias', resumo?.pedidos30Dias ?? 0]].map(([label, value]) => <div key={String(label)} className="rounded-2xl border border-border bg-card p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-2 font-display text-3xl font-black text-foreground">{value}</p></div>)}
         </div>
-        <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold text-neutral-900">Contas de usuários finais</h2><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome, e-mail ou telefone" className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm md:w-80" /></div>
+        <div className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.16em] text-primary">Base de clientes</p><h2 className="mt-1 text-lg font-extrabold text-foreground">Contas de usuários finais</h2></div><div className="relative w-full md:w-80"><Users className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar nome, e-mail ou telefone" className="w-full rounded-xl border border-border py-2 pl-9 pr-3 text-sm" /></div></div>
           {carregando ? <p className="py-8 text-sm text-neutral-400">Carregando...</p> : <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead><tr className="border-b text-xs uppercase text-neutral-400"><th className="px-3 py-3">Usuário</th><th className="px-3 py-3">Contato</th><th className="px-3 py-3">Acesso</th><th className="px-3 py-3">Cadastro</th><th className="px-3 py-3">Criado em</th><th className="px-3 py-3" /></tr></thead><tbody>{filtrados.map((u) => <tr key={u.id} className="border-b last:border-0"><td className="px-3 py-3"><p className="font-semibold">{u.nome || 'Sem nome'}</p><p className="text-xs text-neutral-500">{u.email}</p></td><td className="px-3 py-3">{u.telefone || '—'}</td><td className="px-3 py-3"><span className="text-xs font-semibold">{u.is_super_admin ? 'ADM superior' : u.is_platform_admin ? 'ADM da plataforma' : 'Usuário'}</span>{u.is_platform_admin && adminId !== u.id && <button onClick={() => void alternarSuperAdmin(u)} className="ml-2 text-xs font-semibold text-primary">{u.is_super_admin ? 'Remover superior' : 'Tornar superior'}</button>}</td><td className="px-3 py-3"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${u.cadastro_completo ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{u.cadastro_completo ? 'Completo' : 'Incompleto'}</span></td><td className="px-3 py-3 text-neutral-500">{new Date(u.created_at).toLocaleDateString('pt-BR')}</td><td className="px-3 py-3 text-right">{u.id !== adminId && <button onClick={() => void excluir(u)} className="font-semibold text-red-600 hover:text-red-800">Excluir</button>}</td></tr>)}</tbody></table>{!filtrados.length && <p className="py-8 text-center text-sm text-neutral-400">Nenhum usuário encontrado.</p>}</div>}
         </div>
       </div>

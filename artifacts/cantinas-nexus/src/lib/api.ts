@@ -337,6 +337,19 @@ export const api = {
     get: async () => (await getPublicMenu()).settings,
     getForEmployee: () => callFn<ApiSettings>('gerenciar-dados', { action: 'get-settings' }),
     update: (data: Partial<ApiSettings>) => callFn<ApiSettings>('gerenciar-dados', { action: 'update-settings', ...data }),
+    uploadLogo: async (file: File): Promise<string> => {
+      if (file.type !== 'image/webp' || file.size < 1 || file.size > 5 * 1024 * 1024) {
+        throw new Error('A logo deve ser WebP e ter no máximo 5 MB.');
+      }
+      const upload = await callFn<{ path: string; token: string }>('gerenciar-dados', {
+        action: 'create-logo-image-upload', contentType: file.type, size: file.size,
+      });
+      const { error } = await supabase.storage.from('product-images').uploadToSignedUrl(upload.path, upload.token, file, {
+        contentType: 'image/webp', upsert: false,
+      });
+      if (error) throw new Error('Não foi possível enviar a logo.');
+      return supabase.storage.from('product-images').getPublicUrl(upload.path).data.publicUrl;
+    },
   },
 
   // ---------------------------------------------------------------------------
@@ -508,6 +521,9 @@ export interface ApiSettings {
   id: number;
   nomeLoja: string;
   whatsappNumero: string;
+  logoUrl: string | null;
+  menuPrimaryColor: string;
+  menuBackgroundColor: string;
 }
 
 export interface ApiDailyReport {

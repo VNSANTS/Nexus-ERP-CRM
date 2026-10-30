@@ -80,6 +80,19 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ path: data.path, token: data.token });
     }
 
+    if (action === 'create-logo-image-upload') {
+      const { contentType, size } = body;
+      if (contentType !== 'image/webp' || !Number.isInteger(size) || size < 1 || size > 5 * 1024 * 1024) {
+        return errorResponse('A logo deve ser WebP e ter no máximo 5 MB.', 400);
+      }
+      const uploadRate = await checkRateLimit(supabase, 'menu_logo_upload', caller.employeeId, 8, 60);
+      if (!uploadRate.allowed) return errorResponse('Limite de envios de logo atingido. Tente novamente mais tarde.', 429);
+      const path = `${caller.establishmentId}/branding/${crypto.randomUUID()}.webp`;
+      const { data, error } = await supabase.storage.from('product-images').createSignedUploadUrl(path, { upsert: false });
+      if (error || !data) throw error ?? new Error('Não foi possível criar o envio da logo.');
+      return jsonResponse({ path: data.path, token: data.token });
+    }
+
     // -----------------------------------------------------------------
     if (action === 'list-products') {
       const { data, error } = await supabase.from('products')
@@ -292,10 +305,27 @@ Deno.serve(async (req: Request) => {
     // -----------------------------------------------------------------
     if (action === 'update-settings') {
       if (!hasEmployeeAccess(caller, 'adm')) return errorResponse('Acesso restrito a administracao.', 403);
-      const { nomeLoja, whatsappNumero } = body;
+      const { nomeLoja, whatsappNumero, logoUrl, menuPrimaryColor, menuBackgroundColor } = body;
       const updates: Record<string, unknown> = {};
       if (nomeLoja != null) updates.nome_loja = nomeLoja;
       if (whatsappNumero != null) updates.whatsapp_numero = whatsappNumero;
+      if (logoUrl != null) {
+        const publicBase = Deno.env.get('SUPABASE_URL')?.replace(/\/$/, '') ?? '';
+        const prefix = `${publicBase}/storage/v1/object/public/product-images/${caller.establishmentId}/branding/`;
+        const objectName = typeof logoUrl === 'string' ? logoUrl.slice(prefix.length) : '';
+        if (logoUrl !== '' && (typeof logoUrl !== 'string' || !logoUrl.startsWith(prefix) || !/^[a-f0-9-]{36}\.webp$/i.test(objectName))) {
+          return errorResponse('A logo deve ser enviada para o armazenamento deste estabelecimento.', 400);
+        }
+        updates.logo_url = logoUrl === '' ? null : logoUrl;
+      }
+      if (menuPrimaryColor != null) {
+        if (typeof menuPrimaryColor !== 'string' || !/^#[0-9a-f]{6}$/i.test(menuPrimaryColor)) return errorResponse('Cor principal inválida.', 400);
+        updates.menu_primary_color = menuPrimaryColor.toLowerCase();
+      }
+      if (menuBackgroundColor != null) {
+        if (typeof menuBackgroundColor !== 'string' || !/^#[0-9a-f]{6}$/i.test(menuBackgroundColor)) return errorResponse('Cor de fundo inválida.', 400);
+        updates.menu_background_color = menuBackgroundColor.toLowerCase();
+      }
 
       const { data, error } = await supabase.from('settings').update(updates).eq('establishment_id', caller.establishmentId).eq('id', 1).select().maybeSingle();
       if (error) throw error;

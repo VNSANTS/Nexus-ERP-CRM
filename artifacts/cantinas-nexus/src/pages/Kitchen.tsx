@@ -5,7 +5,7 @@ import {
   api, formatCurrency, isOrderLate, computeOrderEta,
   normalizePhoneIdentity,
   PAYMENT_LABELS, CATEGORY_LABELS,
-  type ApiOrder, type ApiProduct, type ApiEmployee, type ApiStockItem,
+  type ApiOrder, type ApiProduct, type ApiEmployee, type ApiStockItem, type ApiSettings,
   type ApiPromotion, type ApiCustomer, type ApiCustomerInsight, type ApiCustomerInteraction,
   type ApiSupplier, type ApiSupplyRequest, type ApiTransaction,
 } from '../lib/api';
@@ -19,7 +19,7 @@ import {
   Loader2, ArrowRight, ChevronDown, ChevronUp, Banknote,
   CreditCard, Wallet, QrCode, UserPlus, FileText, Download,
   ToggleLeft, ToggleRight, Search, Filter,
-  ShieldCheck, DollarSign, Activity, Calendar,
+  ShieldCheck, DollarSign, Activity, Calendar, Building2, ImageUp,
 } from 'lucide-react';
 import { downloadCsv } from '../lib/csv';
 import { convertImageToWebp } from '../lib/image-convert';
@@ -403,7 +403,15 @@ export function Kitchen() {
 
   // ─── Settings ────────────────────────────────────────────────────────────────
 
-  const [settingsForm, setSettingsForm] = useState<{ nomeLoja: string; whatsappNumero: string } | null>(null);
+  const [settingsForm, setSettingsForm] = useState<Partial<ApiSettings> | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const settingsDraft = () => ({
+    nomeLoja: settings?.nomeLoja ?? '',
+    whatsappNumero: settings?.whatsappNumero ?? '',
+    logoUrl: settings?.logoUrl ?? null,
+    menuPrimaryColor: settings?.menuPrimaryColor ?? '#ff6600',
+    menuBackgroundColor: settings?.menuBackgroundColor ?? '#f7f3ed',
+  });
   const saveSettingsMut = useMutation({
     mutationFn: () => api.settings.update(settingsForm!),
     onSuccess: () => { toast.success('Configurações salvas!'); setSettingsForm(null); qc.invalidateQueries({ queryKey: ['settings'] }); },
@@ -1889,16 +1897,58 @@ export function Kitchen() {
                 <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Nome da Loja</label>
                 <input
                   defaultValue={settings?.nomeLoja}
-                  onBlur={(e) => setSettingsForm((f) => ({ ...(f ?? { nomeLoja: settings?.nomeLoja ?? '', whatsappNumero: settings?.whatsappNumero ?? '' }), nomeLoja: e.target.value }))}
+                  onBlur={(e) => setSettingsForm((f) => ({ ...(f ?? settingsDraft()), nomeLoja: e.target.value }))}
                   className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none" />
               </div>
               <div>
                 <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">WhatsApp (com DDI, só dígitos)</label>
                 <input
                   defaultValue={settings?.whatsappNumero}
-                  onBlur={(e) => setSettingsForm((f) => ({ ...(f ?? { nomeLoja: settings?.nomeLoja ?? '', whatsappNumero: settings?.whatsappNumero ?? '' }), whatsappNumero: e.target.value }))}
+                  onBlur={(e) => setSettingsForm((f) => ({ ...(f ?? settingsDraft()), whatsappNumero: e.target.value }))}
                   placeholder="5511999999999"
                   className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none" />
+              </div>
+              <div className="border-t border-gray-100 pt-5">
+                <h3 className="font-black text-gray-700">Identidade do cardápio</h3>
+                <p className="mt-1 text-sm text-gray-500">Use uma logo PNG transparente para integrar a marca ao fundo.</p>
+                <div className="mt-4 flex flex-wrap items-center gap-4 rounded-2xl border border-gray-100 bg-[#f7f3ed] p-4">
+                  <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-gray-200 bg-white p-2">
+                    {(settingsForm?.logoUrl ?? settings?.logoUrl) ? <img src={settingsForm?.logoUrl ?? settings?.logoUrl ?? ''} alt="Prévia da logo" className="max-h-full max-w-full object-contain" /> : <Building2 className="h-8 w-8 text-gray-300" />}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <label className={`inline-flex cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white transition hover:bg-orange-600 ${uploadingLogo ? 'pointer-events-none opacity-60' : ''}`}>
+                      {uploadingLogo ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageUp className="h-4 w-4" />}
+                      {uploadingLogo ? 'Enviando...' : 'Enviar logo'}
+                      <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={uploadingLogo} onChange={async (event) => {
+                        const file = event.currentTarget.files?.[0];
+                        event.currentTarget.value = '';
+                        if (!file) return;
+                        setUploadingLogo(true);
+                        try {
+                          const webpFile = await convertImageToWebp(file);
+                          const logoUrl = await api.settings.uploadLogo(webpFile);
+                          setSettingsForm((current) => ({ ...(current ?? settingsDraft()), logoUrl }));
+                          toast.success('Logo enviada. Salve as configurações para publicar no cardápio.');
+                        } catch (error) {
+                          toast.error(error instanceof Error ? error.message : 'Não foi possível enviar a logo.');
+                        } finally {
+                          setUploadingLogo(false);
+                        }
+                      }} />
+                    </label>
+                    {(settingsForm?.logoUrl ?? settings?.logoUrl) && <button type="button" onClick={() => setSettingsForm((current) => ({ ...(current ?? settingsDraft()), logoUrl: '' }))} className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-700 hover:bg-red-50">Remover logo</button>}
+                  </div>
+                </div>
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  <label className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 bg-white p-4 text-sm font-bold text-gray-700">
+                    <span>Cor principal</span>
+                    <input type="color" value={settingsForm?.menuPrimaryColor ?? settings?.menuPrimaryColor ?? '#ff6600'} aria-label="Cor principal do cardápio" onChange={(event) => setSettingsForm((current) => ({ ...(current ?? settingsDraft()), menuPrimaryColor: event.target.value }))} className="h-11 w-14 cursor-pointer rounded-lg border border-gray-200 bg-white p-1" />
+                  </label>
+                  <label className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 bg-white p-4 text-sm font-bold text-gray-700">
+                    <span>Cor de fundo</span>
+                    <input type="color" value={settingsForm?.menuBackgroundColor ?? settings?.menuBackgroundColor ?? '#f7f3ed'} aria-label="Cor de fundo do cardápio" onChange={(event) => setSettingsForm((current) => ({ ...(current ?? settingsDraft()), menuBackgroundColor: event.target.value }))} className="h-11 w-14 cursor-pointer rounded-lg border border-gray-200 bg-white p-1" />
+                  </label>
+                </div>
               </div>
               {settingsForm && (
                 <button onClick={() => saveSettingsMut.mutate()} disabled={saveSettingsMut.isPending}

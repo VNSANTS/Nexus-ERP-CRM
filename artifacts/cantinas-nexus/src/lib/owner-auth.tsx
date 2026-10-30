@@ -28,6 +28,7 @@ type OwnerAuthContextValue = {
   establishment: OwnerEstablishment | null;
   loading: boolean;
   isPasswordRecovery: boolean;
+  isAccountInvitation: boolean;
   refreshEstablishment: () => Promise<void>;
   clearPasswordRecovery: () => void;
   signOut: () => Promise<void>;
@@ -40,6 +41,7 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
   const [establishment, setEstablishment] = useState<OwnerEstablishment | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const [isAccountInvitation, setIsAccountInvitation] = useState(false);
   const loadSequence = useRef(0);
 
   async function fetchEstablishment(): Promise<OwnerEstablishment | null> {
@@ -80,7 +82,9 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
     const recoveryParams = new URLSearchParams(
       `${window.location.search.replace(/^\?/, '')}&${window.location.hash.replace(/^#/, '')}`,
     );
-    if (recoveryParams.get('type') === 'recovery') setIsPasswordRecovery(true);
+    const callbackType = recoveryParams.get('type');
+    if (callbackType === 'recovery') setIsPasswordRecovery(true);
+    if (callbackType === 'invite' || callbackType === 'signup') setIsAccountInvitation(true);
 
     const syncSession = (newSession: Session | null) => {
       const sequence = ++loadSequence.current;
@@ -110,7 +114,10 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (event === 'PASSWORD_RECOVERY') setIsPasswordRecovery(true);
-      if (event === 'SIGNED_OUT') setIsPasswordRecovery(false);
+      if (event === 'SIGNED_OUT') {
+        setIsPasswordRecovery(false);
+        setIsAccountInvitation(false);
+      }
       syncSession(newSession);
     });
 
@@ -122,6 +129,7 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
 
   function clearPasswordRecovery() {
     setIsPasswordRecovery(false);
+    setIsAccountInvitation(false);
 
     // A URL ainda pode conter o fragmento `type=recovery` depois que a
     // senha foi atualizada. Limpamos os tokens para que um reload nao
@@ -139,11 +147,12 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setEstablishment(null);
     setIsPasswordRecovery(false);
+    setIsAccountInvitation(false);
     setLoading(false);
   }
 
   return (
-    <OwnerAuthContext.Provider value={{ session, establishment, loading, isPasswordRecovery, refreshEstablishment, clearPasswordRecovery, signOut }}>
+    <OwnerAuthContext.Provider value={{ session, establishment, loading, isPasswordRecovery, isAccountInvitation, refreshEstablishment, clearPasswordRecovery, signOut }}>
       {children}
     </OwnerAuthContext.Provider>
   );

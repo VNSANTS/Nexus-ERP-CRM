@@ -280,6 +280,26 @@ function AdminDashboard({ onSignOut, onUsers, adminId }: { onSignOut: () => void
     }
   }
 
+  async function reenviarConvite(s: Solicitacao) {
+    if (s.status !== 'aprovado' || !s.establishmentId) return;
+    setProcessandoId(s.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('decidir-solicitacao', {
+        body: { action: 'resend-setup-invite', requestId: s.id },
+      });
+      if (error || data?.error || data?.ok === false) {
+        toast.error(data?.error ?? data?.message ?? 'Não foi possível reenviar o link.');
+        return;
+      }
+      toast.success(data?.message ?? 'Link para concluir cadastro enviado.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro inesperado ao reenviar o link.');
+    } finally {
+      setProcessandoId(null);
+    }
+  }
+
   async function confirmarAcao() {
     if (!confirmando) return;
     const { id, action } = confirmando;
@@ -433,6 +453,16 @@ function AdminDashboard({ onSignOut, onUsers, adminId }: { onSignOut: () => void
                       className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
                     >
                       Desbloquear
+                    </button>
+                  )}
+                  {s.status === 'aprovado' && s.establishmentId && ['ativo', 'bloqueado'].includes(s.establishmentStatus ?? '') && (
+                    <button
+                      type="button"
+                      disabled={processando}
+                      onClick={() => reenviarConvite(s)}
+                      className="rounded-lg border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-60"
+                    >
+                      {processandoId === s.id ? 'Enviando link...' : 'Reenviar convite'}
                     </button>
                   )}
                   {s.status === 'aprovado' && s.establishmentId && ['ativo', 'bloqueado'].includes(s.establishmentStatus ?? '') && (

@@ -84,7 +84,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const { action, requestId, reason, fields } = body;
 
-    if (!requestId || !['edit', 'approve', 'reject', 'block', 'unblock', 'delete', 'delete-establishment'].includes(action)) {
+    if (!requestId || !['edit', 'approve', 'reject', 'block', 'unblock', 'delete', 'delete-establishment', 'resend-setup-invite'].includes(action)) {
       return errorResponse('Parâmetros inválidos.', 400);
     }
 
@@ -95,6 +95,40 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
     if (findErr) throw findErr;
     if (!reqRow) return errorResponse('Solicitação não encontrada.', 404);
+
+    const onboardingUrl = 'https://vnsants.github.io/Nexus-ERP-CRM/estabelecimento/onboarding';
+
+    if (action === 'resend-setup-invite') {
+      if (reqRow.status !== 'aprovado' || !reqRow.establishment_id) {
+        return jsonResponse({ ok: false, message: 'O convite só pode ser enviado para estabelecimentos aprovados.' });
+      }
+      const { data: owner, error: ownerErr } = await supabase
+        .from('establishment_owners')
+        .select('id, email')
+        .eq('establishment_id', reqRow.establishment_id)
+        .maybeSingle();
+      if (ownerErr) throw ownerErr;
+      if (!owner) return jsonResponse({ ok: false, message: 'Não foi encontrada uma conta de responsável para este estabelecimento.' });
+
+      const { data: authData, error: authLookupErr } = await supabase.auth.admin.getUserById(owner.id);
+      if (authLookupErr || !authData?.user) throw authLookupErr ?? new Error('Conta do responsável não encontrada.');
+
+      const { error: emailErr } = authData.user.email_confirmed_at
+        ? await supabase.auth.signInWithOtp({
+            email: owner.email,
+            options: { emailRedirectTo: onboardingUrl, shouldCreateUser: false },
+          })
+        : await supabase.auth.resend({
+            type: 'signup',
+            email: owner.email,
+            options: { emailRedirectTo: onboardingUrl },
+          });
+      if (emailErr) {
+        console.error('Falha ao reenviar acesso para concluir cadastro:', emailErr);
+        return errorResponse('Não foi possível enviar o link agora. Aguarde alguns segundos e tente novamente.', 502);
+      }
+      return jsonResponse({ ok: true, message: 'Link para concluir o cadastro enviado.' });
+    }
 
     // Exclusão manual: somente solicitações pendentes ou rejeitadas podem ser removidas.
     // A exclusão não apaga estabelecimento, usuário Auth nem identificadores bloqueados.
@@ -415,44 +449,58 @@ Deno.serve(async (req: Request) => {
     });
     if (estErr) throw estErr;
 
-    const { data: authUser, error: authErr } = await supabase.auth.admin.createUser({
-      email: reqRow.owner_email,
-      email_confirm: true,
-      user_metadata: { role: 'owner', establishmentId, nome: reqRow.owner_nome },
-      password: crypto.randomUUID(),
-    });
-    if (authErr) throw authErr;
+    // Reutiliza a conta existente do administrador principal quando o e-mail
+    // já pertence a uma conta Auth. Para contas novas, envia convite nativo.
+    const { data: usersPage, error: usersErr } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    if (usersErr) throw usersErr;
+    const existingAuthUser = usersPage.users.find((user) => user.email?.toLowerCase() === reqRow.owner_email.toLowerCase());
 
-    await supabase.from('establishment_owners').insert({
-      id: authUser.user.id,
+    let ownerUserId: string;
+    let emailErr: { message?: string } | null = null;
+    if (existingAuthUser) {
+      ownerUserId = existingAuthUser.id;
+      const { error: metadataErr } = await supabase.auth.admin.updateUserById(ownerUserId, {
+        user_metadata: { ...existingAuthUser.user_metadata, role: 'owner', establishmentId, nome: reqRow.owner_nome },
+      });
+      if (metadataErr) throw metadataErr;
+      const { error } = await supabase.auth.signInWithOtp({
+        email: reqRow.owner_email,
+        options: { emailRedirectTo: onboardingUrl, shouldCreateUser: false },
+      });
+      emailErr = error;
+    } else {
+      const { data: invited, error } = await supabase.auth.admin.inviteUserByEmail(reqRow.owner_email, {
+        redirectTo: onboardingUrl,
+        data: { role: 'owner', establishmentId, nome: reqRow.owner_nome },
+      });
+      if (error) throw error;
+      ownerUserId = invited.user.id;
+    }
+
+    const { error: ownerInsertErr } = await supabase.from('establishment_owners').insert({
+      id: ownerUserId,
       establishment_id: establishmentId,
       nome_completo: reqRow.owner_nome,
       email: reqRow.owner_email,
       telefone: reqRow.owner_telefone,
       cpf_cnpj: reqRow.owner_cpf_cnpj,
     });
+    if (ownerInsertErr) throw ownerInsertErr;
 
     await supabase
       .from('establishment_requests')
       .update({ status: 'aprovado', decided_at: now, decided_by: userData.user.id, establishment_id: establishmentId })
       .eq('id', requestId);
 
-    // IMPORTANTE: usa resetPasswordForEmail (não generateLink + Resend).
-    // generateLink() SÓ gera a URL e nunca envia nada sozinho — alguém
-    // precisa mandar o e-mail, e isso dependia do Resend, que recusa
-    // (403) qualquer destinatário fora da conta enquanto não houver um
-    // domínio verificado. resetPasswordForEmail() já dispara o e-mail
-    // pelo sistema nativo do Supabase (sujeito a 2 e-mails/hora no plano
-    // grátis, mas sem a trava de domínio), então chega a qualquer
-    // destinatário de verdade.
-    const { error: resetErr } = await supabase.auth.resetPasswordForEmail(reqRow.owner_email, {
-      redirectTo: 'https://vnsants.github.io/Nexus-ERP-CRM/estabelecimento/onboarding',
+    if (emailErr) console.error('Falha ao enviar link para conta existente:', emailErr);
+    return jsonResponse({
+      ok: true,
+      message: emailErr
+        ? 'Estabelecimento aprovado, mas não foi possível enviar o link. Use Reenviar convite no painel.'
+        : 'Estabelecimento aprovado. Enviamos um link para concluir o cadastro.',
+      establishmentId,
+      emailSent: !emailErr,
     });
-    if (resetErr) {
-      console.error('Falha ao enviar e-mail de definição de senha:', resetErr);
-    }
-
-    return jsonResponse({ ok: true, message: 'Estabelecimento aprovado e criado.', establishmentId });
   } catch (err) {
     console.error(err);
     return errorResponse('Erro interno ao decidir solicitação.', 500);

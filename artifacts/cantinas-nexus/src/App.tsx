@@ -110,12 +110,16 @@ function Router() {
 
 function RecoveryRedirect() {
   const [, navigate] = useLocation();
-  const { isPasswordRecovery, loading, establishment } = useOwnerAuth();
+  const { isPasswordRecovery, isAccountInvitation, loading, establishment } = useOwnerAuth();
 
   useEffect(() => {
+    if (isAccountInvitation) {
+      navigate('/estabelecimento/onboarding');
+      return;
+    }
     if (!isPasswordRecovery || loading) return;
     navigate(establishment ? '/estabelecimento/onboarding' : '/redefinir-senha');
-  }, [isPasswordRecovery, loading, establishment, navigate]);
+  }, [isPasswordRecovery, isAccountInvitation, loading, establishment, navigate]);
 
   return null;
 }

@@ -28,7 +28,8 @@ async function obterMensagemErroFunction(error: unknown): Promise<string | null>
 
 export function OnboardingEstabelecimento() {
   const [, navigate] = useLocation();
-  const { session, establishment, loading, isPasswordRecovery, refreshEstablishment, clearPasswordRecovery } = useOwnerAuth();
+  const { session, establishment, loading, isPasswordRecovery, isAccountInvitation, refreshEstablishment, clearPasswordRecovery } = useOwnerAuth();
+  const precisaDefinirSenha = isPasswordRecovery || isAccountInvitation;
   const [etapa, setEtapa] = useState<1 | 2 | 3>(1);
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [senha, setSenha] = useState('');
@@ -50,7 +51,11 @@ export function OnboardingEstabelecimento() {
     try {
       const { error } = await supabase.auth.updateUser({ password: senha });
       if (error) {
-        toast.error(error.message || 'Não foi possível definir a senha. Peça um novo link e tente novamente.');
+        toast.error(
+          error.code === 'same_password'
+            ? 'Essa senha já é a senha atual da conta. Escolha outra senha ou entre normalmente para continuar.'
+            : error.message || 'Não foi possível concluir o cadastro. Solicite um novo link e tente novamente.',
+        );
         return;
       }
 
@@ -75,7 +80,7 @@ export function OnboardingEstabelecimento() {
       toast.error('Este link de senha expirou ou já foi usado. Solicite um novo link para continuar.');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-    if (isPasswordRecovery) return;
+    if (precisaDefinirSenha) return;
     if (loading) return;
     if (!session) {
       navigate('/estabelecimento/login');
@@ -89,9 +94,9 @@ export function OnboardingEstabelecimento() {
     if (establishment.onboardingCompleto) {
       navigate('/estabelecimento');
     }
-  }, [loading, session, establishment, isPasswordRecovery, navigate]);
+  }, [loading, session, establishment, precisaDefinirSenha, navigate]);
 
-  if (isPasswordRecovery) {
+  if (precisaDefinirSenha) {
     if (loading) {
       return (
         <div className="flex min-h-screen items-center justify-center bg-neutral-50">
@@ -118,8 +123,8 @@ export function OnboardingEstabelecimento() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 py-10">
         <form onSubmit={definirSenha} className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-sm md:p-8">
-          <h1 className="text-xl font-semibold text-neutral-900">Defina sua senha</h1>
-          <p className="mt-2 text-sm text-neutral-500">Depois de criar sua senha, você seguirá para as etapas de configuração do estabelecimento.</p>
+          <h1 className="text-xl font-semibold text-neutral-900">Conclua seu cadastro</h1>
+          <p className="mt-2 text-sm text-neutral-500">Crie sua senha para ativar o acesso e seguir para a configuração do estabelecimento.</p>
           <label className="mb-1 mt-6 block text-sm font-medium text-neutral-700">Nova senha</label>
           <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)}
             autoComplete="new-password" minLength={8} required

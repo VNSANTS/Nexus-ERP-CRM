@@ -82,7 +82,8 @@ export function OwnerAuthProvider({ children }: { children: ReactNode }) {
     const recoveryParams = new URLSearchParams(
       `${window.location.search.replace(/^\?/, '')}&${window.location.hash.replace(/^#/, '')}`,
     );
-    const callbackType = recoveryParams.get('type');
+    const callbackType = recoveryParams.get('type') ?? sessionStorage.getItem('nexus:auth-callback-type');
+    sessionStorage.removeItem('nexus:auth-callback-type');
     if (callbackType === 'recovery') setIsPasswordRecovery(true);
     if (callbackType === 'invite' || callbackType === 'signup') setIsAccountInvitation(true);
 

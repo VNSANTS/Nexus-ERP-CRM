@@ -88,6 +88,7 @@ export function Home() {
   const checkoutMutation = useMutation({
     mutationFn: (paymentMethod: string) =>
       api.orders.checkout({
+        establishmentId: sessionStorage.getItem('nexus:establishmentId') ?? undefined,
         cartItems: cart.map((i) => ({ productId: i.productId, qty: i.qty })),
         paymentMethod,
         observacoes,

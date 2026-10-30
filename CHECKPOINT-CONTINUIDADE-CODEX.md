@@ -269,3 +269,80 @@ Esses itens descrevem a visão futura, não confirmação de que já estão impl
 ### Prompt para iniciar a nova conversa Codex
 
 > Continue o Nexus neste mesmo workspace aberto no VS Code. Leia `CHECKPOINT-CONTINUIDADE-CODEX.md` inteiro e confira `git status --short` antes de editar. Preserve todas as alterações locais descritas no checkpoint, incluindo `supabase/migrations/20261029170000_establishment_tenant_isolation.sql`; não faça pull/reset/clean nem deploy agora. Continue a revisão de segurança multiestabelecimento a partir do estado local, valide as Edge Functions antes de publicar e atualize este checkpoint no final. `supabase/.temp/cli-latest` é preexistente e deve ficar fora dos commits.
+
+## Continuidade de auditoria multiestabelecimento — 30/10/2026
+
+### Ações desta sessão
+
+- Leitura integral deste checkpoint e `CANTINAS-NEXUS-PROJETO.md` concluída antes de qualquer edição. Estado inicial confirmado: HEAD `116bc28` (`docs: update Nexus continuation checkpoint`) e alterações locais listadas abaixo preservadas. `supabase/.temp/cli-latest` permanece intocado e fora de qualquer commit.
+- Revisão estática iniciada sobre todas as 23 pastas de Edge Functions e chamadas Supabase do frontend. `git diff --check` passou.
+- `npm.cmd run typecheck` em `artifacts/cantinas-nexus`: passou.
+- `npm.cmd run build` em `artifacts/cantinas-nexus`: passou. Bundle inicial `index-C8cuz29x.js` em 485,60 kB; sem aviso de chunk acima de 500 kB.
+- Deno continua indisponível (`Get-Command deno` não encontrou executável); portanto as Edge Functions não foram validadas por Deno e o backend não está validado.
+- A reconsulta do projeto `phckbsoygqdbkvuxgobr` foi tentada por Supabase MCP (`list_tables`, `list_migrations`) e negada por permissão. A tentativa somente-leitura pelo Supabase CLI também não avançou: o binário falha ao gravar `C:\Users\VNSANTS\.supabase\telemetry.json` por `EPERM`, inclusive com telemetry disabled. O schema vivo e o estado atual do banco continuam sem confirmação nesta sessão. Nenhum DDL ou deploy foi feito.
+
+### Incompatibilidades confirmadas que bloqueiam migration/deploy
+
+- `artifacts/cantinas-nexus/src/lib/api.ts` ainda consulta diretamente `products`, `orders` por código curto, `order_items`, `loyalty` e `settings`; tracking (`src/pages/Tracking.tsx`) depende dessas leituras. `Home.tsx` também carrega menu/checkout no fluxo público. Essas chamadas precisam de caminhos públicos mínimos e tenant-scoped antes da revogação de privilégios/policies.
+- A migration adiciona `tracking_token` e `idempotency_key`, mas os fluxos atuais ainda não usam token secreto de tracking nem idempotência real. A criação do pedido e baixa de estoque continuam em múltiplas chamadas, sem transação atômica/controle concorrente.
+- A migration assume nomes exatos de constraints existentes em `stock`, `order_items`, `supply_requests`, `customers`, `loyalty`, `daily_counter` e `settings`; sem schema vivo não é possível confirmar que os `DROP CONSTRAINT` e PKs correspondem ao banco atual. Não aplicar.
+- A revisão estática das Edge Functions segue incompleta, especialmente das actions restantes de `pedidos`, das funções públicas de menu/tracking/dispositivo, onboarding/cadastro de cliente e das policies reais. O fato de várias funções operacionais adicionarem filtros `establishment_id` não confirma compatibilidade geral.
+- Não criar segundo estabelecimento. Não publicar funções que consultam `establishment_id` enquanto as colunas ainda não existem no banco operacional.
+
+### Estado local preservado
+
+- Permanecem sem commit as alterações previamente inventariadas no handoff, incluindo frontend, helpers/security e funções `clientes`, `cozinha-login`, `estoque`, `fornecedores`, `gerenciar-dados`, `gerenciar-funcionarios`, `pedidos`, `promocoes`, além de `supabase/migrations/20261029170000_establishment_tenant_isolation.sql`.
+- `supabase/.temp/cli-latest` segue modificado, preservado e excluído de commits.
+- Nenhum commit, push, deploy ou alteração do banco foi feito nesta sessão.
+
+### Próxima ação
+
+1. Restaurar acesso somente-leitura ao projeto Supabase (autorizar/conectar o MCP ou permitir o CLI acessar seu diretório de configuração) e reconsultar schema, policies e migrations registradas.
+2. Completar a matriz de queries/actions das 23 Edge Functions e de todas as leituras/escritas frontend; migrar menu, checkout e tracking para contratos tenant-scoped compatíveis, inclusive token e idempotência.
+3. Revisar/corrigir a migration comparando cada coluna, constraint, índice e policy com o schema vivo.
+4. Disponibilizar Deno e validar cada função; repetir `git diff --check`, typecheck e build após mudanças.
+5. Só então propor deploy coordenado e aplicação da migration. Pix/cartão real continua fora do escopo; pagamentos permanecem pendentes/manuais.
+
+## Retomada em outra conta Codex — 30/10/2026
+
+- O usuário confirmou que está usando outra conta Codex na mesma pasta do VS Code e pediu para continuar o trabalho. Nenhuma alteração local foi descartada.
+- A skill oficial Supabase foi localizada neste perfil e lida em `C:\Users\VNSANTS\.codex\plugins\cache\openai-curated-remote\supabase\1.0.0\skills\supabase\SKILL.md`; também foi lida a skill Supabase Postgres Best Practices disponível neste perfil.
+- A migration local `20261029170000_establishment_tenant_isolation.sql` contém `DROP CONSTRAINT settings_singleton` antes de substituir a chave de `settings`; isso corresponde à correção relatada pelo usuário na outra sessão. A migration continua sem aplicação.
+- Tentativas pela conexão Supabase MCP desta conta (`list_tables`, `list_migrations`, advisors de segurança e performance) retornaram `You do not have permission to perform this action`. Portanto não foi possível confirmar schema, policies, histórico de migrações ou advisories do banco vivo. Não executar DDL/deploy até recuperar acesso e comparar o schema.
+- Confirmada na revisão local a dependência de leituras diretas do Data API: `api.products.list`, `api.orders.list`, `api.orders.byCode`, `api.promotions.listActive`, `api.customers.loyaltyByPhone` e `api.settings.get` consultam tabelas diretamente. `orders.byCode` usa código curto para obter pedido e itens; não é um segredo de acompanhamento. Essas leituras ainda não estão substituídas por contratos mínimos e escopados. A migration revoga acesso público a pedidos/itens/fidelidade/estabelecimentos, então publicar a migration antes de migrar os leitores quebra fluxos; manter leitores globais também impede isolamento real.
+- A Edge Function `pedidos` ainda cria pedido, itens, baixa de estoque, transação e fidelidade em várias chamadas separadas; faltam atomicidade e idempotência efetiva. A migration adiciona campos para idempotência e tracking, mas os contratos atuais não os usam.
+- Nesta retomada foi adicionada uma action autenticada `pedidos?action=list`: exige permissão de cozinha, caixa ou ADM; filtra pedidos e itens pelo estabelecimento da sessão; retorna itens agrupados para a fila da cozinha. `api.orders.list` agora chama essa Edge Function em vez de ler todos os pedidos diretamente pelo Data API. Isso depende da coluna `establishment_id` da migration e não está pronto para deploy isolado.
+- O painel da cozinha também passou a obter produtos e configurações por actions autenticadas (`gerenciar-dados?action=list-products` e `get-settings`), filtradas pelo estabelecimento da sessão; a API do frontend e `Kitchen.tsx` usam esses métodos. Isso também depende da migration e não deve ser implantado isoladamente.
+- Após essas alterações, `npm.cmd run typecheck` e `npm.cmd run build` em `artifacts/cantinas-nexus` passaram; chunk inicial segue em 485,60 kB. `git diff --check` também passou. Deno continua não instalado, então as Edge Functions alteradas não foram validadas pelo runtime/type checker Deno.
+- Não houve commit, push, deploy, teste ou modificação no banco nesta retomada. As mudanças seguem locais, junto do formulário de permissões, helpers/funções tenant-scoped e migration. `supabase/.temp/cli-latest` permanece fora de commits.
+
+### Próximos passos ao retomar
+
+1. A conexão local do Codex agora autentica no projeto e permite `list_tables`, `list_migrations` e advisors. Para obter políticas/contagens via `execute_sql`, a chamada ainda exige aprovação MCP; a execução não interativa com approval `never` bloqueou a consulta. Usar o Codex interativo para aprovar somente os SELECTs de catálogo, sem compartilhar PATs.
+2. A action autenticada de listagem de pedidos foi iniciada; completar e validar as APIs separadas: leitura pública mínima de menu/configuração por estabelecimento ativo; acompanhamento público por token aleatório secreto, nunca por código curto. Adicionar rate limit onde o endpoint for público.
+3. Mover a criação do pedido/itens/baixa de estoque/transação para uma operação atômica no banco, com validação de estoque concorrente e chave de idempotência validada no servidor.
+4. Completar inventário de todas as queries e actions das 23 Edge Functions e do frontend, incluindo permissões de funcionário, cliente, onboarding, dispositivos e storage.
+5. Revisar a migration contra o schema vivo. Só aplicar e implantar quando migration, contratos do frontend e todas as functions estiverem compatíveis; validar em seguida advisors, logs e fluxos ponta a ponta.
+
+## Verificação Supabase após configurar OAuth no Codex — 30/10/2026
+
+- `codex mcp list` mostrou o servidor `supabase` habilitado, com OAuth, escopado ao projeto `phckbsoygqdbkvuxgobr` e grupos database/debugging/development/functions/docs.
+- Pelo `codex exec` local, `list_tables` e `list_migrations` funcionaram sem erro; o histórico remoto continua vazio. `get_advisors` de segurança e performance também funcionou.
+- O schema retornado confirma 24 tabelas públicas e RLS habilitado em todas. Nas tabelas operacionais, os IDs de products/orders/order_items/suppliers são `text`; customer/loyalty identificam por telefone `text`; `settings.id` é integer com `CHECK (id = 1)`; `daily_counter.date` é text. Empregados já têm `establishment_id` e as três flags `acesso_*`.
+- As FKs existentes usadas pela migration foram confirmadas: `stock_product_id_fkey`, `order_items_order_id_fkey` e `supply_requests_supplier_id_fkey`; as PKs antigas de stock/orders etc. também foram listadas. A migration precisa continuar compatível com esses tipos e constraints.
+- Advisories observados: `cleanup_rate_limit_log()` tem search_path mutável e execução SECURITY DEFINER disponível a anon/authenticated; há RLS habilitado sem policies em várias tabelas privadas; advisors de performance apontam FKs sem índice e índices duplicados em `rate_limit_log`. A migration local tenta corrigir o problema da função de limpeza; os demais advisories exigem revisão separada.
+- A consulta SQL somente-leitura a `pg_constraint`/`pg_policies`/contagens não foi executada: o MCP exige aprovação explícita para `execute_sql`, mas a sessão `codex exec` atual usa `approval=never`. Nenhum SQL, DDL, deploy, migration ou escrita ocorreu.
+- Com base no schema observado, a migration foi ajustada localmente: o backfill das permissões antigas ficou explícito (`acesso_cozinha=true`, `acesso_caixa=true`, ADM apenas para `role='admin'`) e `employees.establishment_id` passa a `NOT NULL` após preencher os vínculos existentes. Isso ainda requer validação final contra as policies e execução planejada no ambiente correto; não foi aplicado ao Supabase.
+
+### Consulta SELECT autorizada concluída
+
+- A conexão OAuth foi aprovada no Codex CLI e uma consulta `SELECT` foi executada com aprovação explícita; nenhuma escrita, migration ou deploy ocorreu.
+- Contagens confirmadas: `establishments=1`, `employees=2`, `establishment_owners=1`, `establishment_requests=1`, `establishment_devices=1`, `customer_accounts=1`, `platform_admins=1`, `settings=1`; `products`, `orders`, `order_items`, `stock`, `customers`, `customer_interactions`, `promotions`, `transactions`, `loyalty`, `suppliers`, `supply_requests`, `stock_history`, `waste_log`, `daily_counter` estão vazias; `rate_limit_log=39`.
+- Os nomes exatos assumidos pela migration foram confirmados no banco: `stock_product_id_fkey`, `stock_pkey`, `order_items_order_id_fkey`, `supply_requests_supplier_id_fkey`, `customers_pkey`, `daily_counter_pkey`, `settings_pkey` e `settings_singleton`. A alteração da chave de settings para `(establishment_id, id)` está alinhada ao schema atual.
+- Policies públicas atuais: `products` permite SELECT com `true`; `promotions` permite SELECT quando `ativo=true`; `settings`, `establishments`, `orders`, `order_items` e `loyalty` têm SELECT público amplo. A migration remove as policies de estabelecimento, pedidos, itens e fidelidade e revoga privilégios; os leitores públicos precisam ser migrados antes da aplicação.
+- As funções RLS/privadas não têm policies próprias em várias tabelas, conforme advisor; isso é compatível com o uso via service role nas Edge Functions, mas exige que cada action valide sessão e estabelecimento.
+- Consulta adicional autorizada confirmou: estabelecimento ativo `7a509d84-7cec-4278-8a8f-2c7ff6b093fb`; os dois funcionários ativos ainda têm `establishment_id=null` e todas as flags `acesso_*` falsas; há um dispositivo ativo ligado a esse estabelecimento; settings possui uma linha `id=1` sem coluna tenant antes da migration. O backfill da migration é necessário para vincular os funcionários e liberar as funções tenant-scoped.
+- A migration foi validada em uma transação e depois aplicada ao projeto remoto pelo MCP `supabase/apply_migration` com sucesso, usando o nome `establishment_tenant_isolation`. O banco agora está tenant-scoped; a migration não deve ser reaplicada.
+- Edge Functions publicadas depois da migration pelo CLI Supabase: `pedidos` e `cozinha-login` com `verify_jwt=false` (ambas fazem autenticação própria quando necessário); `clientes`, `estoque`, `fornecedores`, `gerenciar-dados`, `gerenciar-funcionarios` e `promocoes` com `verify_jwt=true`. Todas retornaram ACTIVE no projeto.
+- Versões após o deploy: `pedidos v16`, `cozinha-login v14`, `clientes v15`, `estoque v15`, `fornecedores v15`, `gerenciar-dados v18`, `gerenciar-funcionarios v16`, `promocoes v15`.
+- A listagem remota do CLI confirmou o projeto `phckbsoygqdbkvuxgobr` como `ACTIVE_HEALTHY` e a pasta local como vinculada. O `supabase init` gerou `supabase/config.toml` e `supabase/.gitignore`; esses arquivos podem ser versionados. Arquivos de `supabase/.temp/` continuam fora do commit.

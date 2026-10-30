@@ -215,6 +215,9 @@ export function Kitchen() {
       role: 'admin',
       horario: '',
       ativo: true,
+      acessoCozinha: true,
+      acessoCaixa: true,
+      acessoAdm: true,
       createdAt: '',
     });
   }, [ownerLoading, ownerSession, ownerEstablishment]);
@@ -227,7 +230,7 @@ export function Kitchen() {
     refetchInterval: 4000,
     enabled: !!loggedEmployee,
   });
-  const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: api.products.list, enabled: !!loggedEmployee });
+  const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: api.products.listForEmployee, enabled: !!loggedEmployee });
   const { data: stock = [] } = useQuery({ queryKey: ['stock'], queryFn: api.stock.list, refetchInterval: 15000, enabled: !!loggedEmployee });
   const { data: stockHistory = [] } = useQuery({ queryKey: ['stock-history'], queryFn: api.stock.history, enabled: !!loggedEmployee && activeTab === 'estoque' });
   const { data: wasteLog = [] } = useQuery({ queryKey: ['waste-log'], queryFn: api.stock.waste, enabled: !!loggedEmployee && activeTab === 'estoque' });
@@ -238,7 +241,7 @@ export function Kitchen() {
   const { data: loyaltyData = [] } = useQuery({ queryKey: ['loyalty'], queryFn: api.customers.loyalty, enabled: !!loggedEmployee });
   const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: api.suppliers.list, enabled: !!loggedEmployee && activeTab === 'fornecedores' });
   const { data: supplyRequests = [] } = useQuery({ queryKey: ['supply-requests'], queryFn: api.suppliers.requests, enabled: !!loggedEmployee && activeTab === 'fornecedores' });
-  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: api.settings.get, enabled: !!loggedEmployee });
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: api.settings.getForEmployee, enabled: !!loggedEmployee });
   const { data: dailyReport } = useQuery({ queryKey: ['report-daily'], queryFn: api.reports.daily, refetchInterval: 10000, enabled: !!loggedEmployee });
   const { data: productRanking = [] } = useQuery({ queryKey: ['report-products'], queryFn: api.reports.products, refetchInterval: 15000, enabled: !!loggedEmployee && (activeTab === 'dashboard' || activeTab === 'relatorios') });
   const { data: hourlyData = [] } = useQuery({ queryKey: ['report-hourly'], queryFn: api.reports.hourly, refetchInterval: 15000, enabled: !!loggedEmployee && (activeTab === 'dashboard' || activeTab === 'relatorios') });
@@ -337,7 +340,7 @@ export function Kitchen() {
 
   // ─── Employee forms ──────────────────────────────────────────────────────────
 
-  const [empForm, setEmpForm] = useState<{ id?: string; nome: string; username: string; password: string; role: string; horario: string; ativo: boolean } | null>(null);
+  const [empForm, setEmpForm] = useState<{ id?: string; nome: string; username: string; password: string; role: string; horario: string; ativo: boolean; acessoCozinha: boolean; acessoCaixa: boolean; acessoAdm: boolean } | null>(null);
   const saveEmpMut = useMutation({
     mutationFn: () => {
       const { id, password, ...employeeFields } = empForm!;
@@ -1759,7 +1762,7 @@ export function Kitchen() {
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <h2 className="text-2xl font-display font-black text-gray-900">Funcionários</h2>
-              <button onClick={() => setEmpForm({ nome: '', username: '', password: '', role: 'funcionario', horario: '', ativo: true })}
+              <button onClick={() => setEmpForm({ nome: '', username: '', password: '', role: 'funcionario', horario: '', ativo: true, acessoCozinha: true, acessoCaixa: true, acessoAdm: false })}
                 className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-orange-600 transition-colors flex items-center gap-2">
                 <Plus className="w-4 h-4" /> Novo Funcionário
               </button>
@@ -1779,7 +1782,7 @@ export function Kitchen() {
                       <td className="px-4 py-3"><span className={`text-xs font-black px-2 py-1 rounded-full ${e.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{e.ativo ? 'Ativo' : 'Inativo'}</span></td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
-                          <button onClick={() => setEmpForm({ id: e.id, nome: e.nome, username: e.username, password: '', role: e.role, horario: e.horario, ativo: e.ativo })}
+                          <button onClick={() => setEmpForm({ id: e.id, nome: e.nome, username: e.username, password: '', role: e.role, horario: e.horario, ativo: e.ativo, acessoCozinha: e.acessoCozinha ?? false, acessoCaixa: e.acessoCaixa ?? false, acessoAdm: e.acessoAdm ?? false })}
                             className="p-1.5 text-gray-400 hover:text-primary hover:bg-orange-50 rounded-lg transition-colors"><Edit2 className="w-4 h-4" /></button>
                           {e.id !== loggedEmployee.id && (
                             <button onClick={() => { if (confirm(`Remover "${e.nome}"?`)) removeEmpMut.mutate(e.id); }}
@@ -1814,7 +1817,7 @@ export function Kitchen() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Cargo</label>
-                        <select value={empForm.role} onChange={(e) => setEmpForm({ ...empForm!, role: e.target.value })}
+                        <select value={empForm.role} onChange={(e) => setEmpForm({ ...empForm!, role: e.target.value, acessoCozinha: true, acessoCaixa: true, acessoAdm: e.target.value === 'admin' })}
                           className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none">
                           <option value="funcionario">Funcionário</option>
                           <option value="admin">Admin</option>
@@ -1827,6 +1830,19 @@ export function Kitchen() {
                         </label>
                       </div>
                     </div>
+                    <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
+                      <legend className="px-1 text-xs font-black uppercase tracking-wider text-gray-500">Permissoes</legend>
+                      {([
+                        { field: 'acessoCozinha', label: 'Cozinha' },
+                        { field: 'acessoCaixa', label: 'Caixa' },
+                        { field: 'acessoAdm', label: 'Administracao' },
+                      ] as const).map(({ field, label }) => (
+                        <label key={field} className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                          <input type="checkbox" checked={empForm[field as 'acessoCozinha' | 'acessoCaixa' | 'acessoAdm']} onChange={(event) => setEmpForm({ ...empForm, [field]: event.target.checked })} className="h-4 w-4" />
+                          {label}
+                        </label>
+                      ))}
+                    </fieldset>
                     <div className="flex gap-3 pt-2">
                       <button onClick={() => setEmpForm(null)} className="flex-1 py-3 border-2 border-gray-200 rounded-xl font-bold hover:bg-gray-50">Cancelar</button>
                       <button onClick={() => saveEmpMut.mutate()} disabled={saveEmpMut.isPending || !empForm.nome || !empForm.username || (!empForm.id && !empForm.password)}

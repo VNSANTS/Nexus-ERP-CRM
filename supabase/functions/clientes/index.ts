@@ -10,13 +10,15 @@
 //      mantido aqui também por conveniência de agrupamento de domínio)
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { corsHeaders, jsonResponse, errorResponse, uid, requireEmployee } from '../_shared/helpers.ts';
+import { corsHeaders, jsonResponse, errorResponse, uid, requireEmployee, hasEmployeeAccess } from '../_shared/helpers.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const caller = await requireEmployee(req);
   if (!caller) return errorResponse('Não autenticado.', 401);
+
+  if (!hasEmployeeAccess(caller, 'adm')) return errorResponse('Acesso restrito a administracao.', 403);
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -29,18 +31,19 @@ Deno.serve(async (req: Request) => {
     const now = new Date().toISOString();
 
     if (action === 'list') {
-      const { data, error } = await supabase.from('customers').select('*').order('updated_at', { ascending: false });
+      const { data, error } = await supabase.from('customers').select('*').eq('establishment_id', caller.establishmentId).order('updated_at', { ascending: false });
       if (error) throw error;
       return jsonResponse(data ?? []);
     }
 
     if (action === 'get') {
       const tel = String(body.telefone);
-      const { data: customer } = await supabase.from('customers').select('*').eq('telefone', tel).maybeSingle();
+      const { data: customer } = await supabase.from('customers').select('*').eq('establishment_id', caller.establishmentId).eq('telefone', tel).maybeSingle();
       if (!customer) return errorResponse('Cliente não encontrado.', 404);
       const { data: interactions } = await supabase
         .from('customer_interactions')
         .select('*')
+        .eq('establishment_id', caller.establishmentId)
         .eq('telefone', tel)
         .order('created_at', { ascending: false });
       return jsonResponse({ ...customer, interactions: interactions ?? [] });
@@ -50,21 +53,21 @@ Deno.serve(async (req: Request) => {
       const tel = String(body.telefone).trim();
       const { nome, tags, observacoes } = body;
 
-      const { data: existing } = await supabase.from('customers').select('telefone').eq('telefone', tel).maybeSingle();
+      const { data: existing } = await supabase.from('customers').select('telefone').eq('establishment_id', caller.establishmentId).eq('telefone', tel).maybeSingle();
 
       if (existing) {
         const updates: Record<string, unknown> = { updated_at: now };
         if (nome != null) updates.nome = nome;
         if (tags != null) updates.tags = tags;
         if (observacoes != null) updates.observacoes = observacoes;
-        const { data, error } = await supabase.from('customers').update(updates).eq('telefone', tel).select().single();
+        const { data, error } = await supabase.from('customers').update(updates).eq('establishment_id', caller.establishmentId).eq('telefone', tel).select().single();
         if (error) throw error;
         return jsonResponse(data);
       }
 
       const { data, error } = await supabase
         .from('customers')
-        .insert({ telefone: tel, nome: nome ?? '', tags: tags ?? [], observacoes: observacoes ?? '', created_at: now, updated_at: now })
+        .insert({ establishment_id: caller.establishmentId, telefone: tel, nome: nome ?? '', tags: tags ?? [], observacoes: observacoes ?? '', created_at: now, updated_at: now })
         .select()
         .single();
       if (error) throw error;
@@ -72,7 +75,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === 'delete') {
-      const { error } = await supabase.from('customers').delete().eq('telefone', String(body.telefone));
+      const { error } = await supabase.from('customers').delete().eq('establishment_id', caller.establishmentId).eq('telefone', String(body.telefone));
       if (error) throw error;
       return jsonResponse({ ok: true });
     }
@@ -81,6 +84,7 @@ Deno.serve(async (req: Request) => {
       const { data, error } = await supabase
         .from('customer_interactions')
         .select('*')
+        .eq('establishment_id', caller.establishmentId)
         .order('created_at', { ascending: false })
         .limit(500);
       if (error) throw error;
@@ -91,14 +95,14 @@ Deno.serve(async (req: Request) => {
       const tel = String(body.telefone).trim();
       const { tipo, nota } = body;
 
-      const { data: existing } = await supabase.from('customers').select('telefone').eq('telefone', tel).maybeSingle();
+      const { data: existing } = await supabase.from('customers').select('telefone').eq('establishment_id', caller.establishmentId).eq('telefone', tel).maybeSingle();
       if (!existing) {
-        await supabase.from('customers').insert({ telefone: tel, nome: '', tags: [], observacoes: '', created_at: now, updated_at: now });
+        await supabase.from('customers').insert({ establishment_id: caller.establishmentId, telefone: tel, nome: '', tags: [], observacoes: '', created_at: now, updated_at: now });
       }
 
       const { data, error } = await supabase
         .from('customer_interactions')
-        .insert({ id: uid(), telefone: tel, tipo, nota: String(nota).trim(), created_at: now })
+        .insert({ establishment_id: caller.establishmentId, id: uid(), telefone: tel, tipo, nota: String(nota).trim(), created_at: now })
         .select()
         .single();
       if (error) throw error;
@@ -106,7 +110,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === 'list-loyalty') {
-      const { data, error } = await supabase.from('loyalty').select('*');
+      const { data, error } = await supabase.from('loyalty').select('*').eq('establishment_id', caller.establishmentId);
       if (error) throw error;
       return jsonResponse(data ?? []);
     }

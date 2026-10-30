@@ -6,13 +6,17 @@
 // Body esperado: { action: 'entry' | 'waste' | 'set-minimo', productId, ... }
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { corsHeaders, jsonResponse, errorResponse, uid, requireEmployee } from '../_shared/helpers.ts';
+import { corsHeaders, jsonResponse, errorResponse, uid, requireEmployee, hasEmployeeAccess } from '../_shared/helpers.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const caller = await requireEmployee(req);
   if (!caller) return errorResponse('Não autenticado.', 401);
+
+  if (!hasEmployeeAccess(caller, 'cozinha') && !hasEmployeeAccess(caller, 'adm')) {
+    return errorResponse('Acesso restrito.', 403);
+  }
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -22,23 +26,33 @@ Deno.serve(async (req: Request) => {
   try {
     const body = await req.json();
     const { action, productId } = body;
+    if (typeof productId !== 'string' || !productId.trim()) return errorResponse('Informe o produto.', 400);
 
     if (action === 'entry' || action === 'waste') {
       const { quantidade, motivo } = body;
-      if (!(quantidade > 0)) return errorResponse('Quantidade deve ser positiva.', 400);
+      if (!Number.isSafeInteger(quantidade) || quantidade <= 0) return errorResponse('Quantidade deve ser um inteiro positivo.', 400);
 
-      const { data: s } = await supabase.from('stock').select('*').eq('product_id', productId).maybeSingle();
+      const { data: s, error: selectError } = await supabase.from('stock').select('*').eq('establishment_id', caller.establishmentId).eq('product_id', productId).maybeSingle();
+      if (selectError) throw selectError;
       if (!s) return errorResponse('Item de estoque não encontrado.', 404);
 
-      const now = new Date().toISOString();
-      const newQty = action === 'entry' ? s.quantidade + quantidade : Math.max(0, s.quantidade - quantidade);
+      if (quantidade > 2_147_483_647 || (action === 'entry' && s.quantidade + quantidade > 2_147_483_647)) {
+        return errorResponse('Quantidade excede o limite de estoque.', 400);
+      }
+      if (action === 'waste' && quantidade > s.quantidade) {
+        return errorResponse('Desperdicio nao pode exceder o estoque disponivel.', 409);
+      }
 
-      await supabase.from('stock').update({ quantidade: newQty, updated_at: now }).eq('product_id', productId);
+      const now = new Date().toISOString();
+      const newQty = action === 'entry' ? s.quantidade + quantidade : s.quantidade - quantidade;
+
+      const { error: updateError } = await supabase.from('stock').update({ quantidade: newQty, updated_at: now }).eq('establishment_id', caller.establishmentId).eq('product_id', productId);
+      if (updateError) throw updateError;
 
       const table = action === 'entry' ? 'stock_history' : 'waste_log';
       const { data: entry, error } = await supabase
         .from(table)
-        .insert({ id: uid(), product_id: productId, product_name: s.name, quantidade, motivo, created_at: now })
+        .insert({ establishment_id: caller.establishmentId, id: uid(), product_id: productId, product_name: s.name, quantidade, motivo: String(motivo ?? '').trim(), created_at: now })
         .select()
         .single();
       if (error) throw error;
@@ -47,9 +61,11 @@ Deno.serve(async (req: Request) => {
 
     if (action === 'set-minimo') {
       const { minimo } = body;
+      if (!Number.isSafeInteger(minimo) || minimo < 0 || minimo > 2_147_483_647) return errorResponse('Estoque minimo invalido.', 400);
       const { data: updated, error } = await supabase
         .from('stock')
-        .update({ minimo: Math.max(0, minimo), updated_at: new Date().toISOString() })
+        .update({ minimo, updated_at: new Date().toISOString() })
+        .eq('establishment_id', caller.establishmentId)
         .eq('product_id', productId)
         .select()
         .maybeSingle();

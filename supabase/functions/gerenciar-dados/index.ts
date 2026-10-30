@@ -12,7 +12,7 @@
 //   - 'clear-sales'
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { corsHeaders, jsonResponse, errorResponse, requireEmployee } from '../_shared/helpers.ts';
+import { corsHeaders, jsonResponse, errorResponse, requireEmployee, hasEmployeeAccess } from '../_shared/helpers.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -28,8 +28,40 @@ Deno.serve(async (req: Request) => {
   try {
     const body = await req.json();
     const { action } = body;
+    const financeiro = ['report-daily', 'report-transactions', 'confirm-transaction'].includes(action);
+    if (financeiro) {
+      if (!hasEmployeeAccess(caller, 'caixa') && !hasEmployeeAccess(caller, 'adm')) {
+        return errorResponse('Acesso restrito ao caixa ou à administração.', 403);
+      }
+    } else if (['list-products', 'get-settings'].includes(action)) {
+      if (!hasEmployeeAccess(caller, 'cozinha') && !hasEmployeeAccess(caller, 'caixa') && !hasEmployeeAccess(caller, 'adm')) {
+        return errorResponse('Acesso restrito a cozinha ou caixa.', 403);
+      }
+    } else if (!hasEmployeeAccess(caller, 'adm')) {
+      return errorResponse('Acesso restrito à administração.', 403);
+    }
 
     // -----------------------------------------------------------------
+    if (action === 'list-products') {
+      const { data, error } = await supabase.from('products')
+        .select('*')
+        .eq('establishment_id', caller.establishmentId)
+        .order('name');
+      if (error) throw error;
+      return jsonResponse(data ?? []);
+    }
+
+    if (action === 'get-settings') {
+      const { data, error } = await supabase.from('settings')
+        .select('*')
+        .eq('establishment_id', caller.establishmentId)
+        .eq('id', 1)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return errorResponse('Configurações do estabelecimento não encontradas.', 404);
+      return jsonResponse(data);
+    }
+
     // Produtos
     // -----------------------------------------------------------------
     if (action === 'create-product') {
@@ -39,13 +71,13 @@ Deno.serve(async (req: Request) => {
       }
       const { data: product, error } = await supabase
         .from('products')
-        .insert({ id, name, price, emoji: emoji ?? '', categoria, sazonal: !!sazonal, disponivel: disponivel !== false, image_url: imageUrl ?? null })
+        .insert({ id, establishment_id: caller.establishmentId, name, price, emoji: emoji ?? '', categoria, sazonal: !!sazonal, disponivel: disponivel !== false, image_url: imageUrl ?? null })
         .select()
         .single();
       if (error) throw error;
 
       const quantidade = Number.isFinite(Number(quantidadeInicial)) ? Math.max(0, Number(quantidadeInicial)) : 0;
-      await supabase.from('stock').upsert({ product_id: id, name, quantidade, minimo: 5 }, { onConflict: 'product_id', ignoreDuplicates: true });
+      await supabase.from('stock').upsert({ establishment_id: caller.establishmentId, product_id: id, name, quantidade, minimo: 5 }, { onConflict: 'establishment_id,product_id', ignoreDuplicates: true });
 
       return jsonResponse(product, 201);
     }
@@ -61,19 +93,19 @@ Deno.serve(async (req: Request) => {
       if (disponivel != null) updates.disponivel = disponivel;
       if (imageUrl !== undefined) updates.image_url = imageUrl;
 
-      const { data: updated, error } = await supabase.from('products').update(updates).eq('id', id).select().maybeSingle();
+      const { data: updated, error } = await supabase.from('products').update(updates).eq('establishment_id', caller.establishmentId).eq('id', id).select().maybeSingle();
       if (error) throw error;
       if (!updated) return errorResponse('Produto não encontrado.', 404);
 
       if (name != null) {
-        await supabase.from('stock').update({ name }).eq('product_id', id);
+        await supabase.from('stock').update({ name }).eq('establishment_id', caller.establishmentId).eq('product_id', id);
       }
       return jsonResponse(updated);
     }
 
     if (action === 'delete-product') {
       const { id } = body;
-      const { error } = await supabase.from('products').delete().eq('id', id);
+      const { error } = await supabase.from('products').delete().eq('establishment_id', caller.establishmentId).eq('id', id);
       if (error) throw error;
       return jsonResponse({ ok: true });
     }
@@ -104,8 +136,8 @@ Deno.serve(async (req: Request) => {
       const timezoneOffset = representedLocalAsUtc - localMidnightAsUtc;
       const todayStart = new Date(localMidnightAsUtc - timezoneOffset);
       const [{ data: todayOrders }, { data: todayTransactions }] = await Promise.all([
-        supabase.from('orders').select('id, total, status, created_at').gte('created_at', todayStart.toISOString()),
-        supabase.from('transactions').select('valor, method, status').gte('created_at', todayStart.toISOString()),
+        supabase.from('orders').select('id, total, status, created_at').eq('establishment_id', caller.establishmentId).gte('created_at', todayStart.toISOString()),
+        supabase.from('transactions').select('valor, method, status').eq('establishment_id', caller.establishmentId).gte('created_at', todayStart.toISOString()),
       ]);
       const valid = (todayOrders ?? []).filter((o) => o.status !== 'cancelado');
       const confirmedTransactions = (todayTransactions ?? []).filter((transaction) => transaction.status === 'confirmado');
@@ -126,11 +158,11 @@ Deno.serve(async (req: Request) => {
     if (action === 'report-products') {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
-      const { data: todayOrders } = await supabase.from('orders').select('id, status').gte('created_at', todayStart.toISOString());
+      const { data: todayOrders } = await supabase.from('orders').select('id, status').eq('establishment_id', caller.establishmentId).gte('created_at', todayStart.toISOString());
       const validIds = (todayOrders ?? []).filter((o) => o.status !== 'cancelado').map((o) => o.id);
       if (!validIds.length) return jsonResponse([]);
 
-      const { data: items } = await supabase.from('order_items').select('*').in('order_id', validIds);
+      const { data: items } = await supabase.from('order_items').select('*').eq('establishment_id', caller.establishmentId).in('order_id', validIds);
       const map = new Map<string, { productId: string; name: string; qty: number; total: number }>();
       for (const item of items ?? []) {
         const e = map.get(item.product_id) ?? { productId: item.product_id, name: item.name, qty: 0, total: 0 };
@@ -144,7 +176,7 @@ Deno.serve(async (req: Request) => {
     if (action === 'report-hourly') {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
-      const { data: todayOrders } = await supabase.from('orders').select('status, created_at').gte('created_at', todayStart.toISOString());
+      const { data: todayOrders } = await supabase.from('orders').select('status, created_at').eq('establishment_id', caller.establishmentId).gte('created_at', todayStart.toISOString());
       const valid = (todayOrders ?? []).filter((o) => o.status !== 'cancelado');
 
       const buckets = new Map<number, number>();
@@ -160,17 +192,18 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === 'report-transactions') {
-      const { data } = await supabase.from('transactions').select('*').order('created_at', { ascending: false }).limit(500);
+      const { data } = await supabase.from('transactions').select('*').eq('establishment_id', caller.establishmentId).order('created_at', { ascending: false }).limit(500);
       return jsonResponse(data ?? []);
     }
 
     if (action === 'confirm-transaction') {
-      if (caller.employeeRole !== 'admin') return errorResponse('Apenas administradores podem confirmar pagamentos.', 403);
+      if (!hasEmployeeAccess(caller, 'adm') && !hasEmployeeAccess(caller, 'caixa')) return errorResponse('Acesso restrito ao caixa ou a administracao.', 403);
       const { id } = body;
       if (!id) return errorResponse('id é obrigatório.', 400);
       const { data, error } = await supabase
         .from('transactions')
         .update({ status: 'confirmado' })
+        .eq('establishment_id', caller.establishmentId)
         .eq('id', id)
         .eq('status', 'pendente')
         .select('id')
@@ -181,7 +214,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === 'report-waste') {
-      const { data: rows } = await supabase.from('waste_log').select('*').order('created_at', { ascending: false });
+      const { data: rows } = await supabase.from('waste_log').select('*').eq('establishment_id', caller.establishmentId).order('created_at', { ascending: false });
       const map = new Map<string, { productId: string; productName: string; quantidade: number }>();
       for (const e of rows ?? []) {
         const r = map.get(e.product_id) ?? { productId: e.product_id, productName: e.product_name, quantidade: 0 };
@@ -192,21 +225,21 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === 'report-stock-history') {
-      const { data, error } = await supabase.from('stock_history').select('*').order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('stock_history').select('*').eq('establishment_id', caller.establishmentId).order('created_at', { ascending: false });
       if (error) throw error;
       return jsonResponse(data ?? []);
     }
 
     if (action === 'report-loyalty') {
-      const { data } = await supabase.from('loyalty').select('*');
+      const { data } = await supabase.from('loyalty').select('*').eq('establishment_id', caller.establishmentId);
       return jsonResponse(data ?? []);
     }
 
     if (action === 'clear-sales') {
-      if (caller.employeeRole !== 'admin') return errorResponse('Apenas administradores podem limpar vendas.', 403);
-      await supabase.from('orders').delete().neq('id', '');
-      await supabase.from('transactions').delete().neq('id', '');
-      await supabase.from('waste_log').delete().neq('id', '');
+      if (!hasEmployeeAccess(caller, 'adm')) return errorResponse('Acesso restrito a administracao.', 403);
+      await supabase.from('orders').delete().eq('establishment_id', caller.establishmentId);
+      await supabase.from('transactions').delete().eq('establishment_id', caller.establishmentId);
+      await supabase.from('waste_log').delete().eq('establishment_id', caller.establishmentId);
       return jsonResponse({ ok: true });
     }
 
@@ -214,13 +247,13 @@ Deno.serve(async (req: Request) => {
     // Configurações da loja (leitura já é pública via RLS; escrita exige admin)
     // -----------------------------------------------------------------
     if (action === 'update-settings') {
-      if (caller.employeeRole !== 'admin') return errorResponse('Apenas administradores podem alterar configurações.', 403);
+      if (!hasEmployeeAccess(caller, 'adm')) return errorResponse('Acesso restrito a administracao.', 403);
       const { nomeLoja, whatsappNumero } = body;
       const updates: Record<string, unknown> = {};
       if (nomeLoja != null) updates.nome_loja = nomeLoja;
       if (whatsappNumero != null) updates.whatsapp_numero = whatsappNumero;
 
-      const { data, error } = await supabase.from('settings').update(updates).eq('id', 1).select().maybeSingle();
+      const { data, error } = await supabase.from('settings').update(updates).eq('establishment_id', caller.establishmentId).eq('id', 1).select().maybeSingle();
       if (error) throw error;
       return jsonResponse(data);
     }

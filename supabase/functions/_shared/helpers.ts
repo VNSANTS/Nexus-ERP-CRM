@@ -95,7 +95,19 @@ export type EmployeeClaims = {
   employeeId: string; // = auth.users.id
   employeeRole: 'admin' | 'funcionario';
   employeeName: string;
+  establishmentId: string;
+  isOwner: boolean;
+  accessKitchen: boolean;
+  accessCashier: boolean;
+  accessAdmin: boolean;
 };
+
+export function hasEmployeeAccess(caller: EmployeeClaims, access: 'cozinha' | 'caixa' | 'adm'): boolean {
+  if (caller.isOwner) return true;
+  if (access === 'cozinha') return caller.accessKitchen;
+  if (access === 'caixa') return caller.accessCashier;
+  return caller.accessAdmin;
+}
 
 export function adminClient(): SupabaseClient {
   return createClient(
@@ -118,66 +130,90 @@ export async function requireEmployee(req: Request): Promise<EmployeeClaims | nu
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data?.user) return null;
 
-  // Roles in Auth user_metadata are user-editable and cannot authorize actions.
-  // Resolve the account through its protected employee record instead.
+  const employeeColumns = 'id, auth_user_id, nome, role, ativo, establishment_id, acesso_cozinha, acesso_caixa, acesso_adm';
   const { data: byAuthId, error: authIdError } = await supabase
     .from('employees')
-    .select('id, auth_user_id, nome, role, ativo, establishment_id')
+    .select(employeeColumns)
     .eq('auth_user_id', data.user.id)
     .maybeSingle();
+  if (authIdError) return null;
 
   let employee = byAuthId;
-  if (!employee && !authIdError) {
-    // Older employee accounts use employees.id as their Auth user ID.
+  if (!employee) {
     const { data: byId, error: idError } = await supabase
       .from('employees')
-      .select('id, auth_user_id, nome, role, ativo, establishment_id')
+      .select(employeeColumns)
       .eq('id', data.user.id)
       .maybeSingle();
     if (idError) return null;
     employee = byId;
   }
 
-  // These legacy APIs operate on original global tables. Scoped accounts
-  // may use them only while the linked establishment is the sole one.
-  if (authIdError) return null;
-  if (employee && employee.ativo === true && employee.establishment_id != null) {
-    const { data: establishments, error: establishmentsError } = await supabase
+  if (employee) {
+    if (employee.ativo !== true) return null;
+    let establishmentId = employee.establishment_id as string | null;
+
+    // Keep the legacy global APIs behind a single-establishment guard. Some
+    // callers still use unscoped tables, so enabling a second tenant here
+    // would let those APIs cross the tenant boundary.
+    if (!establishmentId) {
+      const { data: establishments, error: establishmentsError } = await supabase
+        .from('establishments')
+        .select('id, status')
+        .limit(2);
+      if (establishmentsError || establishments?.length !== 1 || establishments[0].status !== 'ativo') return null;
+      establishmentId = establishments[0].id;
+    }
+
+    const { data: activeEstablishments, error: activeEstablishmentsError } = await supabase
       .from('establishments')
-      .select('id')
+      .select('id, status')
       .limit(2);
-    if (establishmentsError || establishments?.length !== 1 || establishments[0].id !== employee.establishment_id) return null;
-  }
-  if (!employee) {
-    // Temporary bridge for the establishment owner using the legacy admin
-    // screen. This is safe only while the project has a single establishment,
-    // because these APIs still read/write global tables.
-    const { data: owner, error: ownerError } = await supabase
-      .from('establishment_owners')
-      .select('establishment_id')
-      .eq('id', data.user.id)
-      .maybeSingle();
-    if (ownerError || !owner) return null;
+    if (activeEstablishmentsError || activeEstablishments?.length !== 1 || activeEstablishments[0].id !== establishmentId || activeEstablishments[0].status !== 'ativo') return null;
 
-    const { count, error: countError } = await supabase
-      .from('establishments')
-      .select('id', { count: 'exact', head: true });
-    if (countError || count !== 1) return null;
-
+    const legacyAdmin = employee.establishment_id == null && employee.role === 'admin';
+    const legacyStaff = employee.establishment_id == null && employee.role !== 'admin';
     return {
       employeeId: data.user.id,
-      employeeRole: 'admin',
-      employeeName: data.user.user_metadata?.full_name ?? data.user.email ?? 'Administrador',
+      employeeRole: employee.role === 'admin' ? 'admin' : 'funcionario',
+      employeeName: employee.nome ?? '',
+      establishmentId,
+      isOwner: false,
+      accessKitchen: legacyAdmin || legacyStaff || employee.acesso_cozinha === true,
+      accessCashier: legacyAdmin || legacyStaff || employee.acesso_caixa === true,
+      accessAdmin: legacyAdmin || employee.acesso_adm === true,
     };
   }
-  if (employee.ativo !== true || employee.establishment_id != null) return null;
 
-  const role: EmployeeClaims['employeeRole'] =
-    employee.role === 'admin' ? 'admin' : 'funcionario';
+  const { data: owner, error: ownerError } = await supabase
+    .from('establishment_owners')
+    .select('establishment_id')
+    .eq('id', data.user.id)
+    .maybeSingle();
+  if (ownerError || !owner) return null;
+
+  const { data: establishment, error: establishmentError } = await supabase
+    .from('establishments')
+    .select('id, status')
+    .eq('id', owner.establishment_id)
+    .maybeSingle();
+  if (establishmentError || !establishment || establishment.status !== 'ativo') return null;
+
+  // The owner-facing legacy APIs are also global until they are migrated.
+  const { data: ownerEstablishments, error: ownerEstablishmentsError } = await supabase
+    .from('establishments')
+    .select('id')
+    .limit(2);
+  if (ownerEstablishmentsError || ownerEstablishments?.length !== 1 || ownerEstablishments[0].id !== establishment.id) return null;
 
   return {
     employeeId: data.user.id,
-    employeeRole: role,
-    employeeName: employee.nome ?? '',
+    employeeRole: 'admin',
+    employeeName: data.user.user_metadata?.full_name ?? data.user.email ?? 'Administrador',
+    establishmentId: establishment.id,
+    isOwner: true,
+    accessKitchen: true,
+    accessCashier: true,
+    accessAdmin: true,
   };
 }

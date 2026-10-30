@@ -30,19 +30,21 @@ export async function checkRateLimit(
 ): Promise<{ allowed: boolean; remaining: number }> {
   const windowStart = new Date(Date.now() - windowMinutes * 60_000).toISOString();
 
-  const { count } = await supabase
+  const { count, error: countError } = await supabase
     .from('rate_limit_log')
     .select('id', { count: 'exact', head: true })
     .eq('scope', scope)
     .eq('identifier', identifier)
     .gte('created_at', windowStart);
+  if (countError) throw countError;
 
   const current = count ?? 0;
   if (current >= maxRequests) {
     return { allowed: false, remaining: 0 };
   }
 
-  await supabase.from('rate_limit_log').insert({ scope, identifier });
+  const { error: insertError } = await supabase.from('rate_limit_log').insert({ scope, identifier });
+  if (insertError) throw insertError;
   return { allowed: true, remaining: maxRequests - current - 1 };
 }
 

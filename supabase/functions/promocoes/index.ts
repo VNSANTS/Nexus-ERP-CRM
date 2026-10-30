@@ -9,13 +9,15 @@
 // Body esperado: { action: 'list' | 'create' | 'update' | 'delete', ... }
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { corsHeaders, jsonResponse, errorResponse, uid, requireEmployee } from '../_shared/helpers.ts';
+import { corsHeaders, jsonResponse, errorResponse, uid, requireEmployee, hasEmployeeAccess } from '../_shared/helpers.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const caller = await requireEmployee(req);
   if (!caller) return errorResponse('Não autenticado.', 401);
+
+  if (!hasEmployeeAccess(caller, 'adm')) return errorResponse('Acesso restrito a administracao.', 403);
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -27,7 +29,7 @@ Deno.serve(async (req: Request) => {
     const { action } = body;
 
     if (action === 'list') {
-      const { data, error } = await supabase.from('promotions').select('*').order('created_at');
+      const { data, error } = await supabase.from('promotions').select('*').eq('establishment_id', caller.establishmentId).order('created_at');
       if (error) throw error;
       return jsonResponse(data ?? []);
     }
@@ -36,7 +38,7 @@ Deno.serve(async (req: Request) => {
       const { nome, tipo, valor, productIds, ativo } = body;
       const { data, error } = await supabase
         .from('promotions')
-        .insert({ id: uid(), nome, tipo, valor, product_ids: productIds ?? [], ativo: ativo !== false })
+        .insert({ establishment_id: caller.establishmentId, id: uid(), nome, tipo, valor, product_ids: productIds ?? [], ativo: ativo !== false })
         .select()
         .single();
       if (error) throw error;
@@ -52,7 +54,7 @@ Deno.serve(async (req: Request) => {
       if (productIds != null) updates.product_ids = productIds;
       if (ativo != null) updates.ativo = ativo;
 
-      const { data, error } = await supabase.from('promotions').update(updates).eq('id', id).select().maybeSingle();
+      const { data, error } = await supabase.from('promotions').update(updates).eq('establishment_id', caller.establishmentId).eq('id', id).select().maybeSingle();
       if (error) throw error;
       if (!data) return errorResponse('Promoção não encontrada.', 404);
       return jsonResponse(data);
@@ -60,7 +62,7 @@ Deno.serve(async (req: Request) => {
 
     if (action === 'delete') {
       const { id } = body;
-      const { error } = await supabase.from('promotions').delete().eq('id', id);
+      const { error } = await supabase.from('promotions').delete().eq('establishment_id', caller.establishmentId).eq('id', id);
       if (error) throw error;
       return jsonResponse({ ok: true });
     }

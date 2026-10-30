@@ -73,6 +73,17 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    const { data: activeEstablishments, error: activeEstablishmentsError } = await admin
+      .from('establishments')
+      .select('id, status')
+      .limit(2);
+    if (activeEstablishmentsError || activeEstablishments?.length !== 1 || activeEstablishments[0].status !== 'ativo') {
+      return errorResponse('Establishment access unavailable.', 403);
+    }
+    if (employeeRow.establishment_id && employeeRow.establishment_id !== activeEstablishments[0].id) {
+      return errorResponse('Establishment access unavailable.', 403);
+    }
+
     const authUserId = employeeRow.auth_user_id ?? employeeRow.id;
     const { data: authUserResult } = await admin.auth.admin.getUserById(authUserId);
     const email = authUserResult.user?.email ?? usernameToEmail(cleanUsername);

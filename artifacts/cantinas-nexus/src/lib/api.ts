@@ -125,6 +125,7 @@ export interface ApiProduct {
 export const api = {
   products: {
     list: () => publicSelect<ApiProduct[]>('products'),
+    listForEmployee: () => callFn<ApiProduct[]>('gerenciar-dados', { action: 'list-products' }),
     create: (data: Omit<ApiProduct, 'createdAt' | 'updatedAt'> & { quantidadeInicial?: number }) =>
       callFn<ApiProduct>('gerenciar-dados', { action: 'create-product', ...data }),
     update: (id: string, data: Partial<ApiProduct>) =>
@@ -149,7 +150,7 @@ export const api = {
   // ---------------------------------------------------------------------------
 
   orders: {
-    list: () => publicSelect<ApiOrder[]>('orders', (q) => q.order('created_at', { ascending: false })),
+    list: () => callFn<ApiOrder[]>('pedidos', { action: 'list' }),
     byCode: async (code: string) => {
       const { data, error } = await supabase.from('orders').select('*').eq('code', code).maybeSingle();
       if (error) throw new Error(error.message);
@@ -158,6 +159,7 @@ export const api = {
       return camelizeKeys<ApiOrder>({ ...data, items: items ?? [] });
     },
     checkout: (data: {
+      establishmentId?: string;
       cartItems: Array<{ productId: string; qty: number }>;
       paymentMethod: string;
       observacoes: string;
@@ -174,7 +176,7 @@ export const api = {
     updateObservacoes: (id: string, observacoes: string) =>
       callFn<ApiOrder>('pedidos', { action: 'observacoes', id, observacoes }),
     confirmPickup: (code: string) =>
-      callPublicFn<{ ok: boolean; message: string }>('pedidos', { action: 'confirm-pickup', code }),
+      callFn<{ ok: boolean; message: string }>('pedidos', { action: 'confirm-pickup', code }),
   },
 
   // ---------------------------------------------------------------------------
@@ -301,6 +303,7 @@ export const api = {
       if (error) throw new Error(error.message);
       return camelizeKeys<ApiSettings>(data);
     },
+    getForEmployee: () => callFn<ApiSettings>('gerenciar-dados', { action: 'get-settings' }),
     update: (data: Partial<ApiSettings>) => callFn<ApiSettings>('gerenciar-dados', { action: 'update-settings', ...data }),
   },
 
@@ -380,6 +383,9 @@ export interface ApiEmployee {
   role: string;
   horario: string;
   ativo: boolean;
+  acessoCozinha: boolean;
+  acessoCaixa: boolean;
+  acessoAdm: boolean;
   createdAt: string;
 }
 
@@ -390,6 +396,9 @@ export interface ApiEmployeeCreate {
   role: string;
   horario: string;
   ativo: boolean;
+  acessoCozinha: boolean;
+  acessoCaixa: boolean;
+  acessoAdm: boolean;
 }
 
 export type ApiEmployeeUpdate = Partial<Omit<ApiEmployeeCreate, 'password'>> & { password?: string };

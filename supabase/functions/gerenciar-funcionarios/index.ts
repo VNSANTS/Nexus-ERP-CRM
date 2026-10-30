@@ -7,13 +7,21 @@
 //
 // Body esperado: { action: 'list' | 'create' | 'update' | 'delete', ... }
 
-import { corsHeaders, jsonResponse, errorResponse, requireEmployee, adminClient, usernameToEmail } from '../_shared/helpers.ts';
+import { corsHeaders, jsonResponse, errorResponse, requireEmployee, adminClient, usernameToEmail, hasEmployeeAccess } from '../_shared/helpers.ts';
+
+function validAccess(role: string, cozinha: boolean, caixa: boolean, adm: boolean): boolean {
+  if (![cozinha, caixa, adm].every((value) => typeof value === 'boolean')) return false;
+  if (role === 'admin') return cozinha && caixa && adm;
+  return role === 'funcionario' && (cozinha || caixa) && !adm;
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const caller = await requireEmployee(req);
   if (!caller) return errorResponse('Não autenticado.', 401);
+
+  if (!hasEmployeeAccess(caller, 'adm')) return errorResponse('Acesso restrito a administracao.', 403);
 
   const supabase = adminClient();
 
@@ -22,20 +30,24 @@ Deno.serve(async (req: Request) => {
     const { action } = body;
 
     if (action === 'list') {
-      const { data, error } = await supabase.from('employees').select('*').order('created_at');
+      const { data, error } = await supabase.from('employees').select('*').eq('establishment_id', caller.establishmentId).order('created_at');
       if (error) throw error;
       return jsonResponse(data ?? []);
     }
 
     // Ações abaixo exigem admin
-    if (caller.employeeRole !== 'admin') {
+    if (!hasEmployeeAccess(caller, 'adm')) {
       return errorResponse('Apenas administradores podem gerenciar funcionários.', 403);
     }
 
     if (action === 'create') {
-      const { nome, username, password, role, horario, ativo } = body;
+      const { nome, username, password, role, horario, ativo, acessoCozinha, acessoCaixa, acessoAdm } = body;
       if (!nome || !username || typeof password !== 'string' || password.length < 8) {
         return errorResponse('Nome, usuário e senha com pelo menos 8 caracteres são obrigatórios.', 400);
+      }
+
+      if (!validAccess(role ?? 'funcionario', acessoCozinha, acessoCaixa, acessoAdm)) {
+        return errorResponse('Permissoes invalidas para o cargo selecionado.', 400);
       }
 
       const cleanUsername = String(username).trim().toLowerCase();
@@ -61,6 +73,10 @@ Deno.serve(async (req: Request) => {
           role: role ?? 'funcionario',
           horario: horario ?? '',
           ativo: ativo !== false,
+          establishment_id: caller.establishmentId,
+          acesso_cozinha: acessoCozinha,
+          acesso_caixa: acessoCaixa,
+          acesso_adm: acessoAdm,
         })
         .select()
         .single();
@@ -69,8 +85,31 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === 'update') {
-      const { id, nome, username, password, role, horario, ativo } = body;
+      const { id, nome, username, password, role, horario, ativo, acessoCozinha, acessoCaixa, acessoAdm } = body;
       if (!id) return errorResponse('id é obrigatório.', 400);
+
+      const { data: target, error: targetError } = await supabase
+        .from('employees')
+        .select('id, auth_user_id, role, ativo, acesso_cozinha, acesso_caixa, acesso_adm')
+        .eq('establishment_id', caller.establishmentId)
+        .eq('id', id)
+        .maybeSingle();
+      if (targetError) throw targetError;
+      if (!target) return errorResponse('Employee not found.', 404);
+      const nextRole = role ?? target.role;
+      const nextKitchen = acessoCozinha ?? target.acesso_cozinha;
+      const nextCashier = acessoCaixa ?? target.acesso_caixa;
+      const nextAdmin = acessoAdm ?? target.acesso_adm;
+      if (!validAccess(nextRole, nextKitchen, nextCashier, nextAdmin)) {
+        return errorResponse('Permissoes invalidas para o cargo selecionado.', 400);
+      }
+      if (target.acesso_adm && (!nextAdmin || ativo === false)) {
+        const { data: activeAdmins, error: activeAdminsError } = await supabase.from('employees')
+          .select('id').eq('establishment_id', caller.establishmentId).eq('ativo', true).eq('acesso_adm', true);
+        if (activeAdminsError) throw activeAdminsError;
+        if ((activeAdmins ?? []).length <= 1) return errorResponse('Mantenha pelo menos um administrador ativo.', 409);
+      }
+      const authUserId = target.auth_user_id ?? target.id;
 
       // Atualiza no Auth (senha, e-mail derivado do username, metadata)
       const authUpdates: Record<string, unknown> = {};
@@ -88,7 +127,7 @@ Deno.serve(async (req: Request) => {
       if (role != null) metaUpdates.role = role;
 
       if (Object.keys(authUpdates).length || Object.keys(metaUpdates).length) {
-        const { error: authErr } = await supabase.auth.admin.updateUserById(id, {
+        const { error: authErr } = await supabase.auth.admin.updateUserById(authUserId, {
           ...authUpdates,
           ...(Object.keys(metaUpdates).length ? { user_metadata: metaUpdates } : {}),
         });
@@ -102,8 +141,11 @@ Deno.serve(async (req: Request) => {
       if (role != null) updates.role = role;
       if (horario != null) updates.horario = horario;
       if (ativo != null) updates.ativo = ativo;
+      if (acessoCozinha != null) updates.acesso_cozinha = acessoCozinha;
+      if (acessoCaixa != null) updates.acesso_caixa = acessoCaixa;
+      if (acessoAdm != null) updates.acesso_adm = acessoAdm;
 
-      const { data, error } = await supabase.from('employees').update(updates).eq('id', id).select().maybeSingle();
+      const { data, error } = await supabase.from('employees').update(updates).eq('establishment_id', caller.establishmentId).eq('id', id).select().maybeSingle();
       if (error) throw error;
       if (!data) return errorResponse('Funcionário não encontrado.', 404);
       return jsonResponse(data);
@@ -113,17 +155,22 @@ Deno.serve(async (req: Request) => {
       const { id } = body;
       if (!id) return errorResponse('id é obrigatório.', 400);
 
-      const { data: allAdmins, error: adminsErr } = await supabase.from('employees').select('id, ativo').eq('role', 'admin');
+      const { data: target, error: targetError } = await supabase
+        .from('employees').select('id, auth_user_id, role, ativo, acesso_adm')
+        .eq('establishment_id', caller.establishmentId).eq('id', id).maybeSingle();
+      if (targetError) throw targetError;
+      if (!target) return errorResponse('Employee not found.', 404);
+
+      const { data: allAdmins, error: adminsErr } = await supabase.from('employees').select('id, ativo').eq('establishment_id', caller.establishmentId).eq('acesso_adm', true);
       if (adminsErr) throw adminsErr;
 
-      const target = allAdmins?.find((e) => e.id === id);
       const activeAdmins = (allAdmins ?? []).filter((e) => e.ativo);
-      if (target && activeAdmins.length <= 1) {
+      if (target.acesso_adm && target.ativo && activeAdmins.length <= 1) {
         return jsonResponse({ ok: false, message: 'É preciso manter ao menos um administrador ativo.' }, 400);
       }
 
       // Apagar o usuário do Auth já remove a linha em employees via ON DELETE CASCADE
-      const { error } = await supabase.auth.admin.deleteUser(id);
+      const { error } = await supabase.auth.admin.deleteUser(target.auth_user_id ?? target.id);
       if (error) throw error;
       return jsonResponse({ ok: true });
     }

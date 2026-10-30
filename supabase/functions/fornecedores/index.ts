@@ -8,13 +8,15 @@
 //   - 'list-requests' | 'create-request' | 'update-request-status' | 'delete-request' (solicitações)
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { corsHeaders, jsonResponse, errorResponse, uid, requireEmployee } from '../_shared/helpers.ts';
+import { corsHeaders, jsonResponse, errorResponse, uid, requireEmployee, hasEmployeeAccess } from '../_shared/helpers.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const caller = await requireEmployee(req);
   if (!caller) return errorResponse('Não autenticado.', 401);
+
+  if (!hasEmployeeAccess(caller, 'adm')) return errorResponse('Acesso restrito a administracao.', 403);
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -30,7 +32,7 @@ Deno.serve(async (req: Request) => {
     // Fornecedores
     // -----------------------------------------------------------------
     if (action === 'list') {
-      const { data, error } = await supabase.from('suppliers').select('*').order('created_at');
+      const { data, error } = await supabase.from('suppliers').select('*').eq('establishment_id', caller.establishmentId).order('created_at');
       if (error) throw error;
       return jsonResponse(data ?? []);
     }
@@ -39,7 +41,7 @@ Deno.serve(async (req: Request) => {
       const { nome, contato, telefone, email, insumos } = body;
       const { data, error } = await supabase
         .from('suppliers')
-        .insert({ id: uid(), nome, contato, telefone, email, insumos, created_at: now, updated_at: now })
+        .insert({ establishment_id: caller.establishmentId, id: uid(), nome, contato, telefone, email, insumos, created_at: now, updated_at: now })
         .select()
         .single();
       if (error) throw error;
@@ -55,7 +57,7 @@ Deno.serve(async (req: Request) => {
       if (email != null) updates.email = email;
       if (insumos != null) updates.insumos = insumos;
 
-      const { data, error } = await supabase.from('suppliers').update(updates).eq('id', id).select().maybeSingle();
+      const { data, error } = await supabase.from('suppliers').update(updates).eq('establishment_id', caller.establishmentId).eq('id', id).select().maybeSingle();
       if (error) throw error;
       if (!data) return errorResponse('Fornecedor não encontrado.', 404);
       return jsonResponse(data);
@@ -63,7 +65,7 @@ Deno.serve(async (req: Request) => {
 
     if (action === 'delete') {
       const { id } = body;
-      const { error } = await supabase.from('suppliers').delete().eq('id', id);
+      const { error } = await supabase.from('suppliers').delete().eq('establishment_id', caller.establishmentId).eq('id', id);
       if (error) throw error;
       return jsonResponse({ ok: true });
     }
@@ -72,7 +74,7 @@ Deno.serve(async (req: Request) => {
     // Solicitações de suprimento
     // -----------------------------------------------------------------
     if (action === 'list-requests') {
-      const { data, error } = await supabase.from('supply_requests').select('*').order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('supply_requests').select('*').eq('establishment_id', caller.establishmentId).order('created_at', { ascending: false });
       if (error) throw error;
       return jsonResponse(data ?? []);
     }
@@ -82,6 +84,7 @@ Deno.serve(async (req: Request) => {
       const { data, error } = await supabase
         .from('supply_requests')
         .insert({
+          establishment_id: caller.establishmentId,
           id: uid(),
           supplier_id: supplierId,
           insumo,
@@ -102,6 +105,7 @@ Deno.serve(async (req: Request) => {
       const { data, error } = await supabase
         .from('supply_requests')
         .update({ status, updated_at: now })
+        .eq('establishment_id', caller.establishmentId)
         .eq('id', id)
         .select()
         .maybeSingle();
@@ -112,7 +116,7 @@ Deno.serve(async (req: Request) => {
 
     if (action === 'delete-request') {
       const { id } = body;
-      const { error } = await supabase.from('supply_requests').delete().eq('id', id);
+      const { error } = await supabase.from('supply_requests').delete().eq('establishment_id', caller.establishmentId).eq('id', id);
       if (error) throw error;
       return jsonResponse({ ok: true });
     }

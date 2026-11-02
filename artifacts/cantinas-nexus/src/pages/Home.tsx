@@ -188,12 +188,28 @@ export function Home() {
   const getStock = (productId: string) => stock.find((s) => s.productId === productId)?.quantidade ?? 0;
 
   const whatsappUrl = `https://wa.me/${settings?.whatsappNumero ?? '5511999999999'}`;
+  const isStarNexus = /star\\s*nexus/i.test(settings?.nomeLoja ?? '');
   const menuPrimary = settings?.menuPrimaryColor ?? '#ff6600';
-  const menuBackground = settings?.menuBackgroundColor ?? '#f7f3ed';
+  const menuBackground = isStarNexus ? '#10141a' : (settings?.menuBackgroundColor ?? '#f7f3ed');
   const menuTheme = {
     '--primary': hexToHsl(menuPrimary),
     '--ring': hexToHsl(menuPrimary),
     '--background': hexToHsl(menuBackground),
+    ...(isStarNexus ? {
+      '--foreground': '0 0% 96%',
+      '--card': '220 18% 11%',
+      '--card-foreground': '0 0% 96%',
+      '--popover': '220 18% 11%',
+      '--popover-foreground': '0 0% 96%',
+      '--border': '220 12% 22%',
+      '--input': '220 12% 22%',
+      '--muted': '220 14% 16%',
+      '--muted-foreground': '220 9% 68%',
+      '--secondary': '220 14% 16%',
+      '--secondary-foreground': '0 0% 96%',
+      '--accent': '24 80% 16%',
+      '--accent-foreground': '24 100% 80%',
+    } : {}),
   } as CSSProperties;
 
   return (
@@ -201,7 +217,7 @@ export function Home() {
       {/* HEADER — marca e ações rápidas */}
       <header className="relative z-20 mx-auto flex w-full max-w-[1500px] items-center justify-between gap-3 px-4 pb-4 pt-4 sm:px-8 sm:pt-6 lg:px-12">
         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 sm:h-16 sm:w-16">
+          <div className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl shadow-sm ring-1 ring-white/10 sm:h-16 sm:w-16 ${isStarNexus ? 'bg-[#1b2028]' : 'bg-white ring-black/5'}`}>
             <img src={settings?.logoUrl || `${REFERENCE_ASSET}logo.webp`} alt={settings?.nomeLoja || 'Logo do estabelecimento'} className="h-full w-full object-contain" />
           </div>
           <div className="min-w-0">
@@ -252,14 +268,17 @@ export function Home() {
        <main className="flex-1 overflow-y-auto px-4 sm:px-8 lg:px-12 pb-24 relative z-0 hide-scrollbar max-w-[1500px] w-full mx-auto">
         {view === 'menu' && (
            <>
-           <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="relative mb-7 mt-2 overflow-hidden rounded-[2rem] bg-[#172333] px-5 py-7 text-white shadow-[0_24px_60px_rgba(23,35,51,.18)] sm:mb-9 sm:px-10 sm:py-10">
+           <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="relative mb-7 mt-2 overflow-hidden rounded-[2rem] border border-white/10 bg-[#0c1016] px-5 py-7 text-white shadow-[0_24px_60px_rgba(0,0,0,.32)] sm:mb-9 sm:px-10 sm:py-10">
              <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-24 h-64 w-64 rounded-full bg-orange-500/25 blur-3xl" />
              <div aria-hidden="true" className="pointer-events-none absolute bottom-[-5rem] right-[22%] h-44 w-44 rounded-full bg-amber-300/15 blur-3xl" />
+             {isStarNexus && <img src={`${REFERENCE_ASSET}food-combo.webp`} alt="" aria-hidden="true" className="pointer-events-none absolute -bottom-5 -right-8 z-0 h-[82%] w-[58%] object-contain drop-shadow-[0_18px_24px_rgba(0,0,0,.55)] sm:-right-2 sm:h-[92%] sm:w-[52%]" />}
+             <div className="pointer-events-none absolute inset-y-0 right-0 z-[1] w-[68%] bg-gradient-to-l from-transparent via-[#0c1016]/30 to-[#0c1016]" />
              <div className="relative z-10 flex items-end justify-between gap-3">
                <div className="max-w-xl">
                  <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.2em] text-orange-200 sm:text-xs"><Sparkles className="h-3.5 w-3.5" /> Feito para matar a fome</p>
                  <h2 className="max-w-lg font-display text-3xl font-black leading-[1.02] tracking-tight sm:text-5xl">Bateu a fome?<br /><span className="text-orange-400">Seu próximo favorito</span> está aqui.</h2>
                  <p className="mt-3 max-w-sm text-xs font-medium leading-relaxed text-slate-300 sm:text-sm">Escolha, peça e aproveite. Tudo fresquinho, sem complicação.</p>
+                 <button type="button" onClick={() => document.getElementById('menu-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#ff6a00] px-5 py-3 text-xs font-black text-white shadow-lg shadow-orange-950/40 transition hover:bg-[#ff8126] sm:text-sm">Explorar cardápio <span aria-hidden="true">→</span></button>
                </div>
                <div className="flex shrink-0 flex-col items-center gap-2">
                  {establishmentMenuUrl && <button type="button" onClick={() => setMenuQrOpen(true)} aria-label="Ampliar QR code do cardápio" className="rounded-2xl border border-white/15 bg-white p-2 text-[10px] font-bold text-slate-800 shadow-xl sm:p-3 sm:text-xs"><QRCodeSVG value={establishmentMenuUrl} size={58} level="H" /><span className="mt-1 block">Compartilhar</span></button>}
@@ -273,7 +292,7 @@ export function Home() {
              <div><p className="text-[10px] font-black uppercase tracking-[.2em] text-primary">Explore o menu</p><h3 className="mt-1 font-display text-xl font-black text-foreground sm:text-2xl">{categoryFilter === 'todos' ? 'O que vai ser hoje?' : CATEGORY_TABS.find((tab) => tab.key === categoryFilter)?.label}</h3></div>
              <span className="text-xs font-bold text-muted-foreground">{visibleProducts.length} {visibleProducts.length === 1 ? 'opção' : 'opções'}</span>
            </div>
-           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-2 gap-3 pt-1 sm:grid-cols-3 sm:gap-5 xl:grid-cols-4">
+           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} id="menu-products" className="grid grid-cols-2 gap-3 pt-1 sm:grid-cols-3 sm:gap-5 xl:grid-cols-4">
             {loadingProducts ? (
               <div className="col-span-full flex items-center justify-center py-24">
                 <Loader2 className="w-12 h-12 text-white animate-spin" />
@@ -301,7 +320,7 @@ export function Home() {
                         cartStore.add(product.id, product.name, price);
                          toast.success(`${product.name} adicionado!`, { duration: 1200 });
                       }}
-                       className={`group relative flex h-full flex-col overflow-hidden rounded-[1.6rem] border border-black/[.045] bg-white p-2.5 text-left shadow-[0_8px_24px_rgba(36,31,24,.055)] transition-all duration-300 sm:rounded-[1.8rem] sm:p-4 ${disabled ? 'cursor-not-allowed opacity-55 grayscale' : 'hover:-translate-y-1 hover:shadow-[0_18px_38px_rgba(36,31,24,.12)]'}`}>
+                       className={`group relative flex h-full flex-col overflow-hidden rounded-[1.6rem] border p-2.5 text-left transition-all duration-300 sm:rounded-[1.8rem] sm:p-4 ${isStarNexus ? 'border-white/10 bg-[#171c24] shadow-[0_12px_30px_rgba(0,0,0,.24)]' : 'border-black/[.045] bg-white shadow-[0_8px_24px_rgba(36,31,24,.055)]'} ${disabled ? 'cursor-not-allowed opacity-55 grayscale' : 'hover:-translate-y-1 hover:shadow-[0_18px_38px_rgba(0,0,0,.22)]'}`}>
                       {product.sazonal && (
                         <span className="absolute top-4 left-4 z-10 flex items-center gap-1 bg-amber-400 text-amber-950 text-[10px] sm:text-xs font-black px-3 py-1 rounded-full shadow-md">
                           <Sparkles className="w-3 h-3" /> SAZONAL
@@ -320,7 +339,7 @@ export function Home() {
                        >
                          <Heart className={`w-4 h-4 ${favoriteIds.includes(product.id) ? 'fill-current' : ''}`} />
                        </span>
-                        <div className="mb-3 flex aspect-[1/1] w-full items-center justify-center overflow-hidden rounded-[1.2rem] bg-[#f5f0e8] sm:rounded-[1.4rem]">
+                        <div className={`mb-3 flex aspect-[1/1] w-full items-center justify-center overflow-hidden rounded-[1.2rem] sm:rounded-[1.4rem] ${isStarNexus ? 'bg-[#202630]' : 'bg-[#f5f0e8]'}`}>
                          <motion.div whileHover={disabled ? {} : { rotate: 5, scale: 1.1 }} className="w-full h-full flex items-center justify-center">
                            {product.imageUrl ? (
                              <img src={product.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -336,7 +355,7 @@ export function Home() {
                         <div className="flex items-end gap-2 flex-wrap mt-auto">
                            <span className="text-base font-black text-primary sm:text-xl">{formatCurrency(price)}</span>
                            {hasPromo && <span className="text-[10px] sm:text-xs font-bold text-muted-foreground line-through mb-1">{formatCurrency(original)}</span>}
-                           <span className="ml-auto w-8 h-8 sm:w-9 sm:h-9 rounded-lg border-2 border-primary/60 text-primary flex items-center justify-center"><Plus className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={2.5} /></span>
+                           <span className="ml-auto flex h-8 w-8 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-orange-950/25 sm:h-9 sm:w-9"><Plus className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.5} /></span>
                         </div>
                       </div>
                       {disabled && (
@@ -348,7 +367,7 @@ export function Home() {
                   );
                 })}
                 {!loadingProducts && visibleProducts.length === 0 && (
-                  <div className="col-span-full rounded-[1.8rem] border border-dashed border-border bg-white/70 px-5 py-14 text-center">
+                  <div className={`col-span-full rounded-[1.8rem] border border-dashed border-border px-5 py-14 text-center ${isStarNexus ? 'bg-[#171c24]' : 'bg-white/70'}`}>
                      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fff0df] text-primary"><Search className="h-6 w-6" /></div>
                      <p className="font-display text-lg font-black text-foreground">Essa prateleira está vazia</p>
                      <p className="mt-1 text-sm text-muted-foreground">Ainda não há itens disponíveis nesta categoria.</p>

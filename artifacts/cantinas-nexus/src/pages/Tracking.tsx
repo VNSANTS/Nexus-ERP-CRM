@@ -50,7 +50,7 @@ export function Tracking() {
   const { data: order, isLoading, error } = useQuery<ApiOrder>({
     queryKey: ['order-tracking', codigo],
     queryFn: () => api.orders.byCode(codigo ?? ''),
-    refetchInterval: 4000, // poll every 4s
+    refetchInterval: 10_000, // stays below the public tracking rate limit
     enabled: !!codigo,
   });
 
@@ -92,7 +92,7 @@ export function Tracking() {
             className="bg-white rounded-[2rem] p-8 sm:p-12 text-center shadow-2xl w-full">
             <div className="w-16 h-16 rounded-2xl bg-accent mx-auto mb-4 flex items-center justify-center"><AlertCircle className="w-8 h-8 text-primary" /></div>
             <h2 className="text-2xl font-display font-bold text-gray-900 mb-2">Pedido não encontrado</h2>
-            <p className="text-gray-500 mb-6">O código <strong className="font-mono">{codigo}</strong> não corresponde a nenhum pedido de hoje.</p>
+            <p className="text-gray-500 mb-6">O link de acompanhamento pode estar incorreto ou indisponível. Confira se abriu o QR Code do pedido correto.</p>
              <Link href="/" className="inline-flex bg-primary text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-orange-600 transition-colors">Voltar ao Cardápio</Link>
           </motion.div>
         )}
@@ -104,7 +104,6 @@ export function Tracking() {
                  <div className="nexus-surface rounded-[2rem] p-8 sm:p-10 text-center">
                 <p className="text-gray-500 font-bold text-base uppercase tracking-widest mb-2">Pedido Nº</p>
                    <div className="text-7xl sm:text-9xl font-display font-black text-primary mb-2 leading-none">{order.code}</div>
-                <p className="font-mono text-sm text-gray-400 font-bold mb-6">{order.paymentCode}</p>
 
                 {/* Status badge */}
                 <div className={`inline-flex items-center gap-3 px-6 py-4 rounded-2xl border-2 ${info.bg} mb-6`}>

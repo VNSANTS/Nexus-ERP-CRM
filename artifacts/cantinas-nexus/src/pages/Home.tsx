@@ -188,49 +188,56 @@ export function Home() {
   const getStock = (productId: string) => stock.find((s) => s.productId === productId)?.quantidade ?? 0;
 
   const whatsappUrl = `https://wa.me/${settings?.whatsappNumero ?? '5511999999999'}`;
+  const isStarNexus = /star\s*nexus/i.test(settings?.nomeLoja ?? '');
   const menuPrimary = settings?.menuPrimaryColor ?? '#ff6600';
-  const menuBackground = settings?.menuBackgroundColor ?? '#f7f3ed';
+  const menuBackground = isStarNexus ? '#10141a' : (settings?.menuBackgroundColor ?? '#f7f3ed');
   const menuTheme = {
     '--primary': hexToHsl(menuPrimary),
     '--ring': hexToHsl(menuPrimary),
     '--background': hexToHsl(menuBackground),
+    ...(isStarNexus ? {
+      '--foreground': '0 0% 96%',
+      '--card': '220 18% 11%',
+      '--card-foreground': '0 0% 96%',
+      '--popover': '220 18% 11%',
+      '--popover-foreground': '0 0% 96%',
+      '--border': '220 12% 22%',
+      '--input': '220 12% 22%',
+      '--muted': '220 14% 16%',
+      '--muted-foreground': '220 9% 68%',
+      '--secondary': '220 14% 16%',
+      '--secondary-foreground': '0 0% 96%',
+      '--accent': '24 80% 16%',
+      '--accent-foreground': '24 100% 80%',
+    } : {}),
   } as CSSProperties;
 
   return (
     <div style={menuTheme} className="nexus-noise min-h-[100dvh] flex flex-col overflow-hidden relative bg-background">
-      {/* HEADER */}
-      <header className="px-3 sm:px-8 lg:px-12 pt-3 sm:pt-7 pb-3 flex justify-between items-start z-10 shrink-0 gap-2 sm:gap-3 max-w-[1500px] w-full mx-auto">
-        <div className="flex items-start gap-2 sm:gap-8 min-w-0">
-          <div className="relative w-[6rem] sm:w-[10.5rem] h-[6rem] sm:h-[9.5rem] flex items-center justify-center shrink-0">
-            <img src={settings?.logoUrl || `${REFERENCE_ASSET}logo.webp`} alt={settings?.nomeLoja || 'Logo do estabelecimento'} className="h-full w-full object-contain mix-blend-multiply" />
+      {/* HEADER — marca e ações rápidas */}
+      <header className="relative z-20 mx-auto flex w-full max-w-[1500px] items-center justify-between gap-3 px-4 pb-4 pt-4 sm:px-8 sm:pt-6 lg:px-12">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+          <div className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl shadow-sm ring-1 ring-white/10 sm:h-16 sm:w-16 ${isStarNexus ? 'bg-[#1b2028]' : 'bg-white ring-black/5'}`}>
+            <img src={settings?.logoUrl || `${REFERENCE_ASSET}logo.webp`} alt={settings?.nomeLoja || 'Logo do estabelecimento'} className="h-full w-full object-contain" />
           </div>
-          <img
-            src={`${REFERENCE_ASSET}greeting.webp`}
-            alt="Olá! O que você vai pedir hoje?"
-            className="w-[9rem] sm:w-[20rem] h-[6rem] sm:h-[9.5rem] object-contain object-left"
-          />
+          <div className="min-w-0">
+            <p className="truncate text-base font-black tracking-tight text-foreground sm:text-xl">{settings?.nomeLoja || 'StarNexus'}</p>
+            <p className="text-[10px] font-extrabold uppercase tracking-[.2em] text-primary sm:text-xs">Seu momento. Seu sabor.</p>
+          </div>
         </div>
-
-        <div className="flex items-center gap-3 sm:gap-5 shrink-0">
-           <div className="hidden md:flex text-xl sm:text-2xl font-black text-foreground bg-card px-5 sm:px-6 py-2 sm:py-3 rounded-2xl border border-border whitespace-nowrap shadow-sm">
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="hidden rounded-full border border-border bg-card/80 px-4 py-2 text-sm font-black text-foreground sm:block">
             {currentTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
           </div>
           <AnimatePresence>
             {view === 'menu' && (
-              <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} className="flex gap-2 sm:gap-4">
-                 <button onClick={() => setWhatsappOpen(true)}
-                    className="w-11 h-11 sm:w-20 sm:h-20 bg-card text-emerald-600 rounded-2xl flex items-center justify-center border border-border shadow-sm hover:-translate-y-1 shrink-0">
-                  <MessageCircle className="w-5 h-5 sm:w-9 sm:h-9" strokeWidth={2.5} />
+              <motion.div initial={{ opacity: 0, scale: .9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .9 }} className="flex gap-2">
+                <button onClick={() => setWhatsappOpen(true)} aria-label="Falar com a cantina" className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-emerald-600 shadow-sm sm:h-12 sm:w-12">
+                  <MessageCircle className="h-5 w-5" />
                 </button>
-                <button onClick={() => setCartOpen(true)}
-                   className="relative w-11 h-11 sm:w-20 sm:h-20 bg-primary text-white rounded-2xl flex items-center justify-center shadow-[0_10px_24px_hsl(24_100%_50%/.22)] hover:-translate-y-1 shrink-0">
-                  <ShoppingCart className="w-5 h-5 sm:w-9 sm:h-9" strokeWidth={2.5} />
-                  {cartCount > 0 && (
-                    <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }}
-                      className="absolute -top-2 -right-2 bg-success text-white text-xs sm:text-base font-black w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center border-2 border-white shadow-md">
-                      {cartCount}
-                    </motion.span>
-                  )}
+                <button onClick={() => setCartOpen(true)} aria-label="Abrir carrinho" className="relative flex h-11 w-11 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-orange-900/20 sm:h-12 sm:w-12">
+                  <ShoppingCart className="h-5 w-5" />
+                  {cartCount > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-background bg-foreground px-1 text-[10px] font-black text-white">{cartCount}</motion.span>}
                 </button>
               </motion.div>
             )}
@@ -242,12 +249,12 @@ export function Home() {
       <AnimatePresence>
         {view === 'menu' && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }}
-             className="px-4 sm:px-8 lg:px-12 pb-5 flex gap-3 sm:gap-4 overflow-x-auto shrink-0 hide-scrollbar max-w-[1500px] w-full mx-auto">
+             className="sticky top-0 z-20 mx-auto flex w-full max-w-[1500px] shrink-0 gap-2 overflow-x-auto bg-background/90 px-4 pb-4 pt-2 backdrop-blur-xl hide-scrollbar sm:gap-3 sm:px-8 lg:px-12">
             {CATEGORY_TABS.map((tab) => {
               const isActive = categoryFilter === tab.key;
               return (
                  <button key={tab.key} onClick={() => setCategoryFilter(tab.key)}
-                    className={`shrink-0 whitespace-nowrap flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full font-bold text-sm sm:text-base transition-all duration-300 border ${isActive ? 'bg-primary text-white border-primary shadow-md scale-105' : 'bg-card text-foreground border-border hover:border-primary/40'}`}>
+                    className={`group shrink-0 whitespace-nowrap flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-extrabold transition-all duration-300 sm:px-5 sm:text-sm ${isActive ? 'bg-foreground text-white shadow-lg shadow-slate-900/15' : 'border border-border bg-card/80 text-foreground hover:border-primary/50 hover:bg-white'}`}>
                    <img src={`${REFERENCE_ASSET}${tab.icon}`} alt="" aria-hidden="true" className="w-6 h-6 sm:w-7 sm:h-7 object-contain rounded-full" />
                    {tab.label}
                 </button>
@@ -261,24 +268,31 @@ export function Home() {
        <main className="flex-1 overflow-y-auto px-4 sm:px-8 lg:px-12 pb-24 relative z-0 hide-scrollbar max-w-[1500px] w-full mx-auto">
         {view === 'menu' && (
            <>
-           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-5 sm:mb-7 flex items-end justify-between gap-4">
-             <div>
-               <p className="text-primary text-xs sm:text-sm font-black uppercase tracking-[.18em] mb-1">Cardápio de hoje</p>
-               <h2 className="text-2xl sm:text-4xl font-display font-black text-foreground leading-tight">Escolha seus favoritos</h2>
+           <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="relative mb-7 mt-2 overflow-hidden rounded-[2rem] border border-white/10 bg-[#0c1016] px-5 py-7 text-white shadow-[0_24px_60px_rgba(0,0,0,.32)] sm:mb-9 sm:px-10 sm:py-10">
+             <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-24 h-64 w-64 rounded-full bg-orange-500/25 blur-3xl" />
+             <div aria-hidden="true" className="pointer-events-none absolute bottom-[-5rem] right-[22%] h-44 w-44 rounded-full bg-amber-300/15 blur-3xl" />
+             {isStarNexus && <img src={`${REFERENCE_ASSET}food-combo.webp`} alt="" aria-hidden="true" className="pointer-events-none absolute -bottom-5 -right-8 z-0 h-[82%] w-[58%] object-contain drop-shadow-[0_18px_24px_rgba(0,0,0,.55)] sm:-right-2 sm:h-[92%] sm:w-[52%]" />}
+             <div className="pointer-events-none absolute inset-y-0 right-0 z-[1] w-[68%] bg-gradient-to-l from-transparent via-[#0c1016]/30 to-[#0c1016]" />
+             <div className="relative z-10 flex items-end justify-between gap-3">
+               <div className="max-w-xl">
+                 <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.2em] text-orange-200 sm:text-xs"><Sparkles className="h-3.5 w-3.5" /> Feito para matar a fome</p>
+                 <h2 className="max-w-lg font-display text-3xl font-black leading-[1.02] tracking-tight sm:text-5xl">Bateu a fome?<br /><span className="text-orange-400">Seu próximo favorito</span> está aqui.</h2>
+                 <p className="mt-3 max-w-sm text-xs font-medium leading-relaxed text-slate-300 sm:text-sm">Escolha, peça e aproveite. Tudo fresquinho, sem complicação.</p>
+                 <button type="button" onClick={() => document.getElementById('menu-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#ff6a00] px-5 py-3 text-xs font-black text-white shadow-lg shadow-orange-950/40 transition hover:bg-[#ff8126] sm:text-sm">Explorar cardápio <span aria-hidden="true">→</span></button>
+               </div>
+               <div className="flex shrink-0 flex-col items-center gap-2">
+                 {establishmentMenuUrl && <button type="button" onClick={() => setMenuQrOpen(true)} aria-label="Ampliar QR code do cardápio" className="rounded-2xl border border-white/15 bg-white p-2 text-[10px] font-bold text-slate-800 shadow-xl sm:p-3 sm:text-xs"><QRCodeSVG value={establishmentMenuUrl} size={58} level="H" /><span className="mt-1 block">Compartilhar</span></button>}
+               </div>
              </div>
-             <div className="flex shrink-0 items-center gap-3">
-               <p className="hidden lg:block text-muted-foreground font-semibold text-sm max-w-[200px] text-right">Toque no item para adicionar ao seu pedido.</p>
-               {establishmentMenuUrl && (
-                 <button type="button" onClick={() => setMenuQrOpen(true)} aria-label="Ampliar QR code do cardápio" className="flex shrink-0 flex-col items-center gap-1 rounded-2xl border border-border bg-card p-2 text-[10px] font-bold text-foreground shadow-sm transition hover:border-primary/50 hover:text-primary sm:p-2.5 sm:text-xs">
-                   <span className="rounded-lg bg-white p-1">
-                     <QRCodeSVG value={establishmentMenuUrl} size={64} level="H" />
-                   </span>
-                   <span>QR do cardápio</span>
-                 </button>
-               )}
+             <div className="relative z-10 mt-6 flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-300 sm:text-xs">
+               <span className="rounded-full bg-white/10 px-3 py-1.5">✦ Escolha seu sabor</span><span className="rounded-full bg-white/10 px-3 py-1.5">✦ Adicione ao carrinho</span><span className="rounded-full bg-white/10 px-3 py-1.5">✦ Retire no balcão</span>
              </div>
-           </motion.div>
-           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5 pt-2">
+           </motion.section>
+           <div className="mb-4 flex items-end justify-between gap-3">
+             <div><p className="text-[10px] font-black uppercase tracking-[.2em] text-primary">Explore o menu</p><h3 className="mt-1 font-display text-xl font-black text-foreground sm:text-2xl">{categoryFilter === 'todos' ? 'O que vai ser hoje?' : CATEGORY_TABS.find((tab) => tab.key === categoryFilter)?.label}</h3></div>
+             <span className="text-xs font-bold text-muted-foreground">{visibleProducts.length} {visibleProducts.length === 1 ? 'opção' : 'opções'}</span>
+           </div>
+           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} id="menu-products" className="grid grid-cols-2 gap-3 pt-1 sm:grid-cols-3 sm:gap-5 xl:grid-cols-4">
             {loadingProducts ? (
               <div className="col-span-full flex items-center justify-center py-24">
                 <Loader2 className="w-12 h-12 text-white animate-spin" />
@@ -306,7 +320,7 @@ export function Home() {
                         cartStore.add(product.id, product.name, price);
                          toast.success(`${product.name} adicionado!`, { duration: 1200 });
                       }}
-                       className={`relative nexus-surface p-3 sm:p-4 rounded-[1.35rem] text-left flex flex-col h-full ${disabled ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:-translate-y-1 hover:shadow-lg'}`}>
+                       className={`group relative flex h-full flex-col overflow-hidden rounded-[1.6rem] border p-2.5 text-left transition-all duration-300 sm:rounded-[1.8rem] sm:p-4 ${isStarNexus ? 'border-white/10 bg-[#171c24] shadow-[0_12px_30px_rgba(0,0,0,.24)]' : 'border-black/[.045] bg-white shadow-[0_8px_24px_rgba(36,31,24,.055)]'} ${disabled ? 'cursor-not-allowed opacity-55 grayscale' : 'hover:-translate-y-1 hover:shadow-[0_18px_38px_rgba(0,0,0,.22)]'}`}>
                       {product.sazonal && (
                         <span className="absolute top-4 left-4 z-10 flex items-center gap-1 bg-amber-400 text-amber-950 text-[10px] sm:text-xs font-black px-3 py-1 rounded-full shadow-md">
                           <Sparkles className="w-3 h-3" /> SAZONAL
@@ -325,23 +339,23 @@ export function Home() {
                        >
                          <Heart className={`w-4 h-4 ${favoriteIds.includes(product.id) ? 'fill-current' : ''}`} />
                        </span>
-                        <div className="w-full aspect-[1.15] bg-[#fffaf3] rounded-xl flex items-center justify-center mb-3 shadow-inner overflow-hidden">
+                        <div className={`mb-3 flex aspect-[1/1] w-full items-center justify-center overflow-hidden rounded-[1.2rem] sm:rounded-[1.4rem] ${isStarNexus ? 'bg-[#202630]' : 'bg-[#f5f0e8]'}`}>
                          <motion.div whileHover={disabled ? {} : { rotate: 5, scale: 1.1 }} className="w-full h-full flex items-center justify-center">
                            {product.imageUrl ? (
-                             <img src={product.imageUrl} alt="" className="w-full h-full object-cover" />
+                             <img src={product.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                            ) : referenceFoodImage(product) ? (
-                             <img src={`${REFERENCE_ASSET}${referenceFoodImage(product)}`} alt="" className="w-[76%] h-[76%] object-contain" />
+                             <img src={`${REFERENCE_ASSET}${referenceFoodImage(product)}`} alt="" className="h-[82%] w-[82%] object-contain transition-transform duration-500 group-hover:scale-110" />
                            ) : (
                              <span className="text-5xl sm:text-7xl" role="img" aria-label={product.name}>{product.emoji}</span>
                            )}
                          </motion.div>
                       </div>
                       <div className="flex-1 flex flex-col justify-end">
-                         <h3 className="text-sm sm:text-lg font-display font-bold text-foreground mb-2 leading-tight">{product.name}</h3>
+                         <h3 className="mb-2 line-clamp-2 text-[13px] font-extrabold leading-tight text-foreground sm:text-lg">{product.name}</h3>
                         <div className="flex items-end gap-2 flex-wrap mt-auto">
-                           <span className="text-base sm:text-xl font-black text-primary">{formatCurrency(price)}</span>
+                           <span className="text-base font-black text-primary sm:text-xl">{formatCurrency(price)}</span>
                            {hasPromo && <span className="text-[10px] sm:text-xs font-bold text-muted-foreground line-through mb-1">{formatCurrency(original)}</span>}
-                           <span className="ml-auto w-8 h-8 sm:w-9 sm:h-9 rounded-lg border-2 border-primary/60 text-primary flex items-center justify-center"><Plus className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={2.5} /></span>
+                           <span className="ml-auto flex h-8 w-8 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-orange-950/25 sm:h-9 sm:w-9"><Plus className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.5} /></span>
                         </div>
                       </div>
                       {disabled && (
@@ -353,15 +367,17 @@ export function Home() {
                   );
                 })}
                 {!loadingProducts && visibleProducts.length === 0 && (
-                  <div className="col-span-full text-center text-white/90 text-lg sm:text-2xl font-bold py-24 bg-black/10 rounded-[2rem] backdrop-blur-sm border-2 border-white/20">
-                     <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-card/70 border border-border flex items-center justify-center"><Search className="w-7 h-7 text-muted-foreground" /></div>
-                    Nenhum produto nesta categoria.
+                  <div className={`col-span-full rounded-[1.8rem] border border-dashed border-border px-5 py-14 text-center ${isStarNexus ? 'bg-[#171c24]' : 'bg-white/70'}`}>
+                     <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fff0df] text-primary"><Search className="h-6 w-6" /></div>
+                     <p className="font-display text-lg font-black text-foreground">Essa prateleira está vazia</p>
+                     <p className="mt-1 text-sm text-muted-foreground">Ainda não há itens disponíveis nesta categoria.</p>
+                     <button type="button" onClick={() => setCategoryFilter('todos')} className="mt-5 rounded-full bg-foreground px-5 py-2.5 text-xs font-black text-white">Ver todo o cardápio</button>
                   </div>
                 )}
                </AnimatePresence>
              )}
            </motion.div>
-           <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .18 }} className="mt-5 sm:mt-7 relative aspect-[82/27] overflow-hidden rounded-[1.5rem] border border-[#F8D8B1] bg-[#FFF0DC]">
+           <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .18 }} className="mt-7 sm:mt-9 relative aspect-[82/27] overflow-hidden rounded-[1.5rem] border border-[#F8D8B1] bg-[#FFF0DC] shadow-[0_16px_40px_rgba(140,76,20,.10)]">
              <button onClick={() => setCategoryFilter('combo')} className="absolute inset-0 z-10 cursor-pointer" aria-label="Ver combos" />
            <img src={`${REFERENCE_ASSET}combo-banner.webp`} alt="Combos que cabem no seu fome. Mais sabor por um preço especial." className="absolute inset-0 block h-full w-full object-cover object-center" />
            </motion.section>

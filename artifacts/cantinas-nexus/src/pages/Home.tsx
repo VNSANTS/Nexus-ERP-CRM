@@ -188,7 +188,7 @@ export function Home() {
   const getStock = (productId: string) => stock.find((s) => s.productId === productId)?.quantidade ?? 0;
 
   const whatsappUrl = `https://wa.me/${settings?.whatsappNumero ?? '5511999999999'}`;
-  const isStarNexus = /star\\s*nexus/i.test(settings?.nomeLoja ?? '');
+  const isStarNexus = /star\s*nexus/i.test(settings?.nomeLoja ?? '');
   const menuPrimary = settings?.menuPrimaryColor ?? '#ff6600';
   const menuBackground = isStarNexus ? '#10141a' : (settings?.menuBackgroundColor ?? '#f7f3ed');
   const menuTheme = {

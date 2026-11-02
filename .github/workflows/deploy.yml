@@ -64,6 +64,7 @@ jobs:
           path: artifacts/cantinas-nexus/dist/public
 
   deploy:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
     environment:

@@ -283,9 +283,7 @@ export function Home() {
 </div></motion.section>
 <div className="starnexus-marquee relative -mx-4 mb-12 overflow-hidden border-y border-orange-500/30 bg-[#ff6a00] py-4 text-[#17120e] sm:-mx-8 lg:-mx-12"><div className="flex w-max animate-[starnexus-marquee_28s_linear_infinite] gap-8 whitespace-nowrap font-display text-2xl font-black uppercase tracking-wide sm:text-3xl">{Array.from({length:2}).map((_,index)=><div key={index} aria-hidden={index===1} className="flex items-center gap-8">{['SMASH NA CHAPA','INGREDIENTES SELECIONADOS','COMBINAÇÕES INCRÍVEIS','SEU MOMENTO. SEU SABOR.'].map(item=><span key={item} className="flex items-center gap-8">{item}<span aria-hidden="true">✳</span></span>)}</div>)}</div></div>
 <div className="mb-6 flex items-end justify-between gap-3"><div><p className="font-mono text-[10px] font-bold uppercase tracking-[.28em] text-primary">// 01 — CARDÁPIO</p><h3 className="mt-2 font-display text-3xl font-black uppercase tracking-tight text-foreground sm:text-5xl">{categoryFilter === 'todos' ? 'Escolha sua trajetória' : CATEGORY_TABS.find((tab) => tab.key === categoryFilter)?.label}</h3></div><span className="font-mono text-[10px] uppercase tracking-[.16em] text-muted-foreground">{visibleProducts.length} {visibleProducts.length === 1 ? 'opção' : 'opções'}</span></div>
-             <div><p className="text-[10px] font-black uppercase tracking-[.2em] text-primary">Explore o menu</p><h3 className="mt-1 font-display text-xl font-black text-foreground sm:text-2xl">{categoryFilter === 'todos' ? 'O que vai ser hoje?' : CATEGORY_TABS.find((tab) => tab.key === categoryFilter)?.label}</h3></div>
-             <span className="text-xs font-bold text-muted-foreground">{visibleProducts.length} {visibleProducts.length === 1 ? 'opção' : 'opções'}</span>
-           </div>
+
            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} id="menu-products" className="grid grid-cols-2 gap-3 pt-1 sm:grid-cols-3 sm:gap-5 xl:grid-cols-4">
             {loadingProducts ? (
               <div className="col-span-full flex items-center justify-center py-24">
@@ -550,7 +548,7 @@ export function Home() {
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className={`relative w-full sm:max-w-md md:max-w-lg h-full shadow-2xl flex flex-col z-10 sm:rounded-l-[2rem] overflow-hidden ${isStarNexus ? "bg-[#15191f] text-white" : "bg-white text-gray-900"}`}>
               <div className={`p-6 sm:p-8 flex justify-between items-center border-b ${isStarNexus ? "bg-[#1d232d] border-white/10" : "bg-gray-50 border-gray-100"}`}>
-                <h2 className="text-2xl sm:text-3xl font-display font-extrabold text-gray-900 flex items-center gap-3">
+                <h2 className={`text-2xl sm:text-3xl font-display font-extrabold flex items-center gap-3 ${isStarNexus ? "text-white" : "text-gray-900"}`}>
                   <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8 text-primary" /> Seu Pedido
                 </h2>
                 <div className="flex items-center gap-2">
@@ -584,7 +582,7 @@ export function Home() {
                             {products.find((p: ApiProduct) => p.id === item.productId)?.emoji}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-bold text-gray-900 text-lg sm:text-xl truncate mb-1">{item.name}</h3>
+                            <h3 className={`font-bold text-lg sm:text-xl truncate mb-1 ${isStarNexus ? "text-white" : "text-gray-900"}`}>{item.name}</h3>
                             <p className="text-primary font-black text-lg">{formatCurrency(item.price * item.qty)}</p>
                           </div>
                           <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3 bg-white rounded-xl shadow-sm p-1.5 border border-gray-200">
@@ -633,7 +631,7 @@ export function Home() {
               {cart.length > 0 && (
                 <div className={`p-6 sm:p-8 border-t space-y-4 shrink-0 ${isStarNexus ? "bg-[#1d232d] border-white/10" : "bg-white border-gray-100"}`}>
                   <div className="flex justify-between items-center">
-                    <span className="text-xl sm:text-2xl font-bold text-gray-700">Total</span>
+                    <span className={`text-xl sm:text-2xl font-bold ${isStarNexus ? "text-white/70" : "text-gray-700"}`}>Total</span>
                     <span className="text-2xl sm:text-3xl font-black text-primary">{formatCurrency(totalCart)}</span>
                   </div>
                   <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}

@@ -24,21 +24,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout do repositório
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Instala pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 11
 
       - name: Instala Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
 
       - name: Instala dependências
         run: pnpm install --frozen-lockfile
+
+      - name: Verifica tipos TypeScript
+        run: pnpm --filter @workspace/cantinas-nexus run typecheck
 
       - name: Build do frontend (cantinas-nexus)
         env:

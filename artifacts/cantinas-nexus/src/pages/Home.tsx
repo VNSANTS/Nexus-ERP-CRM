@@ -181,6 +181,8 @@ export function Home() {
     });
   }, [products, categoryFilter]);
 
+  const featuredCombo = products.find((p: ApiProduct) => p.categoria === 'combo' && p.disponivel);
+
   const loyaltyStatus = isAccountPhone && loyaltyRecord
     ? computeLoyaltyStatus(telefoneTrim, [loyaltyRecord])
     : null;
@@ -284,7 +286,7 @@ export function Home() {
 <div className="starnexus-marquee relative -mx-4 mb-12 overflow-hidden border-y border-orange-500/30 bg-[#ff6a00] py-4 text-[#17120e] sm:-mx-8 lg:-mx-12"><div className="flex w-max animate-[starnexus-marquee_28s_linear_infinite] gap-8 whitespace-nowrap font-display text-2xl font-black uppercase tracking-wide sm:text-3xl">{Array.from({length:2}).map((_,index)=><div key={index} aria-hidden={index===1} className="flex items-center gap-8">{['SMASH NA CHAPA','INGREDIENTES SELECIONADOS','COMBINAÇÕES INCRÍVEIS','SEU MOMENTO. SEU SABOR.'].map(item=><span key={item} className="flex items-center gap-8">{item}<span aria-hidden="true">✳</span></span>)}</div>)}</div></div>
 <div className="mb-6 flex items-end justify-between gap-3"><div><p className="font-mono text-[10px] font-bold uppercase tracking-[.28em] text-primary">// 01 — CARDÁPIO</p><h3 className="mt-2 font-display text-3xl font-black uppercase tracking-tight text-foreground sm:text-5xl">{categoryFilter === 'todos' ? 'Escolha sua trajetória' : CATEGORY_TABS.find((tab) => tab.key === categoryFilter)?.label}</h3></div><span className="font-mono text-[10px] uppercase tracking-[.16em] text-muted-foreground">{visibleProducts.length} {visibleProducts.length === 1 ? 'opção' : 'opções'}</span></div>
 
-           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} id="menu-products" className="grid grid-cols-2 gap-3 pt-1 sm:grid-cols-3 sm:gap-5 xl:grid-cols-4">
+           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} id="menu-products" className="grid grid-cols-1 gap-5 pt-1 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
             {loadingProducts ? (
               <div className="col-span-full flex items-center justify-center py-24">
                 <Loader2 className="w-12 h-12 text-white animate-spin" />
@@ -331,7 +333,7 @@ export function Home() {
                        >
                          <Heart className={`w-4 h-4 ${favoriteIds.includes(product.id) ? 'fill-current' : ''}`} />
                        </span>
-                        <div className={`mb-3 flex aspect-[1/1] w-full items-center justify-center overflow-hidden rounded-[1.2rem] sm:rounded-[1.4rem] ${isStarNexus ? 'bg-[#202630]' : 'bg-[#f5f0e8]'}`}>
+                        <div className={`mb-4 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-[1.2rem] sm:rounded-[1.4rem] ${isStarNexus ? 'bg-[#202630]' : 'bg-[#f5f0e8]'}`}>
                          <motion.div whileHover={disabled ? {} : { rotate: 5, scale: 1.1 }} className="w-full h-full flex items-center justify-center">
                            {product.imageUrl ? (
                              <img src={product.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -369,10 +371,38 @@ export function Home() {
                </AnimatePresence>
              )}
            </motion.div>
-           <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .18 }} className="mt-7 sm:mt-9 relative aspect-[82/27] overflow-hidden rounded-[1.5rem] border border-[#F8D8B1] bg-[#FFF0DC] shadow-[0_16px_40px_rgba(140,76,20,.10)]">
-             <button onClick={() => setCategoryFilter('combo')} className="absolute inset-0 z-10 cursor-pointer" aria-label="Ver combos" />
-           <img src={`${REFERENCE_ASSET}combo-banner.webp`} alt="Combos que cabem no seu fome. Mais sabor por um preço especial." className="absolute inset-0 block h-full w-full object-cover object-center" />
-           </motion.section>
+           {featuredCombo ? (
+              <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .18 }}
+                className={`group relative mt-10 grid min-h-[360px] overflow-hidden rounded-[2rem] border ${isStarNexus ? 'border-white/10 bg-[#171c24]' : 'border-orange-100 bg-[#fff7ed]'} shadow-[0_28px_70px_rgba(0,0,0,.22)] md:mt-14 md:min-h-[470px] md:grid-cols-12`}>
+                <div className="relative min-h-[250px] overflow-hidden md:col-span-7 md:min-h-[470px]">
+                  <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_45%_48%,rgba(255,106,0,.24),transparent_58%)]" />
+                  <div aria-hidden="true" className="absolute inset-[8%] rounded-full border border-orange-400/20" />
+                  <div aria-hidden="true" className="absolute inset-[17%] rounded-full border border-dashed border-white/10" />
+                  <img src={featuredCombo.imageUrl || (referenceFoodImage(featuredCombo) ? `${REFERENCE_ASSET}${referenceFoodImage(featuredCombo)}` : `${REFERENCE_ASSET}food-combo.webp`)}
+                    alt={featuredCombo.name} loading="lazy" className="absolute inset-0 h-full w-full object-contain p-5 transition-transform duration-700 group-hover:scale-105 sm:p-8" />
+                  <span className="absolute bottom-4 left-5 font-display text-[16vw] font-black uppercase leading-none text-white/10 md:text-[9vw]">COMBO</span>
+                </div>
+                <div className="relative z-10 flex flex-col justify-center px-6 py-9 sm:px-10 md:col-span-5 md:px-12">
+                  <p className="font-mono text-[10px] font-bold uppercase tracking-[.3em] text-primary">// 02 — DESTAQUE DA CASA</p>
+                  <h3 className="mt-4 font-display text-4xl font-black uppercase leading-[.9] tracking-tight sm:text-5xl">{featuredCombo.name}</h3>
+                  <p className="mt-5 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">Uma combinação especial preparada para transformar sua próxima pausa em um momento memorável.</p>
+                  <div className="mt-7 flex flex-wrap items-end gap-4">
+                    <div><p className="font-mono text-[9px] uppercase tracking-[.2em] text-muted-foreground">A partir de</p><p className="font-display text-4xl font-black text-primary">{formatCurrency(getEffectivePrice(featuredCombo, promotions).price)}</p></div>
+                    <button type="button" onClick={() => { const comboPrice = getEffectivePrice(featuredCombo, promotions).price; cartStore.add(featuredCombo.id, featuredCombo.name, comboPrice); toast.success(`${featuredCombo.name} adicionado!`, { duration: 1200 }); }}
+                      disabled={getStock(featuredCombo.id) <= 0}
+                      className="inline-flex items-center gap-2 rounded-full bg-[#ff6a00] px-6 py-3.5 text-xs font-black uppercase tracking-[.14em] text-white shadow-[0_12px_35px_rgba(255,106,0,.24)] transition-all hover:-translate-y-1 hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50">
+                      Adicionar combo <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <button type="button" onClick={() => setCategoryFilter('combo')} className="mt-5 self-start font-mono text-[10px] font-bold uppercase tracking-[.2em] text-muted-foreground transition-colors hover:text-primary">Explorar todos os combos ↗</button>
+                </div>
+              </motion.section>
+            ) : (
+              <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .18 }} className="mt-7 relative aspect-[82/27] overflow-hidden rounded-[1.5rem] border border-[#F8D8B1] bg-[#FFF0DC] shadow-[0_16px_40px_rgba(140,76,20,.10)]">
+                <button onClick={() => setCategoryFilter('combo')} className="absolute inset-0 z-10 cursor-pointer" aria-label="Ver combos" />
+                <img src={`${REFERENCE_ASSET}combo-banner.webp`} alt="Combos especiais" className="absolute inset-0 block h-full w-full object-cover object-center" />
+              </motion.section>
+            )}
            </>
         )}
 

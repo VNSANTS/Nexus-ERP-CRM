@@ -54,3 +54,9 @@ Thumbs.db
 
 # Arquivos zip grandes (nunca versionar)
 *.zip
+# Supabase CLI local state (may contain database connection details)
+supabase/.temp/
+supabase/.branches/
+supabase/.env
+supabase/.env.*
+!supabase/.env.example

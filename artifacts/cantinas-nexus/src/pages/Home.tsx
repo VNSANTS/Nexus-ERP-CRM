@@ -213,9 +213,9 @@ export function Home() {
   } as CSSProperties;
 
   return (
-    <div style={menuTheme} className="nexus-noise min-h-[100dvh] flex flex-col overflow-hidden relative bg-background">
+    <div style={menuTheme} className="nexus-noise min-h-[100dvh] flex flex-col overflow-hidden relative bg-background">{isStarNexus && <style>{'@keyframes starnexus-marquee{to{transform:translateX(-50%)}}.starnexus-grid{background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(to right,black,transparent 90%)}.starnexus-outline{color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.55)}.starnexus-orbit{transform:rotate(-28deg);box-shadow:0 0 80px rgba(255,106,0,.06),inset 0 0 80px rgba(255,106,0,.04)}.starnexus-orbit-one{animation:starnexus-spin 55s linear infinite}.starnexus-orbit-two{animation:starnexus-spin 75s linear infinite reverse}@keyframes starnexus-spin{to{transform:rotate(332deg)}}@media(prefers-reduced-motion:reduce){.starnexus-orbit-one,.starnexus-orbit-two,.starnexus-marquee>div{animation:none!important}}'}</style>}
       {/* HEADER — marca e ações rápidas */}
-      <header className="relative z-20 mx-auto flex w-full max-w-[1500px] items-center justify-between gap-3 px-4 pb-4 pt-4 sm:px-8 sm:pt-6 lg:px-12">
+      <header className="relative z-30 mx-auto flex w-full max-w-[1500px] items-center justify-between gap-3 border-b border-white/5 px-4 pb-4 pt-4 sm:px-8 sm:pt-6 lg:px-12">
         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <div className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl shadow-sm ring-1 ring-white/10 sm:h-16 sm:w-16 ${isStarNexus ? 'bg-[#1b2028]' : 'bg-white ring-black/5'}`}>
             <img src={settings?.logoUrl || `${REFERENCE_ASSET}logo.webp`} alt={settings?.nomeLoja || 'Logo do estabelecimento'} className="h-full w-full object-contain" />
@@ -249,7 +249,7 @@ export function Home() {
       <AnimatePresence>
         {view === 'menu' && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }}
-             className="sticky top-0 z-20 mx-auto flex w-full max-w-[1500px] shrink-0 gap-2 overflow-x-auto bg-background/90 px-4 pb-4 pt-2 backdrop-blur-xl hide-scrollbar sm:gap-3 sm:px-8 lg:px-12">
+             className="sticky top-0 z-20 mx-auto flex w-full max-w-[1500px] shrink-0 gap-2 overflow-x-auto border-b border-border/60 bg-background/90 px-4 pb-4 pt-3 backdrop-blur-2xl hide-scrollbar sm:gap-3 sm:px-8 lg:px-12">
             {CATEGORY_TABS.map((tab) => {
               const isActive = categoryFilter === tab.key;
               return (
@@ -268,30 +268,22 @@ export function Home() {
        <main className="flex-1 overflow-y-auto px-4 sm:px-8 lg:px-12 pb-24 relative z-0 hide-scrollbar max-w-[1500px] w-full mx-auto">
         {view === 'menu' && (
            <>
-           <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="relative mb-7 mt-2 overflow-hidden rounded-[2rem] border border-white/10 bg-[#0c1016] px-5 py-7 text-white shadow-[0_24px_60px_rgba(0,0,0,.32)] sm:mb-9 sm:px-10 sm:py-10">
-             <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-24 h-64 w-64 rounded-full bg-orange-500/25 blur-3xl" />
-             <div aria-hidden="true" className="pointer-events-none absolute bottom-[-5rem] right-[22%] h-44 w-44 rounded-full bg-amber-300/15 blur-3xl" />
-             {isStarNexus && <img src={`${REFERENCE_ASSET}food-combo.webp`} alt="" aria-hidden="true" className="pointer-events-none absolute -bottom-5 -right-8 z-0 h-[82%] w-[58%] object-contain drop-shadow-[0_18px_24px_rgba(0,0,0,.55)] sm:-right-2 sm:h-[92%] sm:w-[52%]" />}
-             <div className="pointer-events-none absolute inset-y-0 right-0 z-[1] w-[68%] bg-gradient-to-l from-transparent via-[#0c1016]/30 to-[#0c1016]" />
-             <div className="relative z-10 flex items-end justify-between gap-3">
-               <div className="max-w-xl">
-                 <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.2em] text-orange-200 sm:text-xs"><Sparkles className="h-3.5 w-3.5" /> Feito para matar a fome</p>
-                 <h2 className="max-w-lg font-display text-3xl font-black leading-[1.02] tracking-tight sm:text-5xl">Bateu a fome?<br /><span className="text-orange-400">Seu próximo favorito</span> está aqui.</h2>
-                 <p className="mt-3 max-w-sm text-xs font-medium leading-relaxed text-slate-300 sm:text-sm">Escolha, peça e aproveite. Tudo fresquinho, sem complicação.</p>
-                 <button type="button" onClick={() => document.getElementById('menu-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#ff6a00] px-5 py-3 text-xs font-black text-white shadow-lg shadow-orange-950/40 transition hover:bg-[#ff8126] sm:text-sm">Explorar cardápio <span aria-hidden="true">→</span></button>
-               </div>
-               <div className="flex shrink-0 flex-col items-center gap-2">
-                 {establishmentMenuUrl && <button type="button" onClick={() => setMenuQrOpen(true)} aria-label="Ampliar QR code do cardápio" className="rounded-2xl border border-white/15 bg-white p-2 text-[10px] font-bold text-slate-800 shadow-xl sm:p-3 sm:text-xs"><QRCodeSVG value={establishmentMenuUrl} size={58} level="H" /><span className="mt-1 block">Compartilhar</span></button>}
-               </div>
-             </div>
-             <div className="relative z-10 mt-6 flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-300 sm:text-xs">
-               <span className="rounded-full bg-white/10 px-3 py-1.5">✦ Escolha seu sabor</span><span className="rounded-full bg-white/10 px-3 py-1.5">✦ Adicione ao carrinho</span><span className="rounded-full bg-white/10 px-3 py-1.5">✦ Retire no balcão</span>
-             </div>
-           </motion.section>
-           <div className="mb-4 flex items-end justify-between gap-3">
-             <div><p className="text-[10px] font-black uppercase tracking-[.2em] text-primary">Explore o menu</p><h3 className="mt-1 font-display text-xl font-black text-foreground sm:text-2xl">{categoryFilter === 'todos' ? 'O que vai ser hoje?' : CATEGORY_TABS.find((tab) => tab.key === categoryFilter)?.label}</h3></div>
-             <span className="text-xs font-bold text-muted-foreground">{visibleProducts.length} {visibleProducts.length === 1 ? 'opção' : 'opções'}</span>
-           </div>
+           <motion.section initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="starnexus-hero relative isolate mb-10 mt-3 min-h-[540px] overflow-hidden rounded-[2rem] border border-white/10 bg-[#101116] text-white shadow-[0_35px_100px_rgba(0,0,0,.45)] sm:min-h-[610px] lg:min-h-[660px]">
+<div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-50" style={{backgroundImage:"radial-gradient(ellipse at 76% 42%, rgba(255,104,0,.32), transparent 38%), radial-gradient(ellipse at 15% 100%, rgba(255,104,0,.12), transparent 38%)"}} />
+<div aria-hidden="true" className="starnexus-grid pointer-events-none absolute inset-0 opacity-30" />
+<div aria-hidden="true" className="starnexus-orbit starnexus-orbit-one absolute right-[-15%] top-[5%] h-[78%] aspect-square rounded-full border border-orange-400/20" />
+<div aria-hidden="true" className="starnexus-orbit starnexus-orbit-two absolute right-[-7%] top-[12%] h-[64%] aspect-square rounded-full border border-white/10" />
+{isStarNexus && <img src={`${REFERENCE_ASSET}food-combo.webp`} alt="" aria-hidden="true" className="pointer-events-none absolute -right-[16%] bottom-[-13%] z-[1] h-[92%] w-[90%] object-contain drop-shadow-[0_35px_45px_rgba(0,0,0,.65)] sm:-right-[7%] sm:bottom-[-16%] sm:h-[112%] sm:w-[78%] lg:right-[-2%] lg:h-[118%] lg:w-[68%]" /> }
+<div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[2] bg-gradient-to-r from-[#101116] via-[#101116]/90 to-transparent" />
+<div className="relative z-10 flex min-h-[540px] flex-col justify-between p-6 sm:min-h-[610px] sm:p-10 lg:min-h-[660px] lg:p-14">
+<div className="flex items-center justify-between gap-4"><p className="inline-flex items-center gap-2 rounded-full border border-orange-400/30 bg-orange-400/10 px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-[.24em] text-orange-200 sm:text-xs"><Sparkles className="h-3.5 w-3.5" /> EXPERIÊNCIA FORA DO COMUM</p><span className="hidden font-mono text-[10px] uppercase tracking-[.25em] text-white/40 sm:block">Nº 001 / MENU DIGITAL</span></div>
+<div className="grid items-end gap-8 lg:grid-cols-[1fr_auto]"><div className="max-w-3xl"><p className="mb-4 font-mono text-[10px] uppercase tracking-[.32em] text-orange-300 sm:text-xs">// SUA FOME. NOSSA MISSÃO.</p><h2 className="max-w-3xl font-display text-[clamp(3.5rem,10vw,8.8rem)] font-black uppercase leading-[.78] tracking-[-.055em]">O sabor<br /><span className="starnexus-outline">em outra</span><br /><span className="text-orange-400">órbita.</span></h2><p className="mt-7 max-w-md text-sm leading-relaxed text-white/65 sm:text-base">Descubra combinações que surpreendem. Escolha seu favorito e deixe o resto com a gente.</p><div className="mt-8 flex flex-wrap items-center gap-3"><button type="button" onClick={() => document.getElementById('menu-products')?.scrollIntoView({behavior:'smooth',block:'start'})} className="group inline-flex items-center gap-3 rounded-full bg-[#ff6a00] px-7 py-4 text-xs font-black uppercase tracking-[.16em] text-white shadow-[0_12px_40px_rgba(255,106,0,.25)] transition-all hover:-translate-y-1 hover:bg-orange-500 sm:text-sm">Explorar cardápio <span className="text-lg transition-transform group-hover:translate-x-1">↗</span></button><span className="rounded-full border border-white/15 px-5 py-4 font-mono text-[10px] uppercase tracking-[.18em] text-white/55">Feito na hora · Feito pra você</span></div></div>
+<div className="flex items-end justify-between gap-4 lg:flex-col lg:items-end"><div className="hidden text-right lg:block"><p className="font-display text-6xl font-black leading-none text-white/10">SN—01</p><p className="mt-2 font-mono text-[9px] uppercase tracking-[.25em] text-white/40">Sabor em movimento</p></div>{establishmentMenuUrl && <button type="button" onClick={() => setMenuQrOpen(true)} aria-label="Ampliar QR code do cardápio" className="rounded-2xl border border-white/15 bg-white p-3 text-[10px] font-bold text-slate-800 shadow-2xl transition-transform hover:-translate-y-1"><QRCodeSVG value={establishmentMenuUrl} size={68} level="H" /><span className="mt-1 block">COMPARTILHAR</span></button>}</div></div>
+<div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-5 font-mono text-[9px] uppercase tracking-[.2em] text-white/40 sm:text-[10px]"><span>01 — Escolha seu sabor</span><span>02 — Monte seu pedido</span><span>03 — Aproveite o momento</span><span className="text-orange-300">SCROLL TO EXPLORE ↓</span></div>
+</div></motion.section>
+<div className="starnexus-marquee relative -mx-4 mb-12 overflow-hidden border-y border-orange-500/30 bg-[#ff6a00] py-4 text-[#17120e] sm:-mx-8 lg:-mx-12"><div className="flex w-max animate-[starnexus-marquee_28s_linear_infinite] gap-8 whitespace-nowrap font-display text-2xl font-black uppercase tracking-wide sm:text-3xl">{Array.from({length:2}).map((_,index)=><div key={index} aria-hidden={index===1} className="flex items-center gap-8">{['SMASH NA CHAPA','INGREDIENTES SELECIONADOS','COMBINAÇÕES INCRÍVEIS','SEU MOMENTO. SEU SABOR.'].map(item=><span key={item} className="flex items-center gap-8">{item}<span aria-hidden="true">✳</span></span>)}</div>)}</div></div>
+<div className="mb-6 flex items-end justify-between gap-3"><div><p className="font-mono text-[10px] font-bold uppercase tracking-[.28em] text-primary">// 01 — CARDÁPIO</p><h3 className="mt-2 font-display text-3xl font-black uppercase tracking-tight text-foreground sm:text-5xl">{categoryFilter === 'todos' ? 'Escolha sua trajetória' : CATEGORY_TABS.find((tab) => tab.key === categoryFilter)?.label}</h3></div><span className="font-mono text-[10px] uppercase tracking-[.16em] text-muted-foreground">{visibleProducts.length} {visibleProducts.length === 1 ? 'opção' : 'opções'}</span></div>
+
            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} id="menu-products" className="grid grid-cols-2 gap-3 pt-1 sm:grid-cols-3 sm:gap-5 xl:grid-cols-4">
             {loadingProducts ? (
               <div className="col-span-full flex items-center justify-center py-24">
@@ -320,7 +312,7 @@ export function Home() {
                         cartStore.add(product.id, product.name, price);
                          toast.success(`${product.name} adicionado!`, { duration: 1200 });
                       }}
-                       className={`group relative flex h-full flex-col overflow-hidden rounded-[1.6rem] border p-2.5 text-left transition-all duration-300 sm:rounded-[1.8rem] sm:p-4 ${isStarNexus ? 'border-white/10 bg-[#171c24] shadow-[0_12px_30px_rgba(0,0,0,.24)]' : 'border-black/[.045] bg-white shadow-[0_8px_24px_rgba(36,31,24,.055)]'} ${disabled ? 'cursor-not-allowed opacity-55 grayscale' : 'hover:-translate-y-1 hover:shadow-[0_18px_38px_rgba(0,0,0,.22)]'}`}>
+                       className={`group relative flex h-full flex-col overflow-hidden rounded-[1.6rem] border p-2.5 text-left transition-all duration-300 sm:rounded-[1.8rem] sm:p-4 ${isStarNexus ? 'border-white/[.09] bg-gradient-to-b from-[#202630] to-[#15191f] shadow-[0_20px_45px_rgba(0,0,0,.3)]' : 'border-black/[.045] bg-white shadow-[0_8px_24px_rgba(36,31,24,.055)]'} ${disabled ? 'cursor-not-allowed opacity-55 grayscale' : 'hover:-translate-y-2 hover:border-primary/40 hover:shadow-[0_25px_55px_rgba(0,0,0,.3)]'}`}>
                       {product.sazonal && (
                         <span className="absolute top-4 left-4 z-10 flex items-center gap-1 bg-amber-400 text-amber-950 text-[10px] sm:text-xs font-black px-3 py-1 rounded-full shadow-md">
                           <Sparkles className="w-3 h-3" /> SAZONAL
@@ -351,9 +343,9 @@ export function Home() {
                          </motion.div>
                       </div>
                       <div className="flex-1 flex flex-col justify-end">
-                         <h3 className="mb-2 line-clamp-2 text-[13px] font-extrabold leading-tight text-foreground sm:text-lg">{product.name}</h3>
+                         <h3 className="mb-2 line-clamp-2 font-display text-base font-black uppercase leading-[.95] tracking-tight text-foreground sm:text-xl">{product.name}</h3>
                         <div className="flex items-end gap-2 flex-wrap mt-auto">
-                           <span className="text-base font-black text-primary sm:text-xl">{formatCurrency(price)}</span>
+                           <span className="font-display text-xl font-black text-primary sm:text-2xl">{formatCurrency(price)}</span>
                            {hasPromo && <span className="text-[10px] sm:text-xs font-bold text-muted-foreground line-through mb-1">{formatCurrency(original)}</span>}
                            <span className="ml-auto flex h-8 w-8 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-orange-950/25 sm:h-9 sm:w-9"><Plus className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.5} /></span>
                         </div>
@@ -554,9 +546,9 @@ export function Home() {
               className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCartOpen(false)} />
             <motion.aside initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="relative w-full sm:max-w-md md:max-w-lg h-full bg-white shadow-2xl flex flex-col z-10 sm:rounded-l-[2rem] overflow-hidden">
-              <div className="p-6 sm:p-8 flex justify-between items-center bg-gray-50 border-b border-gray-100">
-                <h2 className="text-2xl sm:text-3xl font-display font-extrabold text-gray-900 flex items-center gap-3">
+              className={`relative w-full sm:max-w-md md:max-w-lg h-full shadow-2xl flex flex-col z-10 sm:rounded-l-[2rem] overflow-hidden ${isStarNexus ? "bg-[#15191f] text-white" : "bg-white text-gray-900"}`}>
+              <div className={`p-6 sm:p-8 flex justify-between items-center border-b ${isStarNexus ? "bg-[#1d232d] border-white/10" : "bg-gray-50 border-gray-100"}`}>
+                <h2 className={`text-2xl sm:text-3xl font-display font-extrabold flex items-center gap-3 ${isStarNexus ? "text-white" : "text-gray-900"}`}>
                   <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8 text-primary" /> Seu Pedido
                 </h2>
                 <div className="flex items-center gap-2">
@@ -573,7 +565,7 @@ export function Home() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-white hide-scrollbar">
+              <div className={`flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 hide-scrollbar ${isStarNexus ? "bg-[#15191f]" : "bg-white"}`}>
                 {cart.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8 text-center">
                      <div className="w-32 h-32 bg-gray-50 rounded-full flex items-center justify-center mb-6 shadow-inner"><ShoppingCart className="w-14 h-14 text-muted-foreground" /></div>
@@ -590,7 +582,7 @@ export function Home() {
                             {products.find((p: ApiProduct) => p.id === item.productId)?.emoji}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-bold text-gray-900 text-lg sm:text-xl truncate mb-1">{item.name}</h3>
+                            <h3 className={`font-bold text-lg sm:text-xl truncate mb-1 ${isStarNexus ? "text-white" : "text-gray-900"}`}>{item.name}</h3>
                             <p className="text-primary font-black text-lg">{formatCurrency(item.price * item.qty)}</p>
                           </div>
                           <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3 bg-white rounded-xl shadow-sm p-1.5 border border-gray-200">
@@ -637,9 +629,9 @@ export function Home() {
               </div>
 
               {cart.length > 0 && (
-                <div className="p-6 sm:p-8 bg-white border-t border-gray-100 space-y-4 shrink-0">
+                <div className={`p-6 sm:p-8 border-t space-y-4 shrink-0 ${isStarNexus ? "bg-[#1d232d] border-white/10" : "bg-white border-gray-100"}`}>
                   <div className="flex justify-between items-center">
-                    <span className="text-xl sm:text-2xl font-bold text-gray-700">Total</span>
+                    <span className={`text-xl sm:text-2xl font-bold ${isStarNexus ? "text-white/70" : "text-gray-700"}`}>Total</span>
                     <span className="text-2xl sm:text-3xl font-black text-primary">{formatCurrency(totalCart)}</span>
                   </div>
                   <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}

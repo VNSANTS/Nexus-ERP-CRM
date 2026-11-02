@@ -1,6 +1,13 @@
 name: Deploy Nexus-ERP-CRM to GitHub Pages
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'artifacts/cantinas-nexus/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/deploy.yml'
   push:
     branches: [main]
     paths:

@@ -71,7 +71,7 @@ function hexToHsl(hex: string) {
 export function Home() {
   const qc = useQueryClient();
   const { profile } = useCustomerAuth();
-  const establishmentId = sessionStorage.getItem('nexus:establishmentId');
+  const establishmentId = sessionStorage.getItem('nexus:establishmentId') ?? sessionStorage.getItem('nexus:deviceEstablishmentId');
   const establishmentMenuUrl = establishmentId
     ? `${window.location.origin}${import.meta.env.BASE_URL}e/${encodeURIComponent(establishmentId)}`
     : null;
@@ -108,7 +108,7 @@ export function Home() {
   const isAccountPhone = Boolean(profile?.telefone && telefoneTrim &&
     normalizePhoneIdentity(profile.telefone) === normalizePhoneIdentity(telefoneTrim));
   const { data: loyaltyRecord = null } = useQuery({
-    queryKey: ['loyalty', profile?.id, sessionStorage.getItem('nexus:establishmentId')],
+    queryKey: ['loyalty', profile?.id, establishmentId],
     queryFn: api.customers.myLoyalty,
     enabled: isAccountPhone,
     refetchInterval: 60_000,

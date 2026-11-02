@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TabletSmartphone, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Home } from './Home';
 import { PasswordField } from '../components/PasswordField';
@@ -20,6 +21,8 @@ export function CardapioTablet() {
     return <DeviceLoginScreen onLogin={(token, establishmentId) => {
       sessionStorage.setItem(DEVICE_TOKEN_KEY, token);
       sessionStorage.setItem(DEVICE_ESTABLISHMENT_KEY, establishmentId);
+      // Home e a API pública usam a chave padrão; manter ambas evita perder o tenant no modo kiosk.
+      sessionStorage.setItem('nexus:establishmentId', establishmentId);
       setDeviceToken(token);
     }} />;
   }
@@ -73,43 +76,66 @@ function DeviceLoginScreen({ onLogin }: { onLogin: (token: string, establishment
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-900 px-4">
-      <div className="w-full max-w-xs rounded-2xl bg-white p-6 text-center">
-        <h1 className="text-lg font-semibold text-neutral-900">Configurar dispositivo</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Digite o código e a senha gerados pelo estabelecimento.
-        </p>
+    <div className="nexus-noise relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#172333] px-4 py-10">
+      <div aria-hidden="true" className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-[#ff6b1a]/20 blur-3xl" />
+      <div aria-hidden="true" className="pointer-events-none absolute -bottom-28 -right-20 h-96 w-96 rounded-full bg-sky-400/10 blur-3xl" />
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4 text-left">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-500">Código (6 dígitos)</label>
-            <input
-              value={codigo}
-              onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              inputMode="numeric"
-              maxLength={6}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-3 text-center text-2xl tracking-widest"
-              required
-            />
+      <section className="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-white/10 bg-white shadow-[0_28px_90px_rgba(0,0,0,.3)]">
+        <div className="bg-gradient-to-br from-[#24364b] to-[#172333] px-8 py-8 text-white">
+          <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ff6b1a] shadow-lg shadow-orange-950/30">
+            <TabletSmartphone className="h-7 w-7" aria-hidden="true" />
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-neutral-500">Senha</label>
-            <PasswordField
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-              required
-            />
+          <p className="text-xs font-black uppercase tracking-[.2em] text-orange-300">Nexus • Modo dispositivo</p>
+          <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Conectar tablet</h1>
+          <p className="mt-2 max-w-sm text-sm leading-relaxed text-slate-300">
+            Vincule este aparelho ao estabelecimento usando as credenciais geradas no painel ADM.
+          </p>
+        </div>
+
+        <div className="p-7 sm:p-8">
+          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-orange-100 bg-orange-50 p-4 text-sm text-orange-950">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-orange-600" aria-hidden="true" />
+            <p>Esta conexão mantém o tablet no cardápio do estabelecimento e permite revogar o dispositivo pelo painel.</p>
           </div>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-lg bg-neutral-900 py-2.5 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-60"
-          >
-            {submitting ? 'Conectando...' : 'Conectar'}
-          </button>
-        </form>
-      </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5 text-left">
+            <div>
+              <label htmlFor="device-code" className="mb-2 block text-sm font-bold text-slate-700">Código de 6 dígitos</label>
+              <input
+                id="device-code"
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="000000"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-center text-2xl font-black tracking-[.35em] text-slate-900 focus:border-orange-400 focus:bg-white"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="device-password" className="mb-2 block text-sm font-bold text-slate-700">Senha do dispositivo</label>
+              <PasswordField
+                id="device-password"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                autoComplete="current-password"
+                placeholder="Digite a senha"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 focus:border-orange-400 focus:bg-white"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full rounded-xl bg-[#f36b21] py-4 text-base font-black text-white shadow-lg shadow-orange-500/20 transition hover:-translate-y-0.5 hover:bg-[#df5b16] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {submitting ? 'Conectando ao Nexus…' : 'Conectar dispositivo'}
+            </button>
+          </form>
+          <p className="mt-6 text-center text-xs font-medium text-slate-400">Nexus ERP • Acesso protegido</p>
+        </div>
+      </section>
     </div>
   );
 }

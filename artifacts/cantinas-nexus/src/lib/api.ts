@@ -2,7 +2,7 @@
  * Nexus-ERP-CRM — cliente da API
  * Todas as chamadas ao backend passam por aqui.
  *
- * Leitura pública (totem, acompanhamento) -> direto no Supabase via RLS.
+ * Leitura pública (cardápio e acompanhamento) -> Edge Functions com escopo limitado.
  * Escrita e tudo que exige login da cozinha -> Edge Functions.
  */
 import { supabase } from './supabase';
@@ -103,7 +103,7 @@ interface PublicMenu {
 let publicMenuCache: { key: string; expiresAt: number; promise: Promise<PublicMenu> } | null = null;
 
 function getPublicMenu(): Promise<PublicMenu> {
-  const establishmentId = sessionStorage.getItem('nexus:establishmentId') ?? '';
+  const establishmentId = sessionStorage.getItem('nexus:establishmentId') ?? sessionStorage.getItem('nexus:deviceEstablishmentId') ?? '';
   const now = Date.now();
   if (publicMenuCache?.key === establishmentId && publicMenuCache.expiresAt > now) {
     return publicMenuCache.promise;
@@ -291,7 +291,7 @@ export const api = {
       const { data, error } = await supabase.functions.invoke('pedidos', {
         body: {
           action: 'my-loyalty',
-          establishmentId: sessionStorage.getItem('nexus:establishmentId') ?? undefined,
+          establishmentId: sessionStorage.getItem('nexus:establishmentId') ?? sessionStorage.getItem('nexus:deviceEstablishmentId') ?? undefined,
         },
         headers: { Authorization: `Bearer ${token}` },
       });

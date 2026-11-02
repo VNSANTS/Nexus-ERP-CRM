@@ -1,6 +1,13 @@
 name: Deploy Nexus-ERP-CRM to GitHub Pages
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'artifacts/cantinas-nexus/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/deploy.yml'
   push:
     branches: [main]
     paths:
@@ -40,6 +47,9 @@ jobs:
       - name: Instala dependências
         run: pnpm install --frozen-lockfile
 
+      - name: Verifica tipos TypeScript
+        run: pnpm --filter @workspace/cantinas-nexus run typecheck
+
       - name: Build do frontend (cantinas-nexus)
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
@@ -54,6 +64,7 @@ jobs:
           path: artifacts/cantinas-nexus/dist/public
 
   deploy:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
     environment:

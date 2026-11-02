@@ -19,6 +19,15 @@ import { sendEmail } from '../_shared/email.ts';
 const RATE_LIMIT_MAX = 100; // por hora, por IP — pedido explícito do Vinícius
 const RATE_LIMIT_WINDOW_MIN = 60;
 
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 function isValidCpf(cpf: string): boolean {
   const digits = cpf.replace(/\D/g, '');
   if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return false;
@@ -206,19 +215,19 @@ Deno.serve(async (req: Request) => {
       try {
         await sendEmail({
           to: adminEmail,
-          subject: `Nova solicitação de estabelecimento — ${nome.trim()}`,
+          subject: `Nova solicitação de estabelecimento — ${nome.trim().replace(/[\\r\\n]+/g, ' ').slice(0, 120)}`,
           html: `
             <h2>Nova solicitação de estabelecimento</h2>
-            <p><strong>Nome:</strong> ${nome.trim()}</p>
-            <p><strong>E-mail:</strong> ${emailNorm}</p>
-            <p><strong>Telefone:</strong> ${telefone.trim()}</p>
-            <p><strong>CPF/CNPJ:</strong> ${cpfCnpj.trim()}</p>
-            <p><strong>Endereço:</strong> ${enderecoLogradouro.trim()}, ${enderecoNumero.trim()}
-              ${enderecoComplemento?.trim() ? `- ${enderecoComplemento.trim()}` : ''}
-              — ${enderecoBairro.trim()}, ${enderecoCidade.trim()}/${enderecoUf.trim().toUpperCase()}
-              (CEP ${enderecoCep.trim()})</p>
+            <p><strong>Nome:</strong> ${escapeHtml(nome.trim())}</p>
+            <p><strong>E-mail:</strong> ${escapeHtml(emailNorm)}</p>
+            <p><strong>Telefone:</strong> ${escapeHtml(telefone.trim())}</p>
+            <p><strong>CPF/CNPJ:</strong> ${escapeHtml(cpfCnpj.trim())}</p>
+            <p><strong>Endereço:</strong> ${escapeHtml(enderecoLogradouro.trim())}, ${escapeHtml(enderecoNumero.trim())}
+              ${enderecoComplemento?.trim() ? `- ${escapeHtml(enderecoComplemento.trim())}` : ''}
+              — ${escapeHtml(enderecoBairro.trim())}, ${escapeHtml(enderecoCidade.trim())}/${escapeHtml(enderecoUf.trim().toUpperCase())}
+              (CEP ${escapeHtml(enderecoCep.trim())})</p>
             <p><strong>Prazo para decisão:</strong> 90 dias a partir de agora.</p>
-            <p>ID da solicitação: ${requestId}</p>
+            <p>ID da solicitação: ${escapeHtml(requestId)}</p>
             <p><a href="https://vnsants.github.io/Nexus-ERP-CRM/painel-raiz">Abrir painel de aprovação</a></p>
           `,
         });

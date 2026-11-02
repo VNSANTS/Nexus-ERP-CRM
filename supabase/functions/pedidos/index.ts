@@ -187,7 +187,7 @@ Deno.serve(async (req: Request) => {
 
       const { data: order, error: orderError } = await supabase
         .from('orders')
-        .select('id, establishment_id, code, payment_code, total, payment_method, status, observacoes, created_at, updated_at, tracking_token')
+        .select('id, establishment_id, code, total, status, observacoes, created_at, updated_at')
         .eq('tracking_token', token)
         .maybeSingle();
       if (orderError) throw orderError;
@@ -207,8 +207,9 @@ Deno.serve(async (req: Request) => {
       const pickupCaller = await requireEmployee(req);
       if (!pickupCaller) return errorResponse('Nao autenticado.', 401);
       if (!hasEmployeeAccess(pickupCaller, 'caixa') && !hasEmployeeAccess(pickupCaller, 'adm')) return errorResponse('Acesso restrito ao caixa.', 403);
-      const code = String(body.code ?? '').trim().padStart(3, '0');
-      if (!code) return errorResponse('Código é obrigatório.', 400);
+      const rawCode = String(body.code ?? '').trim();
+      if (!rawCode) return errorResponse('Código é obrigatório.', 400);
+      const code = rawCode.padStart(3, '0');
 
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);

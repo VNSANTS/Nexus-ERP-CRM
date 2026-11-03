@@ -47,7 +47,12 @@ async function createOrder(
     if (error.message === 'STOCK_INSUFFICIENT') throw { status: 409, message: 'Estoque insuficiente para um ou mais itens.' };
     if (error.message === 'PRODUCT_UNAVAILABLE') throw { status: 409, message: 'Um ou mais produtos não estão disponíveis.' };
     if (error.message === 'ESTABLISHMENT_UNAVAILABLE') throw { status: 404, message: 'Estabelecimento indisponível.' };
-    if (error.code === '22023') throw { status: 400, message: 'Dados do pedido inválidos.' };
+    if (error.message === 'VARIANT_REQUIRED') throw { status: 400, message: 'Escolha uma variante para cada produto que oferece tamanhos.' };
+    if (error.message === 'INVALID_VARIANT') throw { status: 400, message: 'Uma variante selecionada não está mais disponível.' };
+    if (error.message === 'MODIFIER_SELECTION_REQUIRED') throw { status: 400, message: 'Complete as escolhas obrigatórias dos adicionais.' };
+    if (error.message === 'MODIFIER_SELECTION_LIMIT') throw { status: 400, message: 'A quantidade de adicionais selecionados excede o limite.' };
+    if (error.message === 'INVALID_MODIFIERS') throw { status: 400, message: 'Um adicional selecionado não está mais disponível.' };
+    if (error.code === '22023') throw { status: 400, message: 'Revise as opções selecionadas e tente novamente.' };
     throw error;
   }
   return data;

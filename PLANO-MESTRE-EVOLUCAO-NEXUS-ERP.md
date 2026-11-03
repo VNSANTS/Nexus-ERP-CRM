@@ -336,6 +336,24 @@ Alterações aplicadas diretamente na branch `main`:
 - Commit da página: `ca39d2f57ec8c07237c1a29584732275d1307c6f`.
 - Commit dos modelos: `9bb6294acfbe25dad3316501aab29b8193573365`.
 
+### Segunda e terceira rodadas da Etapa 1 — 03/11/2026
+
+Alterações adicionais aplicadas diretamente na branch `main`:
+- Busca de produtos por nome e categoria, com contador de resultados, limpeza rápida e estado vazio contextual.
+- Grade mobile em duas colunas, com cards mais compactos, imagens quadradas no celular e proporção maior em telas amplas.
+- Estados de carregamento substituídos por skeletons responsivos, evitando spinner isolado sem contexto.
+- Imagens de produto passaram a usar carregamento lazy, decodificação assíncrona e texto alternativo com o nome do produto.
+- Limite de adição no carrinho respeita a quantidade de estoque retornada ao menu; o botão de incremento também é desabilitado quando a quantidade no carrinho alcança o estoque disponível.
+- Destaque de combo e opções de pagamento passaram a respeitar as cores/superfícies do tema.
+- Estados vazios do carrinho e aviso de pagamento pendente receberam tratamento visual coerente com o tema escuro.
+- Commits: `7ec0a5aad2c59d625bdcbcf8b75d2ea3b80dc274`, `a94c3a055c4cfe61ea38bdae8f44778d7f1b4214`, `76115abf7ab803855fd954dceaa6753fa3580f65`, `371a05263bd319adec46e18db53d7676be3f7fb3`, `e7b937ddae2c37ce1e2c23864ada542ce6c28aba`, `0ac7efba9849c60ad7de3b6d5d9b04a610c5e308`.
+
+### Verificações realizadas
+- Confirmação via GitHub API de sucesso do workflow do commit `371a052`.
+- Workflows dos commits `e7b937d` e `0ac7efb` foram disparados; estavam em andamento/na fila na última consulta.
+- Conferências estáticas confirmaram busca, limpeza, skeletons, lazy loading, guardas de estoque e tokens de tema no código.
+- Ainda não houve teste de interação visual real em dispositivo/browser nesta rodada. A Etapa 1 continua em andamento e não deve ser marcada como concluída.
+
 ### Limitações ainda abertas nesta rodada
 - A etapa não está concluída: falta confirmar o workflow no commit mais recente, revisar o restante do fluxo visual (hero, categorias, carrinho, pagamento e tracking) e testar a experiência publicada.
 - Descrições de produto, variantes e adicionais dependem da Etapa 2 e de mudanças coordenadas no backend. Não serão inventados no frontend.

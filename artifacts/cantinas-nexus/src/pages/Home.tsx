@@ -390,7 +390,7 @@ export function Home() {
                                cartStore.add(product.id, product.name, price);
                                toast.success(`${product.name} adicionado!`, { duration: 1200 });
                              }}
-                             className="ml-auto inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full bg-primary px-3 text-[10px] font-extrabold text-primary-foreground sm:min-h-10 sm:gap-2 sm:px-4 sm:text-xs shadow-sm transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+                             className="ml-auto inline-flex min-h-11 items-center justify-center gap-1 rounded-full bg-primary px-2.5 text-[10px] font-extrabold text-primary-foreground shadow-sm transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-10 sm:gap-2 sm:px-4 sm:text-xs"
                            >
                              <Plus className="h-4 w-4" strokeWidth={2.5} /> {disabled ? 'Esgotado' : canAddMore ? 'Adicionar' : 'Limite atingido'}
                            </button>
@@ -417,7 +417,7 @@ export function Home() {
            </motion.div>
            {featuredCombo ? (
               <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .18 }}
-                className={`group relative mt-10 grid min-h-[360px] overflow-hidden rounded-[2rem] border ${isDarkTheme ? 'border-white/10 bg-[#171c24]' : 'border-orange-100 bg-[#fff7ed]'} shadow-[0_28px_70px_rgba(0,0,0,.22)] md:mt-14 md:min-h-[470px] md:grid-cols-12`}>
+                className={`group relative mt-10 grid min-h-[360px] overflow-hidden rounded-[2rem] border ${isDarkTheme ? 'border-white/10 bg-[#171c24]' : 'border-border bg-card'} shadow-[0_28px_70px_rgba(0,0,0,.16)] md:mt-14 md:min-h-[470px] md:grid-cols-12`}>
                 <div className="relative min-h-[250px] overflow-hidden md:col-span-7 md:min-h-[470px]">
                   <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_45%_48%,rgba(255,106,0,.24),transparent_58%)]" />
                   <div aria-hidden="true" className="absolute inset-[8%] rounded-full border border-orange-400/20" />
@@ -440,7 +440,7 @@ export function Home() {
                     <div><p className="font-mono text-[9px] uppercase tracking-[.2em] text-muted-foreground">A partir de</p><p className="font-display text-4xl font-black text-primary">{formatCurrency(getEffectivePrice(featuredCombo, promotions).price)}</p></div>
                     <button type="button" onClick={() => { if (!canAddToCart(featuredCombo.id)) return; const comboPrice = getEffectivePrice(featuredCombo, promotions).price; cartStore.add(featuredCombo.id, featuredCombo.name, comboPrice); toast.success(`${featuredCombo.name} adicionado!`, { duration: 1200 }); }}
                       disabled={!canAddToCart(featuredCombo.id)}
-                      className="inline-flex items-center gap-2 rounded-full bg-[#ff6a00] px-6 py-3.5 text-xs font-black uppercase tracking-[.14em] text-white shadow-[0_12px_35px_rgba(255,106,0,.24)] transition-all hover:-translate-y-1 hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50">
+                      className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-6 py-3.5 text-xs font-black uppercase tracking-[.14em] text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50">
                       Adicionar combo <Plus className="h-4 w-4" />
                     </button>
                   </div>
@@ -480,10 +480,10 @@ export function Home() {
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full px-4 sm:px-0">
               {[
-                { id: 'pix', label: 'Pix', sub: 'Confirmar com a equipe', icon: QrCode, color: 'text-teal-600', bg: 'bg-teal-50', hover: 'hover:border-teal-500' },
-                { id: 'credito', label: 'Crédito', sub: 'Na maquininha', icon: CreditCard, color: 'text-blue-600', bg: 'bg-blue-50', hover: 'hover:border-blue-500' },
-                { id: 'debito', label: 'Débito', sub: 'Na maquininha', icon: Wallet, color: 'text-indigo-600', bg: 'bg-indigo-50', hover: 'hover:border-indigo-500' },
-                { id: 'dinheiro', label: PAYMENT_LABELS.dinheiro, sub: 'No balcão', icon: Banknote, color: 'text-emerald-600', bg: 'bg-emerald-50', hover: 'hover:border-emerald-500' },
+                { id: 'pix', label: 'Pix', sub: 'Confirmar com a equipe', icon: QrCode, color: isDarkTheme ? 'text-teal-300' : 'text-teal-600', bg: isDarkTheme ? 'bg-teal-400/10' : 'bg-teal-50', hover: 'hover:border-teal-500' },
+                { id: 'credito', label: 'Crédito', sub: 'Na maquininha', icon: CreditCard, color: isDarkTheme ? 'text-blue-300' : 'text-blue-600', bg: isDarkTheme ? 'bg-blue-400/10' : 'bg-blue-50', hover: 'hover:border-blue-500' },
+                { id: 'debito', label: 'Débito', sub: 'Na maquininha', icon: Wallet, color: isDarkTheme ? 'text-indigo-300' : 'text-indigo-600', bg: isDarkTheme ? 'bg-indigo-400/10' : 'bg-indigo-50', hover: 'hover:border-indigo-500' },
+                { id: 'dinheiro', label: PAYMENT_LABELS.dinheiro, sub: 'No balcão', icon: Banknote, color: isDarkTheme ? 'text-emerald-300' : 'text-emerald-600', bg: isDarkTheme ? 'bg-emerald-400/10' : 'bg-emerald-50', hover: 'hover:border-emerald-500' },
               ].map((method) => {
                 const Icon = method.icon;
                 return (
@@ -605,7 +605,7 @@ export function Home() {
               <button onClick={() => setWhatsappOpen(false)} className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors">
                 <X className="w-6 h-6" />
               </button>
-              <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner ${isDarkTheme ? 'bg-emerald-400/10 text-emerald-300' : 'bg-emerald-100 text-emerald-600'}`} >
                 <MessageCircle className="w-10 h-10" strokeWidth={2.5} />
               </div>
               <h3 className="text-2xl sm:text-3xl font-display font-extrabold text-foreground mb-2">Fale conosco</h3>
@@ -691,14 +691,14 @@ export function Home() {
                           className="w-full border border-border bg-background text-foreground placeholder:text-muted-foreground rounded-2xl p-4 text-base sm:text-lg resize-none h-20 sm:h-24 focus:border-primary focus:outline-none transition-colors font-medium" />
                       </div>
                       <div>
-                        <label className="block text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">
+                        <label className="block text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">
                           <Heart className="inline w-4 h-4 text-pink-500 mr-1" />Seu celular (fidelidade)
                         </label>
                         <input type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)}
                           placeholder="(11) 99999-9999"
                           className="w-full border border-border bg-background text-foreground placeholder:text-muted-foreground rounded-2xl px-5 py-4 text-base sm:text-lg focus:border-primary focus:outline-none transition-colors font-medium" />
                         {loyaltyStatus && (
-                          <p className={`mt-2 text-sm font-bold ${loyaltyStatus.ganhouBrinde ? 'text-emerald-600' : 'text-gray-500'}`}>
+                          <p className={`mt-2 text-sm font-bold ${loyaltyStatus.ganhouBrinde ? 'text-emerald-500' : 'text-muted-foreground'}`}>
                            {loyaltyStatus.ganhouBrinde ? 'Você ganhou um brinde!' : `Faltam ${loyaltyStatus.restantes} pedido(s) para o brinde`}
                           </p>
                         )}

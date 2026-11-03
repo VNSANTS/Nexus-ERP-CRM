@@ -91,13 +91,8 @@ function Router() {
           </RequireCustomer>
         )}
       </Route>
-      <Route path="/acompanhar/:codigo">
-        {() => (
-          <RequireCustomer>
-            <Tracking />
-          </RequireCustomer>
-        )}
-      </Route>
+      {/* O acompanhamento usa um token aleatório próprio; não exige conta de cliente. */}
+      <Route path="/acompanhar/:codigo" component={Tracking} />
       <Route path="/cozinha" component={Kitchen} />
       <Route path="/cardapio-tablet" component={CardapioTablet} />
       <Route path="/nxs" component={PainelRaiz} />

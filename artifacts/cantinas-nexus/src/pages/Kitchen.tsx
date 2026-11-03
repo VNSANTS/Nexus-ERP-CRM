@@ -2025,6 +2025,7 @@ export function Kitchen() {
                   </label>
                 </div>
               </div>
+              </div>
               {settingsForm && (
                 <button onClick={() => saveSettingsMut.mutate()} disabled={saveSettingsMut.isPending}
                   className="w-full bg-primary text-white py-4 rounded-2xl font-black text-lg hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">

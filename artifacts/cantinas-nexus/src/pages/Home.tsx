@@ -34,18 +34,6 @@ const CATEGORY_TABS: Array<{ key: 'todos' | 'lanche' | 'bebida' | 'combo' | 'saz
   { key: 'sazonal', label: 'Sazonais', icon: 'icon-sazonal.webp' },
 ];
 
-function referenceFoodImage(product: ApiProduct) {
-  const name = product.name.toLocaleLowerCase('pt-BR');
-  if (name.includes('combo')) return 'food-combo.webp';
-  if (name.includes('coxinha')) return 'food-coxinha.webp';
-  if (name.includes('pastel')) return 'food-pastel.webp';
-  if (name.includes('refrigerante') || name.includes('refri')) return 'food-refrigerante.webp';
-  if (name.includes('uva')) return 'food-uva.webp';
-  if (name.includes('canjica')) return 'food-canjica.webp';
-  if (name.includes('suco')) return 'food-suco.webp';
-  return null;
-}
-
 function hexToHsl(hex: string) {
   const match = /^#([0-9a-f]{6})$/i.exec(hex);
   if (!match) return '24 100% 50%';
@@ -199,6 +187,7 @@ export function Home() {
     '--primary': hexToHsl(menuPrimary),
     '--ring': hexToHsl(menuPrimary),
     '--background': hexToHsl(menuBackground),
+    '--primary-foreground': '0 0% 100%',
     ...(isDarkTheme ? {
       '--foreground': '0 0% 96%',
       '--card': menuTemplate.id === 'luxury' ? '330 10% 13%' : '220 18% 11%',
@@ -213,7 +202,21 @@ export function Home() {
       '--secondary-foreground': '0 0% 96%',
       '--accent': '24 80% 16%',
       '--accent-foreground': '24 100% 80%',
-    } : {}),
+    } : {
+      '--foreground': '220 24% 16%',
+      '--card': '0 0% 100%',
+      '--card-foreground': '220 24% 16%',
+      '--popover': '0 0% 100%',
+      '--popover-foreground': '220 24% 16%',
+      '--border': '30 18% 86%',
+      '--input': '30 18% 86%',
+      '--muted': '30 22% 93%',
+      '--muted-foreground': '220 10% 42%',
+      '--secondary': '30 22% 93%',
+      '--secondary-foreground': '220 24% 16%',
+      '--accent': '30 35% 91%',
+      '--accent-foreground': '220 24% 16%',
+    }),
   } as CSSProperties;
 
   return (
@@ -222,7 +225,11 @@ export function Home() {
       <header className="relative z-30 mx-auto flex w-full max-w-[1500px] items-center justify-between gap-3 border-b border-white/5 px-4 pb-4 pt-4 sm:px-8 sm:pt-6 lg:px-12">
         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <div className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl shadow-sm ring-1 ring-white/10 sm:h-16 sm:w-16 ${isDarkTheme ? 'bg-[#1b2028]' : 'bg-white ring-black/5'}`}>
-            <img src={settings?.logoUrl || `${REFERENCE_ASSET}logo.webp`} alt={settings?.nomeLoja || 'Logo do estabelecimento'} className="h-full w-full object-contain" />
+            {settings?.logoUrl ? (
+              <img src={settings.logoUrl} alt={`Logo de ${settings.nomeLoja || 'estabelecimento'}`} className="h-full w-full object-contain" />
+            ) : (
+              <span aria-hidden="true" className="font-display text-2xl font-black text-primary">{(settings?.nomeLoja || 'N').trim().charAt(0).toLocaleUpperCase('pt-BR')}</span>
+            )}
           </div>
           <div className="min-w-0">
             <p className="truncate text-base font-black tracking-tight text-foreground sm:text-xl">{settings?.nomeLoja || 'Seu estabelecimento'}</p>
@@ -325,20 +332,15 @@ export function Home() {
                   const hasPromo = label !== null;
 
                   return (
-                    <motion.button
+                    <motion.article
                       layout
-                      initial={{ opacity: 0, scale: 0.9 }}
+                      initial={{ opacity: 0, scale: 0.96 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      whileHover={disabled ? {} : { y: -8, scale: 1.02 }}
-                      whileTap={disabled ? {} : { scale: 0.95 }}
+                      exit={{ opacity: 0, scale: 0.96 }}
+                      whileHover={disabled ? {} : { y: -5 }}
                       key={product.id}
-                      disabled={disabled}
-                      onClick={() => {
-                        cartStore.add(product.id, product.name, price);
-                         toast.success(`${product.name} adicionado!`, { duration: 1200 });
-                      }}
-                       className={`group relative flex h-full flex-col overflow-hidden rounded-[1.6rem] border p-2.5 text-left transition-all duration-300 sm:rounded-[1.8rem] sm:p-4 ${isDarkTheme ? 'border-white/[.09] bg-gradient-to-b from-[#202630] to-[#15191f] shadow-[0_20px_45px_rgba(0,0,0,.3)]' : 'border-black/[.045] bg-white shadow-[0_8px_24px_rgba(36,31,24,.055)]'} ${disabled ? 'cursor-not-allowed opacity-55 grayscale' : 'hover:-translate-y-2 hover:border-primary/40 hover:shadow-[0_25px_55px_rgba(0,0,0,.3)]'}`}>
+                      aria-label={product.name}
+                       className={`group relative flex h-full flex-col overflow-hidden rounded-[1.6rem] border p-2.5 text-left transition-all duration-300 sm:rounded-[1.8rem] sm:p-4 ${isDarkTheme ? 'border-white/[.09] bg-gradient-to-b from-[#202630] to-[#15191f] shadow-[0_20px_45px_rgba(0,0,0,.3)]' : 'border-black/[.045] bg-white shadow-[0_8px_24px_rgba(36,31,24,.055)]'} ${disabled ? 'cursor-not-allowed opacity-55 grayscale' : 'hover:-translate-y-2 hover:border-primary/40 hover:shadow-[0_25px_55px_rgba(0,0,0,.12)]'}`}>
                       {product.sazonal && (
                         <span className="absolute top-4 left-4 z-10 flex items-center gap-1 bg-amber-400 text-amber-950 text-[10px] sm:text-xs font-black px-3 py-1 rounded-full shadow-md">
                           <Sparkles className="w-3 h-3" /> SAZONAL
@@ -347,24 +349,24 @@ export function Home() {
                       {hasPromo && (
                         <span className="absolute top-4 right-4 z-10 bg-success text-white text-[10px] sm:text-xs font-black px-3 py-1 rounded-full shadow-md">{label}</span>
                       )}
-                       <span
-                         role="button"
-                         tabIndex={0}
+                       <button
+                         type="button"
                          aria-label={favoriteIds.includes(product.id) ? `Remover ${product.name} dos favoritos` : `Favoritar ${product.name}`}
-                         onClick={(event) => { event.stopPropagation(); setFavoriteIds((ids) => ids.includes(product.id) ? ids.filter((id) => id !== product.id) : [...ids, product.id]); }}
-                         onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); setFavoriteIds((ids) => ids.includes(product.id) ? ids.filter((id) => id !== product.id) : [...ids, product.id]); } }}
-                         className={`absolute right-3 top-3 z-10 w-8 h-8 rounded-full flex items-center justify-center bg-card/90 border border-border ${favoriteIds.includes(product.id) ? 'text-primary' : 'text-muted-foreground'} hover:text-primary hover:border-primary`}
+                         aria-pressed={favoriteIds.includes(product.id)}
+                         onClick={() => setFavoriteIds((ids) => ids.includes(product.id) ? ids.filter((id) => id !== product.id) : [...ids, product.id])}
+                         className={`absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card/90 ${favoriteIds.includes(product.id) ? 'text-primary' : 'text-muted-foreground'} hover:border-primary hover:text-primary`}
                        >
-                         <Heart className={`w-4 h-4 ${favoriteIds.includes(product.id) ? 'fill-current' : ''}`} />
-                       </span>
+                         <Heart className={`h-4 w-4 ${favoriteIds.includes(product.id) ? 'fill-current' : ''}`} />
+                       </button>
                         <div className={`mb-4 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-[1.2rem] sm:rounded-[1.4rem] ${isDarkTheme ? 'bg-[#202630]' : 'bg-[#f5f0e8]'}`}>
                          <motion.div whileHover={disabled ? {} : { rotate: 5, scale: 1.1 }} className="w-full h-full flex items-center justify-center">
                            {product.imageUrl ? (
                              <img src={product.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                           ) : referenceFoodImage(product) ? (
-                             <img src={`${REFERENCE_ASSET}${referenceFoodImage(product)}`} alt="" className="h-[82%] w-[82%] object-contain transition-transform duration-500 group-hover:scale-110" />
                            ) : (
-                             <span className="text-5xl sm:text-7xl" role="img" aria-label={product.name}>{product.emoji}</span>
+                             <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary/5 via-transparent to-primary/10 text-primary/70">
+                               <ShoppingCart className="h-10 w-10 sm:h-12 sm:w-12" strokeWidth={1.35} aria-hidden="true" />
+                               <span className="text-[10px] font-bold uppercase tracking-[.18em] text-muted-foreground">Foto não disponível</span>
+                             </div>
                            )}
                          </motion.div>
                       </div>
@@ -373,7 +375,17 @@ export function Home() {
                         <div className="flex items-end gap-2 flex-wrap mt-auto">
                            <span className="font-display text-xl font-black text-primary sm:text-2xl">{formatCurrency(price)}</span>
                            {hasPromo && <span className="text-[10px] sm:text-xs font-bold text-muted-foreground line-through mb-1">{formatCurrency(original)}</span>}
-                           <span className="ml-auto flex h-8 w-8 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-orange-950/25 sm:h-9 sm:w-9"><Plus className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.5} /></span>
+                           <button
+                             type="button"
+                             disabled={disabled}
+                             onClick={() => {
+                               cartStore.add(product.id, product.name, price);
+                               toast.success(`${product.name} adicionado!`, { duration: 1200 });
+                             }}
+                             className="ml-auto inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-primary px-4 text-xs font-extrabold text-primary-foreground shadow-sm transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+                           >
+                             <Plus className="h-4 w-4" strokeWidth={2.5} /> Adicionar
+                           </button>
                         </div>
                       </div>
                       {disabled && (
@@ -381,7 +393,7 @@ export function Home() {
                           <div className="bg-gray-900 text-white font-black px-6 py-3 rounded-full text-sm sm:text-lg shadow-2xl -rotate-12 border-4 border-white/20">ESGOTADO</div>
                         </div>
                       )}
-                    </motion.button>
+                    </motion.article>
                   );
                 })}
                 {!loadingProducts && visibleProducts.length === 0 && (
@@ -402,8 +414,14 @@ export function Home() {
                   <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_45%_48%,rgba(255,106,0,.24),transparent_58%)]" />
                   <div aria-hidden="true" className="absolute inset-[8%] rounded-full border border-orange-400/20" />
                   <div aria-hidden="true" className="absolute inset-[17%] rounded-full border border-dashed border-white/10" />
-                  <img src={featuredCombo.imageUrl || (referenceFoodImage(featuredCombo) ? `${REFERENCE_ASSET}${referenceFoodImage(featuredCombo)}` : `${REFERENCE_ASSET}food-combo.webp`)}
-                    alt={featuredCombo.name} loading="lazy" className="absolute inset-0 h-full w-full object-contain p-5 transition-transform duration-700 group-hover:scale-105 sm:p-8" />
+                  {featuredCombo.imageUrl ? (
+                    <img src={featuredCombo.imageUrl} alt={featuredCombo.name} loading="lazy" className="absolute inset-0 h-full w-full object-contain p-5 transition-transform duration-700 group-hover:scale-105 sm:p-8" />
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-primary/75">
+                      <ShoppingCart className="h-16 w-16" strokeWidth={1.2} aria-hidden="true" />
+                      <span className="text-xs font-bold uppercase tracking-[.2em] text-muted-foreground">Destaque da casa</span>
+                    </div>
+                  )}
                   <span className="absolute bottom-4 left-5 font-display text-[16vw] font-black uppercase leading-none text-white/10 md:text-[9vw]">COMBO</span>
                 </div>
                 <div className="relative z-10 flex flex-col justify-center px-6 py-9 sm:px-10 md:col-span-5 md:px-12">

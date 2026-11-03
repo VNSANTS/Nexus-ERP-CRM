@@ -312,14 +312,14 @@ export function Kitchen() {
 
   // ─── Product forms ───────────────────────────────────────────────────────────
 
-  const [productForm, setProductForm] = useState<{ id?: string; name: string; price: string; emoji: string; categoria: string; sazonal: boolean; disponivel: boolean; imageUrl: string | null; quantidadeInicial?: string } | null>(null);
+  const [productForm, setProductForm] = useState<{ id?: string; name: string; description: string; price: string; emoji: string; categoria: string; sazonal: boolean; disponivel: boolean; imageUrl: string | null; quantidadeInicial?: string } | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const createProductMut = useMutation({
     mutationFn: () => {
       const id = productForm!.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + uid().slice(0, 4);
       return productForm!.id
-        ? api.products.update(productForm!.id, { name: productForm!.name, price: productForm!.price, emoji: productForm!.emoji, categoria: productForm!.categoria, sazonal: productForm!.sazonal, disponivel: productForm!.disponivel, imageUrl: productForm!.imageUrl })
-        : api.products.create({ id, name: productForm!.name, price: productForm!.price, emoji: productForm!.emoji, categoria: productForm!.categoria, sazonal: productForm!.sazonal, disponivel: productForm!.disponivel, imageUrl: productForm!.imageUrl, quantidadeInicial: Number(productForm!.quantidadeInicial ?? 0) });
+        ? api.products.update(productForm!.id, { name: productForm!.name, description: productForm!.description, price: productForm!.price, emoji: productForm!.emoji, categoria: productForm!.categoria, sazonal: productForm!.sazonal, disponivel: productForm!.disponivel, imageUrl: productForm!.imageUrl })
+        : api.products.create({ id, name: productForm!.name, description: productForm!.description, price: productForm!.price, emoji: productForm!.emoji, categoria: productForm!.categoria, sazonal: productForm!.sazonal, disponivel: productForm!.disponivel, imageUrl: productForm!.imageUrl, quantidadeInicial: Number(productForm!.quantidadeInicial ?? 0) });
     },
     onSuccess: () => { toast.success('Produto salvo!'); setProductForm(null); qc.invalidateQueries({ queryKey: ['products'] }); qc.invalidateQueries({ queryKey: ['stock'] }); },
   });
@@ -1556,7 +1556,7 @@ export function Kitchen() {
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <h2 className="text-2xl font-display font-black text-gray-900">Cardápio / Produtos</h2>
-              <button onClick={() => setProductForm({ name: '', price: '0', emoji: '', categoria: 'lanche', sazonal: false, disponivel: true, imageUrl: null, quantidadeInicial: '0' })}
+              <button onClick={() => setProductForm({ name: '', description: '', price: '0', emoji: '', categoria: 'lanche', sazonal: false, disponivel: true, imageUrl: null, quantidadeInicial: '0' })}
                 className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-orange-600 transition-colors flex items-center gap-2">
                 <Plus className="w-4 h-4" /> Novo Produto
               </button>
@@ -1572,7 +1572,7 @@ export function Kitchen() {
                     return (
                       <tr key={p.id} className={!p.disponivel ? 'opacity-60 bg-gray-50' : ''}>
                         <td className="px-4 py-3 text-2xl">{p.emoji}</td>
-                        <td className="px-4 py-3 font-bold text-gray-900">{p.name}</td>
+                        <td className="px-4 py-3"><div className="font-bold text-gray-900">{p.name}</div>{p.description && <div className="mt-0.5 max-w-xs truncate text-xs font-medium text-gray-400">{p.description}</div>}</td>
                         <td className="px-4 py-3 text-sm font-medium text-gray-500 capitalize">{CATEGORY_LABELS[p.categoria] ?? p.categoria}</td>
                         <td className="px-4 py-3 font-black text-primary">{formatCurrency(Number(p.price))}</td>
                         <td className="px-4 py-3 font-bold text-gray-700">{s?.quantidade ?? 0}</td>
@@ -1584,7 +1584,7 @@ export function Kitchen() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
-                            <button onClick={() => setProductForm({ id: p.id, name: p.name, price: p.price, emoji: p.emoji, categoria: p.categoria, sazonal: p.sazonal, disponivel: p.disponivel, imageUrl: p.imageUrl })}
+                            <button onClick={() => setProductForm({ id: p.id, name: p.name, description: p.description ?? '', price: p.price, emoji: p.emoji, categoria: p.categoria, sazonal: p.sazonal, disponivel: p.disponivel, imageUrl: p.imageUrl })}
                               className="p-1.5 text-gray-400 hover:text-primary hover:bg-orange-50 rounded-lg transition-colors"><Edit2 className="w-4 h-4" /></button>
                             <button onClick={() => { if (confirm(`Remover "${p.name}"?`)) removeProductMut.mutate(p.id); }}
                               className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
@@ -1652,6 +1652,13 @@ export function Kitchen() {
                           />
                         </label>
                       </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Descrição do produto <span className="normal-case font-semibold text-gray-300">({productForm.description.length}/500)</span></label>
+                      <textarea rows={3} maxLength={500} value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+                        placeholder="Conte o que acompanha o produto, ingredientes ou características importantes..."
+                        className="w-full resize-y border-2 border-gray-200 rounded-xl px-3 py-3 text-sm font-medium focus:border-primary focus:outline-none" />
+                      <p className="mt-1 text-xs text-gray-400">Opcional. Use apenas informações confirmadas sobre o produto.</p>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>

@@ -315,7 +315,7 @@ O status inicial deste plano é:
 
 | Etapa | Status | Observação |
 |---|---|---|
-| 0. Preparação e baseline | Em andamento | Auditoria comparativa criada; baseline atual conferida |
+| 0. Preparação e baseline | Concluída | Auditoria comparativa criada; branch, arquivos centrais e baseline conferidos |
 | 1. Cardápio público | Pendente | Primeira grande entrega funcional |
 | 2. Catálogo rico | Pendente | Depende da definição de campos e opções |
 | 3. Fichas técnicas/ingredientes | Pendente | Depende de decisão de unidades e conversões |

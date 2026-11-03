@@ -140,3 +140,26 @@ export const MENU_TEMPLATE_STYLES = `
   .menu-template-vibrant #menu-products article { border-radius:1.1rem; }
   .menu-template-compact #menu-products article { padding:.55rem; }
 }
+
+/* Inputs inherit the active menu palette instead of the app's global light defaults. */
+.menu-template-modern-dark main #menu-search,
+.menu-template-luxury main #menu-search {
+  min-height:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:#f8fafc;
+  box-shadow:none;
+}
+.menu-template-modern-dark main #menu-search:focus,
+.menu-template-luxury main #menu-search:focus { box-shadow:none; }
+.menu-template-modern-dark .menu-empty-feature,
+.menu-template-luxury .menu-empty-feature {
+  background:#1d232d;
+  border-color:rgba(255,255,255,.1);
+}
+.menu-template-modern-dark .menu-empty-feature h3,
+.menu-template-luxury .menu-empty-feature h3 { color:#f8fafc; }
+.menu-template-modern-dark .menu-empty-feature p:not(.text-primary),
+.menu-template-luxury .menu-empty-feature p:not(.text-primary) { color:#aeb8c6; }
+.menu-template-luxury .menu-empty-feature { border-color:rgba(184,149,85,.25); }

@@ -126,6 +126,7 @@ export type ProductCategory = 'lanche' | 'bebida' | 'combo';
 export interface ApiProduct {
   id: string;
   name: string;
+  description: string;
   price: string; // numeric from DB
   emoji: string;
   categoria: string;

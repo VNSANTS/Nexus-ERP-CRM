@@ -135,12 +135,13 @@ Deno.serve(async (req: Request) => {
     // Produtos
     // -----------------------------------------------------------------
     if (action === 'create-product') {
-      const { id, name, price, emoji, categoria, sazonal, disponivel, imageUrl, quantidadeInicial } = body;
+      const { id, name, description, price, emoji, categoria, sazonal, disponivel, imageUrl, quantidadeInicial } = body;
       if (!id || !name || price == null || !categoria || (!emoji && !imageUrl)) {
         return errorResponse('Nome, preço, categoria e (emoji ou foto) são obrigatórios.', 400);
       }
       if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]{1,120}$/.test(id)
         || typeof name !== 'string' || name.trim().length > 120
+        || (description != null && (typeof description !== 'string' || description.trim().length > 500))
         || !Number.isFinite(Number(price)) || Number(price) < 0
         || typeof categoria !== 'string' || categoria.trim().length > 80) {
         return errorResponse('Dados do produto inválidos.', 400);
@@ -151,7 +152,7 @@ Deno.serve(async (req: Request) => {
       }
       const { data: product, error } = await supabase
         .from('products')
-        .insert({ id, establishment_id: caller.establishmentId, name: name.trim(), price: Number(price), emoji: emoji ?? '', categoria: categoria.trim(), sazonal: !!sazonal, disponivel: disponivel !== false, image_url: imageUrl ?? null })
+        .insert({ id, establishment_id: caller.establishmentId, name: name.trim(), description: typeof description === 'string' ? description.trim() : '', price: Number(price), emoji: emoji ?? '', categoria: categoria.trim(), sazonal: !!sazonal, disponivel: disponivel !== false, image_url: imageUrl ?? null })
         .select()
         .single();
       if (error) throw error;
@@ -168,9 +169,13 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === 'update-product') {
-      const { id, name, price, emoji, categoria, sazonal, disponivel, imageUrl } = body;
+      const { id, name, description, price, emoji, categoria, sazonal, disponivel, imageUrl } = body;
       const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
       if (name != null) updates.name = name;
+      if (description !== undefined) {
+        if (typeof description !== 'string' || description.trim().length > 500) return errorResponse('A descrição deve ter até 500 caracteres.', 400);
+        updates.description = description.trim();
+      }
       if (price != null) updates.price = price;
       if (emoji != null) updates.emoji = emoji;
       if (categoria != null) updates.categoria = categoria;

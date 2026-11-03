@@ -415,7 +415,7 @@ export function Home() {
                </AnimatePresence>
              )}
            </motion.div>
-           {featuredCombo ? (
+           {featuredCombo && categoryFilter === 'todos' && !searchTerm.trim() ? (
               <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .18 }}
                 className={`group relative mt-10 grid min-h-[360px] overflow-hidden rounded-[2rem] border ${isDarkTheme ? 'border-white/10 bg-[#171c24]' : 'border-border bg-card'} shadow-[0_28px_70px_rgba(0,0,0,.16)] md:mt-14 md:min-h-[470px] md:grid-cols-12`}>
                 <div className="relative min-h-[250px] overflow-hidden md:col-span-7 md:min-h-[470px]">
@@ -435,13 +435,13 @@ export function Home() {
                 <div className="relative z-10 flex flex-col justify-center px-6 py-9 sm:px-10 md:col-span-5 md:px-12">
                   <p className="font-mono text-[10px] font-bold uppercase tracking-[.3em] text-primary">// 02 — DESTAQUE DA CASA</p>
                   <h3 className="mt-4 font-display text-4xl font-black uppercase leading-[.9] tracking-tight sm:text-5xl">{featuredCombo.name}</h3>
-                  <p className="mt-5 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">Uma combinação especial preparada para transformar sua próxima pausa em um momento memorável.</p>
+                  
                   <div className="mt-7 flex flex-wrap items-end gap-4">
-                    <div><p className="font-mono text-[9px] uppercase tracking-[.2em] text-muted-foreground">A partir de</p><p className="font-display text-4xl font-black text-primary">{formatCurrency(getEffectivePrice(featuredCombo, promotions).price)}</p></div>
+                    <div><p className="font-mono text-[9px] uppercase tracking-[.2em] text-muted-foreground">Preço do combo</p><p className="font-display text-4xl font-black text-primary">{formatCurrency(getEffectivePrice(featuredCombo, promotions).price)}</p></div>
                     <button type="button" onClick={() => { if (!canAddToCart(featuredCombo.id)) return; const comboPrice = getEffectivePrice(featuredCombo, promotions).price; cartStore.add(featuredCombo.id, featuredCombo.name, comboPrice); toast.success(`${featuredCombo.name} adicionado!`, { duration: 1200 }); }}
                       disabled={!canAddToCart(featuredCombo.id)}
                       className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-6 py-3.5 text-xs font-black uppercase tracking-[.14em] text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50">
-                      Adicionar combo <Plus className="h-4 w-4" />
+                      {getStock(featuredCombo.id) <= 0 ? 'Esgotado' : canAddToCart(featuredCombo.id) ? 'Adicionar combo' : 'Limite atingido'} <Plus className="h-4 w-4" />
                     </button>
                   </div>
                   <button type="button" onClick={() => setCategoryFilter('combo')} className="mt-5 self-start font-mono text-[10px] font-bold uppercase tracking-[.2em] text-muted-foreground transition-colors hover:text-primary">Explorar todos os combos ↗</button>

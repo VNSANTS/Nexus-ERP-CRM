@@ -316,7 +316,7 @@ O status inicial deste plano é:
 | Etapa | Status | Observação |
 |---|---|---|
 | 0. Preparação e baseline | Concluída | Auditoria comparativa criada; branch, arquivos centrais e baseline conferidos |
-| 1. Cardápio público | Pendente | Primeira grande entrega funcional |
+| 1. Cardápio público | Em andamento | Primeira rodada aplicada: imagens genéricas removidas, cards acessíveis e seis temas refinados; aguardando validação de build e revisão visual completa |
 | 2. Catálogo rico | Pendente | Depende da definição de campos e opções |
 | 3. Fichas técnicas/ingredientes | Pendente | Depende de decisão de unidades e conversões |
 | 4. Checkout transacional | Pendente | Integra receitas, opções e idempotência |
@@ -326,3 +326,17 @@ O status inicial deste plano é:
 | 8. Estabilização | Pendente | Validação final e publicação |
 
 **Próxima execução:** concluir a preparação mínima e iniciar a Etapa 1 — reformulação do cardápio público. O trabalho do cardápio não será adiado até o fim do ERP.
+
+## 8. Registro da execução — 03/11/2026
+
+### Primeira rodada da Etapa 1
+Alterações aplicadas diretamente na branch `main`:
+- `artifacts/cantinas-nexus/src/pages/Home.tsx`: removido o mapeamento de imagens genéricas por palavras do nome; produtos sem foto agora recebem placeholder neutro; destaque de combo não inventa fotografia; logo ausente usa inicial do estabelecimento; card de produto deixou de ser um botão gigante com controles aninhados; favoritar e adicionar agora têm botões próprios e acessíveis; paleta clara passou a declarar tokens de superfície/texto.
+- `artifacts/cantinas-nexus/src/lib/menu-templates.ts`: estilos dos seis modelos foram diferenciados e organizados para o novo card sem alterar os IDs nem a forma de seleção dos modelos.
+- Commit da página: `ca39d2f57ec8c07237c1a29584732275d1307c6f`.
+- Commit dos modelos: `9bb6294acfbe25dad3316501aab29b8193573365`.
+
+### Limitações ainda abertas nesta rodada
+- A etapa não está concluída: falta confirmar o workflow no commit mais recente, revisar o restante do fluxo visual (hero, categorias, carrinho, pagamento e tracking) e testar a experiência publicada.
+- Descrições de produto, variantes e adicionais dependem da Etapa 2 e de mudanças coordenadas no backend. Não serão inventados no frontend.
+- Não foi feita alteração de banco de dados nesta rodada.

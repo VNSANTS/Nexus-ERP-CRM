@@ -120,9 +120,9 @@ A principal oportunidade encontrada não é substituir o Nexus. É aprofundar a 
 
 ## Referências
 - FloCafe: https://github.com/FreeOpenSourcePOS/FloCafe
-- FloCafe — receitas: https://github.com/FreeOpenSourcePOS/FloCafe/tree/main/main/routes/recipes.ts
-- FloCafe — sessões de caixa: https://github.com/FreeOpenSourcePOS/FloCafe/tree/main/main/routes/cash-sessions.ts
-- FloCafe — fechamento: https://github.com/FreeOpenSourcePOS/FloCafe/tree/main/main/routes/cash-closures.ts
+- FloCafe — receitas: https://github.com/FreeOpenSourcePOS/FloCafe/blob/main/main/routes/recipes.ts
+- FloCafe — sessões de caixa: https://github.com/FreeOpenSourcePOS/FloCafe/blob/main/main/routes/cash-sessions.ts
+- FloCafe — fechamento: https://github.com/FreeOpenSourcePOS/FloCafe/blob/main/main/routes/cash-closures.ts
 - ElitaleRestro: https://github.com/elitale/restro
 - ElitaleRestro — schema: https://github.com/elitale/restro/blob/main/prisma/schema.prisma
 - QRMenu: https://github.com/Asror-hub/QRMenu

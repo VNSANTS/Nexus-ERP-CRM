@@ -183,6 +183,8 @@ export function Home() {
     : null;
 
   const getStock = (productId: string) => stock.find((s) => s.productId === productId)?.quantidade ?? 0;
+  const getCartQuantity = (productId: string) => cart.find((item) => item.productId === productId)?.qty ?? 0;
+  const canAddToCart = (productId: string) => getCartQuantity(productId) < getStock(productId);
 
   const whatsappUrl = `https://wa.me/${settings?.whatsappNumero ?? '5511999999999'}`;
   const menuPrimary = settings?.menuPrimaryColor ?? '#ff6600';
@@ -321,19 +323,18 @@ export function Home() {
                )}
              </div>
            </motion.section>
-<div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="font-mono text-[10px] font-bold uppercase tracking-[.28em] text-primary">// 01 — CARDÁPIO</p><h3 className="mt-2 font-display text-3xl font-black uppercase tracking-tight text-foreground sm:text-5xl">{categoryFilter === 'todos' ? 'Descubra o cardápio' : CATEGORY_TABS.find((tab) => tab.key === categoryFilter)?.label}</h3><p className="mt-2 text-sm text-muted-foreground">Encontre seu próximo favorito.</p></div><div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[260px]"><label htmlFor="menu-search" className="sr-only">Buscar produtos</label><div className="flex min-h-12 items-center gap-3 rounded-2xl border border-border bg-card/80 px-4 shadow-sm transition-colors focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15"><Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true"/><input id="menu-search" type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Buscar no cardápio..." className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"/><span className="whitespace-nowrap font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{visibleProducts.length} {visibleProducts.length === 1 ? 'item' : 'itens'}</span></div></div></div>
+<div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="font-mono text-[10px] font-bold uppercase tracking-[.28em] text-primary">// 01 — CARDÁPIO</p><h3 className="mt-2 font-display text-3xl font-black uppercase tracking-tight text-foreground sm:text-5xl">{categoryFilter === 'todos' ? 'Descubra o cardápio' : CATEGORY_TABS.find((tab) => tab.key === categoryFilter)?.label}</h3><p className="mt-2 text-sm text-muted-foreground">Encontre seu próximo favorito.</p></div><div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[260px]"><label htmlFor="menu-search" className="sr-only">Buscar produtos</label><div className="flex min-h-12 items-center gap-3 rounded-2xl border border-border bg-card/80 px-4 shadow-sm transition-colors focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15"><Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true"/><input id="menu-search" type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Buscar no cardápio..." className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"/><span aria-live="polite" className="whitespace-nowrap font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{visibleProducts.length} {visibleProducts.length === 1 ? 'item' : 'itens'}</span>{searchTerm && <button type="button" onClick={() => setSearchTerm('')} aria-label="Limpar busca" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"><X className="h-4 w-4" /></button>}</div></div></div>
 
            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} id="menu-products" className="grid grid-cols-2 gap-3 pt-1 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
             {loadingProducts ? (
-              <div className="col-span-full flex items-center justify-center py-24">
-                <Loader2 className="w-12 h-12 text-white animate-spin" />
-              </div>
+              <div className="col-span-full grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-5" role="status" aria-label="Carregando produtos">{Array.from({ length: 4 }).map((_, index) => <div key={index} className={`overflow-hidden rounded-2xl border p-2 sm:rounded-[1.8rem] sm:p-4 ${isDarkTheme ? 'border-white/10 bg-[#202630]' : 'border-border bg-card'}`}><div className={`aspect-square animate-pulse rounded-xl sm:aspect-[4/3] ${isDarkTheme ? 'bg-white/10' : 'bg-muted'}`} /><div className={`mt-3 h-3 w-3/4 animate-pulse rounded ${isDarkTheme ? 'bg-white/10' : 'bg-muted'}`} /><div className={`mt-3 h-8 w-full animate-pulse rounded-full ${isDarkTheme ? 'bg-white/10' : 'bg-muted'}`} /></div>)}</div>
             ) : (
               <AnimatePresence mode="popLayout">
                 {visibleProducts.map((product: ApiProduct) => {
                   const available = getStock(product.id);
                   const isOutOfStock = available <= 0;
                   const disabled = isOutOfStock;
+                  const canAddMore = canAddToCart(product.id);
                   const { price, original, label } = getEffectivePrice(product, promotions);
                   const hasPromo = label !== null;
 
@@ -367,7 +368,7 @@ export function Home() {
                         <div className={`mb-3 flex aspect-square w-full items-center justify-center overflow-hidden rounded-[1rem] sm:mb-4 sm:aspect-[4/3] sm:rounded-[1.4rem] ${isDarkTheme ? 'bg-[#202630]' : 'bg-[#f5f0e8]'}`}>
                          <motion.div whileHover={disabled ? {} : { rotate: 5, scale: 1.1 }} className="w-full h-full flex items-center justify-center">
                            {product.imageUrl ? (
-                             <img src={product.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                             <img src={product.imageUrl} alt={product.name} loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                            ) : (
                              <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary/5 via-transparent to-primary/10 text-primary/70">
                                <ShoppingCart className="h-10 w-10 sm:h-12 sm:w-12" strokeWidth={1.35} aria-hidden="true" />
@@ -383,14 +384,15 @@ export function Home() {
                            {hasPromo && <span className="text-[10px] sm:text-xs font-bold text-muted-foreground line-through mb-1">{formatCurrency(original)}</span>}
                            <button
                              type="button"
-                             disabled={disabled}
+                             disabled={disabled || !canAddMore}
                              onClick={() => {
+                               if (!canAddToCart(product.id)) return;
                                cartStore.add(product.id, product.name, price);
                                toast.success(`${product.name} adicionado!`, { duration: 1200 });
                              }}
                              className="ml-auto inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full bg-primary px-3 text-[10px] font-extrabold text-primary-foreground sm:min-h-10 sm:gap-2 sm:px-4 sm:text-xs shadow-sm transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
                            >
-                             <Plus className="h-4 w-4" strokeWidth={2.5} /> Adicionar
+                             <Plus className="h-4 w-4" strokeWidth={2.5} /> {disabled ? 'Esgotado' : canAddMore ? 'Adicionar' : 'Limite atingido'}
                            </button>
                         </div>
                       </div>
@@ -436,8 +438,8 @@ export function Home() {
                   <p className="mt-5 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">Uma combinação especial preparada para transformar sua próxima pausa em um momento memorável.</p>
                   <div className="mt-7 flex flex-wrap items-end gap-4">
                     <div><p className="font-mono text-[9px] uppercase tracking-[.2em] text-muted-foreground">A partir de</p><p className="font-display text-4xl font-black text-primary">{formatCurrency(getEffectivePrice(featuredCombo, promotions).price)}</p></div>
-                    <button type="button" onClick={() => { const comboPrice = getEffectivePrice(featuredCombo, promotions).price; cartStore.add(featuredCombo.id, featuredCombo.name, comboPrice); toast.success(`${featuredCombo.name} adicionado!`, { duration: 1200 }); }}
-                      disabled={getStock(featuredCombo.id) <= 0}
+                    <button type="button" onClick={() => { if (!canAddToCart(featuredCombo.id)) return; const comboPrice = getEffectivePrice(featuredCombo, promotions).price; cartStore.add(featuredCombo.id, featuredCombo.name, comboPrice); toast.success(`${featuredCombo.name} adicionado!`, { duration: 1200 }); }}
+                      disabled={!canAddToCart(featuredCombo.id)}
                       className="inline-flex items-center gap-2 rounded-full bg-[#ff6a00] px-6 py-3.5 text-xs font-black uppercase tracking-[.14em] text-white shadow-[0_12px_35px_rgba(255,106,0,.24)] transition-all hover:-translate-y-1 hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50">
                       Adicionar combo <Plus className="h-4 w-4" />
                     </button>
@@ -664,16 +666,16 @@ export function Home() {
                             <p className="text-primary font-black text-lg">{formatCurrency(item.price * item.qty)}</p>
                           </div>
                           <div className={`flex flex-col sm:flex-row items-center gap-1 sm:gap-3 rounded-xl shadow-sm p-1.5 border ${isDarkTheme ? 'bg-[#15191f] border-white/10' : 'bg-card border-border'}`}>
-                            <button onClick={() => cartStore.decrement(item.productId)}
+                            <button type="button" aria-label={`Diminuir ${item.name}`} onClick={() => cartStore.decrement(item.productId)}
                               className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg active:scale-95 transition-all">
                               <Minus className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={3} />
                             </button>
                             <span className="font-black text-lg sm:text-xl w-6 sm:w-8 text-center">{item.qty}</span>
-                            <button onClick={() => {
+                            <button type="button" aria-label={`Adicionar mais ${item.name}`} disabled={item.qty >= getStock(item.productId)} onClick={() => {
                               const p = products.find((x: ApiProduct) => x.id === item.productId);
-                              if (p) cartStore.add(p.id, p.name, getEffectivePrice(p, promotions).price);
+                              if (p && item.qty < getStock(item.productId)) cartStore.add(p.id, p.name, getEffectivePrice(p, promotions).price);
                             }}
-                              className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-primary hover:bg-orange-50 rounded-lg active:scale-95 transition-all">
+                              className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-primary hover:bg-primary/10 rounded-lg active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-35">
                               <Plus className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={3} />
                             </button>
                           </div>

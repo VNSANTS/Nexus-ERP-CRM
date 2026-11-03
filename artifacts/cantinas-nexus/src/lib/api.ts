@@ -171,6 +171,8 @@ export const api = {
       callFn<ApiProduct>('gerenciar-dados', { action: 'create-product', ...data }),
     update: (id: string, data: Partial<ApiProduct>) =>
       callFn<ApiProduct>('gerenciar-dados', { action: 'update-product', id, ...data }),
+    saveOptions: (productId: string, variants: Array<{ name: string; priceDelta: number }>, groups: Array<{ name: string; required: boolean; minSelect: number; maxSelect: number; modifiers: Array<{ name: string; priceDelta: number }> }>) =>
+      callFn<{ ok: boolean; variants: number; groups: number }>('gerenciar-dados', { action: 'save-product-options', productId, variants, groups }),
     remove: (id: string) => callFn<{ ok: boolean }>('gerenciar-dados', { action: 'delete-product', id }),
     // A URL assinada só é emitida pela Edge Function para o estabelecimento do funcionário.
     uploadImage: async (productId: string, file: File): Promise<string> => {

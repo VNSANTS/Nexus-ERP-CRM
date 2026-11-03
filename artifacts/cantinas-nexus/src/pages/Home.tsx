@@ -71,6 +71,7 @@ export function Home() {
   const [whatsappOpen, setWhatsappOpen] = useState(false);
   const [menuQrOpen, setMenuQrOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<'todos' | 'lanche' | 'bebida' | 'combo' | 'sazonal'>('todos');
+  const [searchTerm, setSearchTerm] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [telefone, setTelefone] = useState('');
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
@@ -164,11 +165,16 @@ export function Home() {
   const visibleProducts = useMemo(() => {
     return products.filter((p: ApiProduct) => {
       if (!p.disponivel) return false;
-      if (categoryFilter === 'todos') return true;
-      if (categoryFilter === 'sazonal') return p.sazonal;
-      return p.categoria === categoryFilter;
+      const matchesCategory = categoryFilter === 'todos'
+        ? true
+        : categoryFilter === 'sazonal'
+          ? p.sazonal
+          : p.categoria === categoryFilter;
+      const normalizedSearch = searchTerm.trim().toLocaleLowerCase('pt-BR');
+      const matchesSearch = !normalizedSearch || `${p.name} ${CATEGORY_LABELS[p.categoria as keyof typeof CATEGORY_LABELS] ?? p.categoria}`.toLocaleLowerCase('pt-BR').includes(normalizedSearch);
+      return matchesCategory && matchesSearch;
     });
-  }, [products, categoryFilter]);
+  }, [products, categoryFilter, searchTerm]);
 
   const featuredCombo = products.find((p: ApiProduct) => p.categoria === 'combo' && p.disponivel);
 
@@ -315,7 +321,7 @@ export function Home() {
                )}
              </div>
            </motion.section>
-<div className="mb-6 flex items-end justify-between gap-3"><div><p className="font-mono text-[10px] font-bold uppercase tracking-[.28em] text-primary">// 01 — CARDÁPIO</p><h3 className="mt-2 font-display text-3xl font-black uppercase tracking-tight text-foreground sm:text-5xl">{categoryFilter === 'todos' ? 'Descubra o cardápio' : CATEGORY_TABS.find((tab) => tab.key === categoryFilter)?.label}</h3></div><span className="font-mono text-[10px] uppercase tracking-[.16em] text-muted-foreground">{visibleProducts.length} {visibleProducts.length === 1 ? 'opção' : 'opções'}</span></div>
+<div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="font-mono text-[10px] font-bold uppercase tracking-[.28em] text-primary">// 01 — CARDÁPIO</p><h3 className="mt-2 font-display text-3xl font-black uppercase tracking-tight text-foreground sm:text-5xl">{categoryFilter === 'todos' ? 'Descubra o cardápio' : CATEGORY_TABS.find((tab) => tab.key === categoryFilter)?.label}</h3><p className="mt-2 text-sm text-muted-foreground">Encontre seu próximo favorito.</p></div><div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[260px]"><label htmlFor="menu-search" className="sr-only">Buscar produtos</label><div className="flex min-h-12 items-center gap-3 rounded-2xl border border-border bg-card/80 px-4 shadow-sm transition-colors focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15"><Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true"/><input id="menu-search" type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Buscar no cardápio..." className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"/><span className="whitespace-nowrap font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{visibleProducts.length} {visibleProducts.length === 1 ? 'item' : 'itens'}</span></div></div></div>
 
            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} id="menu-products" className="grid grid-cols-1 gap-5 pt-1 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
             {loadingProducts ? (
@@ -399,9 +405,9 @@ export function Home() {
                 {!loadingProducts && visibleProducts.length === 0 && (
                   <div className={`col-span-full rounded-[1.8rem] border border-dashed border-border px-5 py-14 text-center ${isDarkTheme ? 'bg-[#171c24]' : 'bg-card/70'}`}>
                      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary"><Search className="h-6 w-6" /></div>
-                     <p className="font-display text-lg font-black text-foreground">Essa prateleira está vazia</p>
-                     <p className="mt-1 text-sm text-muted-foreground">Ainda não há itens disponíveis nesta categoria.</p>
-                     <button type="button" onClick={() => setCategoryFilter('todos')} className="mt-5 rounded-full border border-primary/30 bg-primary/10 px-5 py-2.5 text-xs font-black text-primary transition-colors hover:bg-primary hover:text-white">Ver todo o cardápio</button>
+                     <p className="font-display text-lg font-black text-foreground">{searchTerm.trim() ? 'Nenhum resultado encontrado' : 'Essa prateleira está vazia'}</p>
+                     <p className="mt-1 text-sm text-muted-foreground">{searchTerm.trim() ? 'Tente buscar por outro nome ou escolha uma categoria diferente.' : 'Ainda não há itens disponíveis nesta categoria.'}</p>
+                     <button type="button" onClick={() => { setCategoryFilter('todos'); setSearchTerm(''); }} className="mt-5 rounded-full border border-primary/30 bg-primary/10 px-5 py-2.5 text-xs font-black text-primary transition-colors hover:bg-primary hover:text-white">{searchTerm.trim() ? 'Limpar busca' : 'Ver todo o cardápio'}</button>
                   </div>
                 )}
                </AnimatePresence>

@@ -1628,9 +1628,9 @@ export function Kitchen() {
 
             {/* Product form modal */}
             {productForm && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl">
-                  <h3 className="text-xl font-black mb-5">{productForm.id ? 'Editar Produto' : 'Novo Produto'}</h3>
+              <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto overscroll-contain p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
+                <div className="my-auto max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-3xl bg-white p-5 sm:p-8 shadow-2xl [scrollbar-width:thin]">
+                  <h3 className="sticky top-0 z-10 -mx-1 bg-white pb-3 text-xl font-black">{productForm.id ? 'Editar Produto' : 'Novo Produto'}</h3>
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>

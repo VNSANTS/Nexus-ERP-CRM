@@ -1,15 +1,9 @@
 // src/lib/admin-auth.tsx
 //
-// Contexto de sessão do administrador da plataforma Nexus (dono/equipe
-// interna) — usado só pela rota /painel-raiz. Totalmente separado do
-// CustomerAuthProvider: usa o mesmo Supabase Auth por baixo, mas um
-// contexto React próprio, para não misturar sessão de admin com sessão
-// de cliente comum no mesmo navegador/aba.
-//
-// "isAdmin" só fica true depois de confirmar que o usuário logado consta
-// na tabela platform_admins — logar com e-mail/senha válidos não basta.
+// A autorização administrativa é confirmada no banco para a sessão atual.
+// Respostas atrasadas de uma sessão anterior não podem conceder acesso.
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
@@ -26,42 +20,58 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const checkSequence = useRef(0);
 
-  async function checkAdmin(userId: string) {
-    const { data } = await supabase
+  async function checkAdmin(userId: string, sequence: number) {
+    const { data, error } = await supabase
       .from('platform_admins')
       .select('id')
       .eq('id', userId)
       .maybeSingle();
+
+    if (sequence !== checkSequence.current) return;
+    if (error) {
+      console.error('Não foi possível verificar a permissão de administrador:', error);
+      setIsAdmin(false);
+      return;
+    }
     setIsAdmin(Boolean(data));
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      if (data.session?.user?.id) {
-        checkAdmin(data.session.user.id).finally(() => setLoading(false));
-      } else {
-        setLoading(false);
-      }
-    });
-
+    // INITIAL_SESSION é entregue pelo próprio listener; não precisamos
+    // disputar a inicialização com uma chamada paralela a getSession().
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      const sequence = ++checkSequence.current;
       setSession(newSession);
-      if (newSession?.user?.id) {
-        checkAdmin(newSession.user.id);
-      } else {
-        setIsAdmin(false);
+      setIsAdmin(false);
+
+      if (!newSession?.user?.id) {
+        setLoading(false);
+        return;
       }
+
+      setLoading(true);
+      // Consultas Supabase fora do callback de auth evitam reentrância no lock.
+      window.setTimeout(() => {
+        void checkAdmin(newSession.user.id, sequence).finally(() => {
+          if (sequence === checkSequence.current) setLoading(false);
+        });
+      }, 0);
     });
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      checkSequence.current++;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   async function signOut() {
     await supabase.auth.signOut();
+    checkSequence.current++;
     setSession(null);
     setIsAdmin(false);
+    setLoading(false);
   }
 
   return (

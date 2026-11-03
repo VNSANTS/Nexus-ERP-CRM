@@ -120,7 +120,7 @@ function OrderCard({ order, products, onAdvance, onCancel, onUpdateObs }: {
         <div className="flex flex-wrap gap-2 mb-3">
           {order.items.map((item, i) => (
             <span key={i} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-bold">
-              {item.qty}× {item.name}
+              {item.qty}× {item.name}{item.customizations?.length ? ` · ${item.customizations.map((choice) => choice.name).join(', ')}` : ''}
             </span>
           ))}
         </div>

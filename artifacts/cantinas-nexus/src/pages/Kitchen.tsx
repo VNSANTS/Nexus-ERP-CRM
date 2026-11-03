@@ -897,9 +897,22 @@ export function Kitchen() {
                     <div>
                       <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Produto</label>
                       <select value={stockEntry.productId} onChange={(e) => setStockEntry({ ...stockEntry, productId: e.target.value })}
-                        className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none">
-                        {stock.map((s: ApiStockItem) => <option key={s.productId} value={s.productId}>{s.name}</option>)}
+                        disabled={stock.length === 0}
+                        className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none disabled:bg-gray-100 disabled:text-gray-400">
+                        {stock.length === 0
+                          ? <option value="">Nenhum produto cadastrado</option>
+                          : stock.map((s: ApiStockItem) => <option key={s.productId} value={s.productId}>{s.name}</option>)}
                       </select>
+                      {stock.length === 0 && (
+                        <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                          <p className="text-sm font-bold text-amber-900">Não há produtos para movimentar.</p>
+                          <p className="mt-1 text-xs text-amber-800">Cadastre um produto primeiro. Depois ele aparecerá automaticamente nesta lista de estoque.</p>
+                          <button type="button" onClick={() => { setStockEntry(null); setActiveTab('produtos'); }}
+                            className="mt-3 rounded-lg bg-primary px-3 py-2 text-xs font-black text-white hover:bg-orange-600">
+                            Ir para Produtos
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Quantidade</label>
@@ -913,7 +926,7 @@ export function Kitchen() {
                     </div>
                     <div className="flex gap-3 pt-2">
                       <button onClick={() => setStockEntry(null)} className="flex-1 py-3 border-2 border-gray-200 rounded-xl font-bold hover:bg-gray-50 transition-colors">Cancelar</button>
-                      <button onClick={() => stockEntryMut.mutate()} disabled={stockEntryMut.isPending}
+                      <button onClick={() => stockEntryMut.mutate()} disabled={stockEntryMut.isPending || stock.length === 0 || !stockEntry.productId}
                         className="flex-1 py-3 bg-primary text-white rounded-xl font-black hover:bg-orange-600 transition-colors disabled:opacity-50">
                         {stockEntryMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Confirmar'}
                       </button>

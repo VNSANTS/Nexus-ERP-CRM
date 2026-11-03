@@ -312,16 +312,32 @@ export function Kitchen() {
 
   // ─── Product forms ───────────────────────────────────────────────────────────
 
-  const [productForm, setProductForm] = useState<{ id?: string; name: string; description: string; price: string; emoji: string; categoria: string; sazonal: boolean; disponivel: boolean; imageUrl: string | null; quantidadeInicial?: string } | null>(null);
+  const [productForm, setProductForm] = useState<{ id?: string; name: string; description: string; price: string; emoji: string; categoria: string; sazonal: boolean; disponivel: boolean; imageUrl: string | null; quantidadeInicial?: string; variantsText: string; modifierGroupsText: string } | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const createProductMut = useMutation({
-    mutationFn: () => {
-      const id = productForm!.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + uid().slice(0, 4);
-      return productForm!.id
-        ? api.products.update(productForm!.id, { name: productForm!.name, description: productForm!.description, price: productForm!.price, emoji: productForm!.emoji, categoria: productForm!.categoria, sazonal: productForm!.sazonal, disponivel: productForm!.disponivel, imageUrl: productForm!.imageUrl })
-        : api.products.create({ id, name: productForm!.name, description: productForm!.description, price: productForm!.price, emoji: productForm!.emoji, categoria: productForm!.categoria, sazonal: productForm!.sazonal, disponivel: productForm!.disponivel, imageUrl: productForm!.imageUrl, quantidadeInicial: Number(productForm!.quantidadeInicial ?? 0) });
+    mutationFn: async () => {
+      const form = productForm!;
+      const id = form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + uid().slice(0, 4);
+      const saved = form.id
+        ? await api.products.update(form.id, { name: form.name, description: form.description, price: form.price, emoji: form.emoji, categoria: form.categoria, sazonal: form.sazonal, disponivel: form.disponivel, imageUrl: form.imageUrl })
+        : await api.products.create({ id, name: form.name, description: form.description, price: form.price, emoji: form.emoji, categoria: form.categoria, sazonal: form.sazonal, disponivel: form.disponivel, imageUrl: form.imageUrl, quantidadeInicial: Number(form.quantidadeInicial ?? 0) });
+      const variants = form.variantsText.split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
+        const [name, rawPrice = '0'] = line.split('|');
+        return { name: name.trim(), priceDelta: Number(rawPrice.trim().replace(',', '.')) };
+      });
+      const groups = form.modifierGroupsText.split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
+        const [name, rawMin = '0', rawMax = '1', rawRequired = 'nao', rawOptions = ''] = line.split('|');
+        const modifiers = rawOptions.split(';').map((option) => option.trim()).filter(Boolean).map((option) => {
+          const [optionName, rawPrice = '0'] = option.split(':');
+          return { name: optionName.trim(), priceDelta: Number(rawPrice.trim().replace(',', '.')) };
+        });
+        return { name: name.trim(), minSelect: Number(rawMin), maxSelect: Number(rawMax), required: rawRequired.trim().toLowerCase() === 'sim', modifiers };
+      });
+      await api.products.saveOptions(saved.id, variants, groups);
+      return saved;
     },
-    onSuccess: () => { toast.success('Produto salvo!'); setProductForm(null); qc.invalidateQueries({ queryKey: ['products'] }); qc.invalidateQueries({ queryKey: ['stock'] }); },
+    onSuccess: () => { toast.success('Produto e opções salvos!'); setProductForm(null); qc.invalidateQueries({ queryKey: ['products'] }); qc.invalidateQueries({ queryKey: ['stock'] }); },
+    onError: (error: Error) => toast.error(error.message || 'Não foi possível salvar o produto e suas opções.'),
   });
   const removeProductMut = useMutation({ mutationFn: api.products.remove, onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); qc.invalidateQueries({ queryKey: ['stock'] }); } });
   const toggleProductMut = useMutation({
@@ -1556,7 +1572,7 @@ export function Kitchen() {
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <h2 className="text-2xl font-display font-black text-gray-900">Cardápio / Produtos</h2>
-              <button onClick={() => setProductForm({ name: '', description: '', price: '0', emoji: '', categoria: 'lanche', sazonal: false, disponivel: true, imageUrl: null, quantidadeInicial: '0' })}
+              <button onClick={() => setProductForm({ name: '', description: '', price: '0', emoji: '', categoria: 'lanche', sazonal: false, disponivel: true, imageUrl: null, quantidadeInicial: '0', variantsText: '', modifierGroupsText: '' })}
                 className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-orange-600 transition-colors flex items-center gap-2">
                 <Plus className="w-4 h-4" /> Novo Produto
               </button>
@@ -1584,7 +1600,7 @@ export function Kitchen() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
-                            <button onClick={() => setProductForm({ id: p.id, name: p.name, description: p.description ?? '', price: p.price, emoji: p.emoji, categoria: p.categoria, sazonal: p.sazonal, disponivel: p.disponivel, imageUrl: p.imageUrl })}
+                            <button onClick={() => setProductForm({ id: p.id, name: p.name, description: p.description ?? '', price: p.price, emoji: p.emoji, categoria: p.categoria, sazonal: p.sazonal, disponivel: p.disponivel, imageUrl: p.imageUrl, variantsText: (p.variants ?? []).map((v) => `${v.name}|${v.priceDelta}`).join('\\n'), modifierGroupsText: (p.modifierGroups ?? []).map((g) => `${g.name}|${g.minSelect}|${g.maxSelect}|${g.required ? 'sim' : 'nao'}|${g.modifiers.map((m) => `${m.name}:${m.priceDelta}`).join(';')}`).join('\\n') })}
                               className="p-1.5 text-gray-400 hover:text-primary hover:bg-orange-50 rounded-lg transition-colors"><Edit2 className="w-4 h-4" /></button>
                             <button onClick={() => { if (confirm(`Remover "${p.name}"?`)) removeProductMut.mutate(p.id); }}
                               className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
@@ -1659,6 +1675,21 @@ export function Kitchen() {
                         placeholder="Conte o que acompanha o produto, ingredientes ou características importantes..."
                         className="w-full resize-y border-2 border-gray-200 rounded-xl px-3 py-3 text-sm font-medium focus:border-primary focus:outline-none" />
                       <p className="mt-1 text-xs text-gray-400">Opcional. Use apenas informações confirmadas sobre o produto.</p>
+                    </div>
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-4">
+                      <div>
+                        <h4 className="font-black text-gray-800">Tamanhos e variantes</h4>
+                        <p className="mt-1 text-xs text-gray-500">Uma opção por linha: <code>Nome|acréscimo</code>. Ex.: Grande|3,50</p>
+                        <textarea rows={3} value={productForm.variantsText} onChange={(e) => setProductForm({ ...productForm, variantsText: e.target.value })}
+                          placeholder={'Pequeno|0\nGrande|3,50'} className="mt-2 w-full rounded-xl border-2 border-gray-200 bg-white px-3 py-3 text-sm font-medium focus:border-primary focus:outline-none" />
+                      </div>
+                      <div className="border-t border-gray-200 pt-4">
+                        <h4 className="font-black text-gray-800">Grupos de adicionais</h4>
+                        <p className="mt-1 text-xs leading-relaxed text-gray-500">Uma linha por grupo: <code>Nome|mínimo|máximo|obrigatório|opção:preço;opção:preço</code>. Use sim/não no obrigatório.</p>
+                        <textarea rows={4} value={productForm.modifierGroupsText} onChange={(e) => setProductForm({ ...productForm, modifierGroupsText: e.target.value })}
+                          placeholder={'Complementos|0|2|nao|Queijo:2;Bacon:3\nEscolha o molho|1|1|sim|Maionese:0;Barbecue:0'} className="mt-2 w-full rounded-xl border-2 border-gray-200 bg-white px-3 py-3 text-sm font-medium focus:border-primary focus:outline-none" />
+                      </div>
+                      <p className="text-[11px] text-gray-500">Ao salvar, as opções antigas deste produto serão substituídas. Os pedidos já feitos mantêm os nomes e preços originais.</p>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>

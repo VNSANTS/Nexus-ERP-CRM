@@ -16,7 +16,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import {
   Trash2, Plus, Minus, CreditCard, Wallet, Banknote, QrCode,
   ArrowLeft, CheckCircle2, ShoppingCart, X, MessageCircle,
-  Sparkles, Heart, XCircle, Loader2,
+  Sparkles, Heart, Loader2,
   Search, Info, ImageOff,
 } from 'lucide-react';
 import { toast } from 'sonner';

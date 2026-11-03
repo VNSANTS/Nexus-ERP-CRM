@@ -53,7 +53,7 @@ Deno.serve(async (req: Request) => {
     const { action } = body;
     const featureByAction: Record<string, FeatureAccess> = {
       'create-product-image-upload': 'produtos', 'create-product': 'produtos',
-      'update-product': 'produtos', 'delete-product': 'produtos', 'list-stock': 'estoque',
+      'update-product': 'produtos', 'delete-product': 'produtos', 'save-product-options': 'produtos', 'list-stock': 'estoque',
       'get-settings': 'configuracoes', 'create-logo-image-upload': 'configuracoes', 'update-settings': 'configuracoes',
       'report-daily': 'relatorios', 'report-products': 'relatorios', 'report-hourly': 'relatorios', 'report-transactions': 'relatorios',
       'report-waste': 'estoque', 'report-stock-history': 'estoque', 'report-loyalty': 'crm',
@@ -104,12 +104,57 @@ Deno.serve(async (req: Request) => {
 
     // -----------------------------------------------------------------
     if (action === 'list-products') {
-      const { data, error } = await supabase.from('products')
-        .select('*')
-        .eq('establishment_id', caller.establishmentId)
-        .order('name');
+      const [productsResult, variantsResult, groupsResult, modifiersResult] = await Promise.all([
+        supabase.from('products').select('*').eq('establishment_id', caller.establishmentId).order('name'),
+        supabase.from('product_variants').select('id, product_id, name, price_delta, sort_order').eq('establishment_id', caller.establishmentId).eq('active', true).order('sort_order'),
+        supabase.from('product_modifier_groups').select('id, product_id, name, required, min_select, max_select, sort_order').eq('establishment_id', caller.establishmentId).eq('active', true).order('sort_order'),
+        supabase.from('product_modifiers').select('id, product_id, group_id, name, price_delta, sort_order').eq('establishment_id', caller.establishmentId).eq('active', true).order('sort_order'),
+      ]);
+      const error = productsResult.error ?? variantsResult.error ?? groupsResult.error ?? modifiersResult.error;
       if (error) throw error;
-      return jsonResponse(data ?? []);
+      const products = productsResult.data ?? [];
+      const productIds = new Set(products.map((product) => product.id));
+      const groupsByProduct = new Map<string, Array<Record<string, unknown>>>();
+      for (const group of groupsResult.data ?? []) {
+        if (!productIds.has(group.product_id)) continue;
+        const modifiers = (modifiersResult.data ?? []).filter((item) => item.group_id === group.id);
+        const list = groupsByProduct.get(group.product_id) ?? [];
+        list.push({ ...group, modifiers });
+        groupsByProduct.set(group.product_id, list);
+      }
+      const variantsByProduct = new Map<string, typeof variantsResult.data>();
+      for (const variant of variantsResult.data ?? []) {
+        if (!productIds.has(variant.product_id)) continue;
+        const list = variantsByProduct.get(variant.product_id) ?? [];
+        list.push(variant);
+        variantsByProduct.set(variant.product_id, list);
+      }
+      return jsonResponse(products.map((product) => ({
+        ...product,
+        variants: variantsByProduct.get(product.id) ?? [],
+        modifier_groups: groupsByProduct.get(product.id) ?? [],
+      })));
+    }
+
+    if (action === 'save-product-options') {
+      const productId = typeof body.productId === 'string' ? body.productId : '';
+      const variants = Array.isArray(body.variants) ? body.variants : null;
+      const groups = Array.isArray(body.groups) ? body.groups : null;
+      if (!/^[a-zA-Z0-9_-]{1,120}$/.test(productId) || !variants || !groups) {
+        return errorResponse('Dados de variantes e adicionais inválidos.', 400);
+      }
+      const { data, error } = await supabase.rpc('save_product_options', {
+        p_establishment_id: caller.establishmentId,
+        p_product_id: productId,
+        p_variants: variants,
+        p_groups: groups,
+      });
+      if (error) {
+        if (error.code === '22023') return errorResponse('Revise os nomes, preços e limites de seleção das opções.', 400);
+        if (error.code === 'P0002') return errorResponse('Produto não encontrado.', 404);
+        throw error;
+      }
+      return jsonResponse(data);
     }
 
     if (action === 'list-stock') {

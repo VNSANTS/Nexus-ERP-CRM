@@ -354,6 +354,25 @@ Alterações adicionais aplicadas diretamente na branch `main`:
 - Conferências estáticas confirmaram busca, limpeza, skeletons, lazy loading, guardas de estoque e tokens de tema no código.
 - Ainda não houve teste de interação visual real em dispositivo/browser nesta rodada. A Etapa 1 continua em andamento e não deve ser marcada como concluída.
 
+### Quarta rodada da Etapa 1 — execução ampliada em 03/11/2026
+
+Mais melhorias aplicadas:
+- Guardas no frontend impedem adicionar ao carrinho mais unidades do que o estoque informado pelo menu, inclusive pelo botão de incremento no carrinho e pelo destaque de combo. O backend continua sendo a validação definitiva no checkout.
+- Skeletons responsivos substituem o spinner isolado durante carregamento dos produtos.
+- Busca ganhou ação de limpeza e contador anunciado por região `aria-live`.
+- Imagens de produto usam lazy loading, decodificação assíncrona e texto alternativo com o nome do produto.
+- Opções de pagamento, destaque de combo e estados do carrinho foram harmonizados com os tokens do tema.
+- Carrinho ganhou semântica de diálogo e uma ação para retornar à vitrine quando estiver vazio.
+- Placeholder de imagem passou a usar ícone específico de imagem indisponível, em vez de ícone de carrinho.
+- Commits adicionais: `e7b937ddae2c37ce1e2c23864ada542ce6c28aba`, `0ac7efba9849c60ad7de3b6d5d9b04a610c5e308`, `e9083db064875a53479beb9504f50c4960db51a6`, `ec88a37538e79d8a4d8d3ca6900c0d8b8c7a1d30`.
+
+### Estado de validação
+- Workflow do commit `371a052`: concluído com sucesso.
+- Workflows dos commits `e7b937d` e `0ac7efb`: cancelados por concorrência de pushes sucessivos, não por falha de compilação.
+- Workflow do commit `e9083db`: em execução na última consulta; workflow do commit `ec88a37`: aguardando execução.
+- As verificações estáticas no código confirmaram os pontos acima. A etapa permanece em andamento até o workflow do commit final e um teste visual real serem confirmados.
+- Não foram alterados schema, migrations, Edge Functions ou regras de checkout nesta rodada.
+
 ### Limitações ainda abertas nesta rodada
 - A etapa não está concluída: falta confirmar o workflow no commit mais recente, revisar o restante do fluxo visual (hero, categorias, carrinho, pagamento e tracking) e testar a experiência publicada.
 - Descrições de produto, variantes e adicionais dependem da Etapa 2 e de mudanças coordenadas no backend. Não serão inventados no frontend.

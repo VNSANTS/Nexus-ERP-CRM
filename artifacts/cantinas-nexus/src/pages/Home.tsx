@@ -397,8 +397,8 @@ export function Home() {
                         </div>
                       </div>
                       {disabled && (
-                        <div className={`absolute inset-0 backdrop-blur-[2px] rounded-[2rem] flex items-center justify-center z-20 ${isDarkTheme ? 'bg-black/45' : 'bg-foreground/20'}`} >
-                          <div className="bg-gray-900 text-white font-black px-6 py-3 rounded-full text-sm sm:text-lg shadow-2xl -rotate-12 border-4 border-white/20">ESGOTADO</div>
+                        <div className={`absolute inset-0 backdrop-blur-[1px] rounded-[1.25rem] sm:rounded-[2rem] flex items-center justify-center z-20 ${isDarkTheme ? 'bg-black/40' : 'bg-foreground/15'}`} >
+                          <div className="bg-[#242a33] text-white font-black px-5 py-2.5 rounded-full text-xs sm:text-base shadow-xl -rotate-6 border border-white/20">ESGOTADO</div>
                         </div>
                       )}
                     </motion.article>
@@ -624,11 +624,11 @@ export function Home() {
           <div className="fixed inset-0 z-40 flex justify-end">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCartOpen(false)} />
-            <motion.aside initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+            <motion.aside role="dialog" aria-modal="true" aria-labelledby="cart-title" initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className={`relative w-full sm:max-w-md md:max-w-lg h-full shadow-2xl flex flex-col z-10 sm:rounded-l-[2rem] overflow-hidden ${isDarkTheme ? "bg-[#15191f] text-white" : "bg-white text-gray-900"}`}>
               <div className={`p-6 sm:p-8 flex justify-between items-center border-b ${isDarkTheme ? "bg-[#1d232d] border-white/10" : "bg-gray-50 border-gray-100"}`}>
-                <h2 className={`text-2xl sm:text-3xl font-display font-extrabold flex items-center gap-3 ${isDarkTheme ? "text-white" : "text-gray-900"}`}>
+                <h2 id="cart-title" className={`text-2xl sm:text-3xl font-display font-extrabold flex items-center gap-3 ${isDarkTheme ? "text-white" : "text-gray-900"}`}>
                   <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8 text-primary" /> Seu Pedido
                 </h2>
                 <div className="flex items-center gap-2">
@@ -651,6 +651,7 @@ export function Home() {
                      <div className={`w-32 h-32 rounded-full flex items-center justify-center mb-6 shadow-inner ${isDarkTheme ? 'bg-[#202630] border border-white/10' : 'bg-muted'}`}><ShoppingCart className="w-14 h-14 text-muted-foreground" /></div>
                     <h3 className="text-xl font-display font-bold text-foreground mb-2">Seu carrinho está vazio</h3>
                     <p className="text-base font-medium text-muted-foreground">Toque nos itens do cardápio para adicionar.</p>
+                    <button type="button" onClick={() => { setCartOpen(false); document.getElementById('menu-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} className="mt-5 min-h-11 rounded-full bg-primary px-5 text-sm font-extrabold text-primary-foreground transition hover:brightness-95">Explorar produtos</button>
                   </div>
                 ) : (
                   <>
@@ -665,7 +666,7 @@ export function Home() {
                             <h3 className={`font-bold text-lg sm:text-xl truncate mb-1 ${isDarkTheme ? "text-white" : "text-gray-900"}`}>{item.name}</h3>
                             <p className="text-primary font-black text-lg">{formatCurrency(item.price * item.qty)}</p>
                           </div>
-                          <div className={`flex flex-col sm:flex-row items-center gap-1 sm:gap-3 rounded-xl shadow-sm p-1.5 border ${isDarkTheme ? 'bg-[#15191f] border-white/10' : 'bg-card border-border'}`}>
+                          <div className={`flex flex-row items-center gap-1 sm:gap-3 rounded-xl shadow-sm p-1.5 border ${isDarkTheme ? 'bg-[#15191f] border-white/10' : 'bg-card border-border'}`}>
                             <button type="button" aria-label={`Diminuir ${item.name}`} onClick={() => cartStore.decrement(item.productId)}
                               className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg active:scale-95 transition-all">
                               <Minus className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={3} />

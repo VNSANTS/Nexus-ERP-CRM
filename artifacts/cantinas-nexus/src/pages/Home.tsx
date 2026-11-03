@@ -22,6 +22,7 @@ import {
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCustomerAuth } from '../lib/customer-auth';
+import { getMenuTemplate, MENU_TEMPLATE_STYLES } from '../lib/menu-templates';
 
 const REFERENCE_ASSET = `${import.meta.env.BASE_URL}reference/`;
 
@@ -190,16 +191,17 @@ export function Home() {
   const getStock = (productId: string) => stock.find((s) => s.productId === productId)?.quantidade ?? 0;
 
   const whatsappUrl = `https://wa.me/${settings?.whatsappNumero ?? '5511999999999'}`;
-  const isStarNexus = /star\s*nexus/i.test(settings?.nomeLoja ?? '');
   const menuPrimary = settings?.menuPrimaryColor ?? '#ff6600';
-  const menuBackground = isStarNexus ? '#10141a' : (settings?.menuBackgroundColor ?? '#f7f3ed');
+  const menuBackground = settings?.menuBackgroundColor ?? '#f7f3ed';
+  const menuTemplate = getMenuTemplate(menuPrimary, menuBackground);
+  const isDarkTheme = menuTemplate.dark;
   const menuTheme = {
     '--primary': hexToHsl(menuPrimary),
     '--ring': hexToHsl(menuPrimary),
     '--background': hexToHsl(menuBackground),
-    ...(isStarNexus ? {
+    ...(isDarkTheme ? {
       '--foreground': '0 0% 96%',
-      '--card': '220 18% 11%',
+      '--card': menuTemplate.id === 'luxury' ? '330 10% 13%' : '220 18% 11%',
       '--card-foreground': '0 0% 96%',
       '--popover': '220 18% 11%',
       '--popover-foreground': '0 0% 96%',
@@ -215,11 +217,11 @@ export function Home() {
   } as CSSProperties;
 
   return (
-    <div style={menuTheme} className="nexus-noise min-h-[100dvh] flex flex-col overflow-hidden relative bg-background">{isStarNexus && <style>{'@keyframes starnexus-marquee{to{transform:translateX(-50%)}}.starnexus-grid{background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(to right,black,transparent 90%)}.starnexus-outline{color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.55)}.starnexus-orbit{transform:rotate(-28deg);box-shadow:0 0 80px rgba(255,106,0,.06),inset 0 0 80px rgba(255,106,0,.04)}.starnexus-orbit-one{animation:starnexus-spin 55s linear infinite}.starnexus-orbit-two{animation:starnexus-spin 75s linear infinite reverse}@keyframes starnexus-spin{to{transform:rotate(332deg)}}@media(prefers-reduced-motion:reduce){.starnexus-orbit-one,.starnexus-orbit-two,.starnexus-marquee>div{animation:none!important}}'}</style>}
+    <div style={menuTheme} className={`nexus-noise menu-template-${menuTemplate.id} min-h-[100dvh] flex flex-col overflow-hidden relative bg-background`}><style>{MENU_TEMPLATE_STYLES + '@keyframes starnexus-marquee{to{transform:translateX(-50%)}}.starnexus-grid{background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(to right,black,transparent 90%)}.starnexus-outline{color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.55)}.starnexus-orbit{transform:rotate(-28deg);box-shadow:0 0 80px rgba(255,106,0,.06),inset 0 0 80px rgba(255,106,0,.04)}.starnexus-orbit-one{animation:starnexus-spin 55s linear infinite}.starnexus-orbit-two{animation:starnexus-spin 75s linear infinite reverse}@keyframes starnexus-spin{to{transform:rotate(332deg)}}@media(prefers-reduced-motion:reduce){.starnexus-orbit-one,.starnexus-orbit-two,.starnexus-marquee>div{animation:none!important}}'}</style>
       {/* HEADER — marca e ações rápidas */}
       <header className="relative z-30 mx-auto flex w-full max-w-[1500px] items-center justify-between gap-3 border-b border-white/5 px-4 pb-4 pt-4 sm:px-8 sm:pt-6 lg:px-12">
         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-          <div className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl shadow-sm ring-1 ring-white/10 sm:h-16 sm:w-16 ${isStarNexus ? 'bg-[#1b2028]' : 'bg-white ring-black/5'}`}>
+          <div className={`flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl shadow-sm ring-1 ring-white/10 sm:h-16 sm:w-16 ${isDarkTheme ? 'bg-[#1b2028]' : 'bg-white ring-black/5'}`}>
             <img src={settings?.logoUrl || `${REFERENCE_ASSET}logo.webp`} alt={settings?.nomeLoja || 'Logo do estabelecimento'} className="h-full w-full object-contain" />
           </div>
           <div className="min-w-0">
@@ -275,7 +277,7 @@ export function Home() {
 <div aria-hidden="true" className="starnexus-grid pointer-events-none absolute inset-0 opacity-30" />
 <div aria-hidden="true" className="starnexus-orbit starnexus-orbit-one absolute right-[-15%] top-[5%] h-[78%] aspect-square rounded-full border border-orange-400/20" />
 <div aria-hidden="true" className="starnexus-orbit starnexus-orbit-two absolute right-[-7%] top-[12%] h-[64%] aspect-square rounded-full border border-white/10" />
-{isStarNexus && <img src={`${REFERENCE_ASSET}food-combo.webp`} alt="" aria-hidden="true" className="pointer-events-none absolute -right-[16%] bottom-[-13%] z-[1] h-[92%] w-[90%] object-contain drop-shadow-[0_35px_45px_rgba(0,0,0,.65)] sm:-right-[7%] sm:bottom-[-16%] sm:h-[112%] sm:w-[78%] lg:right-[-2%] lg:h-[118%] lg:w-[68%]" /> }
+{isDarkTheme && <img src={`${REFERENCE_ASSET}food-combo.webp`} alt="" aria-hidden="true" className="pointer-events-none absolute -right-[16%] bottom-[-13%] z-[1] h-[92%] w-[90%] object-contain drop-shadow-[0_35px_45px_rgba(0,0,0,.65)] sm:-right-[7%] sm:bottom-[-16%] sm:h-[112%] sm:w-[78%] lg:right-[-2%] lg:h-[118%] lg:w-[68%]" /> }
 <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[2] bg-gradient-to-r from-[#101116] via-[#101116]/90 to-transparent" />
 <div className="relative z-10 flex min-h-[540px] flex-col justify-between p-6 sm:min-h-[610px] sm:p-10 lg:min-h-[660px] lg:p-14">
 <div className="flex items-center justify-between gap-4"><p className="inline-flex items-center gap-2 rounded-full border border-orange-400/30 bg-orange-400/10 px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-[.24em] text-orange-200 sm:text-xs"><Sparkles className="h-3.5 w-3.5" /> EXPERIÊNCIA FORA DO COMUM</p><span className="hidden font-mono text-[10px] uppercase tracking-[.25em] text-white/40 sm:block">Nº 001 / MENU DIGITAL</span></div>
@@ -314,7 +316,7 @@ export function Home() {
                         cartStore.add(product.id, product.name, price);
                          toast.success(`${product.name} adicionado!`, { duration: 1200 });
                       }}
-                       className={`group relative flex h-full flex-col overflow-hidden rounded-[1.6rem] border p-2.5 text-left transition-all duration-300 sm:rounded-[1.8rem] sm:p-4 ${isStarNexus ? 'border-white/[.09] bg-gradient-to-b from-[#202630] to-[#15191f] shadow-[0_20px_45px_rgba(0,0,0,.3)]' : 'border-black/[.045] bg-white shadow-[0_8px_24px_rgba(36,31,24,.055)]'} ${disabled ? 'cursor-not-allowed opacity-55 grayscale' : 'hover:-translate-y-2 hover:border-primary/40 hover:shadow-[0_25px_55px_rgba(0,0,0,.3)]'}`}>
+                       className={`group relative flex h-full flex-col overflow-hidden rounded-[1.6rem] border p-2.5 text-left transition-all duration-300 sm:rounded-[1.8rem] sm:p-4 ${isDarkTheme ? 'border-white/[.09] bg-gradient-to-b from-[#202630] to-[#15191f] shadow-[0_20px_45px_rgba(0,0,0,.3)]' : 'border-black/[.045] bg-white shadow-[0_8px_24px_rgba(36,31,24,.055)]'} ${disabled ? 'cursor-not-allowed opacity-55 grayscale' : 'hover:-translate-y-2 hover:border-primary/40 hover:shadow-[0_25px_55px_rgba(0,0,0,.3)]'}`}>
                       {product.sazonal && (
                         <span className="absolute top-4 left-4 z-10 flex items-center gap-1 bg-amber-400 text-amber-950 text-[10px] sm:text-xs font-black px-3 py-1 rounded-full shadow-md">
                           <Sparkles className="w-3 h-3" /> SAZONAL
@@ -333,7 +335,7 @@ export function Home() {
                        >
                          <Heart className={`w-4 h-4 ${favoriteIds.includes(product.id) ? 'fill-current' : ''}`} />
                        </span>
-                        <div className={`mb-4 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-[1.2rem] sm:rounded-[1.4rem] ${isStarNexus ? 'bg-[#202630]' : 'bg-[#f5f0e8]'}`}>
+                        <div className={`mb-4 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-[1.2rem] sm:rounded-[1.4rem] ${isDarkTheme ? 'bg-[#202630]' : 'bg-[#f5f0e8]'}`}>
                          <motion.div whileHover={disabled ? {} : { rotate: 5, scale: 1.1 }} className="w-full h-full flex items-center justify-center">
                            {product.imageUrl ? (
                              <img src={product.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -361,7 +363,7 @@ export function Home() {
                   );
                 })}
                 {!loadingProducts && visibleProducts.length === 0 && (
-                  <div className={`col-span-full rounded-[1.8rem] border border-dashed border-border px-5 py-14 text-center ${isStarNexus ? 'bg-[#171c24]' : 'bg-white/70'}`}>
+                  <div className={`col-span-full rounded-[1.8rem] border border-dashed border-border px-5 py-14 text-center ${isDarkTheme ? 'bg-[#171c24]' : 'bg-white/70'}`}>
                      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fff0df] text-primary"><Search className="h-6 w-6" /></div>
                      <p className="font-display text-lg font-black text-foreground">Essa prateleira está vazia</p>
                      <p className="mt-1 text-sm text-muted-foreground">Ainda não há itens disponíveis nesta categoria.</p>
@@ -373,7 +375,7 @@ export function Home() {
            </motion.div>
            {featuredCombo ? (
               <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .18 }}
-                className={`group relative mt-10 grid min-h-[360px] overflow-hidden rounded-[2rem] border ${isStarNexus ? 'border-white/10 bg-[#171c24]' : 'border-orange-100 bg-[#fff7ed]'} shadow-[0_28px_70px_rgba(0,0,0,.22)] md:mt-14 md:min-h-[470px] md:grid-cols-12`}>
+                className={`group relative mt-10 grid min-h-[360px] overflow-hidden rounded-[2rem] border ${isDarkTheme ? 'border-white/10 bg-[#171c24]' : 'border-orange-100 bg-[#fff7ed]'} shadow-[0_28px_70px_rgba(0,0,0,.22)] md:mt-14 md:min-h-[470px] md:grid-cols-12`}>
                 <div className="relative min-h-[250px] overflow-hidden md:col-span-7 md:min-h-[470px]">
                   <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_45%_48%,rgba(255,106,0,.24),transparent_58%)]" />
                   <div aria-hidden="true" className="absolute inset-[8%] rounded-full border border-orange-400/20" />
@@ -576,9 +578,9 @@ export function Home() {
               className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCartOpen(false)} />
             <motion.aside initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className={`relative w-full sm:max-w-md md:max-w-lg h-full shadow-2xl flex flex-col z-10 sm:rounded-l-[2rem] overflow-hidden ${isStarNexus ? "bg-[#15191f] text-white" : "bg-white text-gray-900"}`}>
-              <div className={`p-6 sm:p-8 flex justify-between items-center border-b ${isStarNexus ? "bg-[#1d232d] border-white/10" : "bg-gray-50 border-gray-100"}`}>
-                <h2 className={`text-2xl sm:text-3xl font-display font-extrabold flex items-center gap-3 ${isStarNexus ? "text-white" : "text-gray-900"}`}>
+              className={`relative w-full sm:max-w-md md:max-w-lg h-full shadow-2xl flex flex-col z-10 sm:rounded-l-[2rem] overflow-hidden ${isDarkTheme ? "bg-[#15191f] text-white" : "bg-white text-gray-900"}`}>
+              <div className={`p-6 sm:p-8 flex justify-between items-center border-b ${isDarkTheme ? "bg-[#1d232d] border-white/10" : "bg-gray-50 border-gray-100"}`}>
+                <h2 className={`text-2xl sm:text-3xl font-display font-extrabold flex items-center gap-3 ${isDarkTheme ? "text-white" : "text-gray-900"}`}>
                   <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8 text-primary" /> Seu Pedido
                 </h2>
                 <div className="flex items-center gap-2">
@@ -595,7 +597,7 @@ export function Home() {
                 </div>
               </div>
 
-              <div className={`flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 hide-scrollbar ${isStarNexus ? "bg-[#15191f]" : "bg-white"}`}>
+              <div className={`flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 hide-scrollbar ${isDarkTheme ? "bg-[#15191f]" : "bg-white"}`}>
                 {cart.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8 text-center">
                      <div className="w-32 h-32 bg-gray-50 rounded-full flex items-center justify-center mb-6 shadow-inner"><ShoppingCart className="w-14 h-14 text-muted-foreground" /></div>
@@ -612,7 +614,7 @@ export function Home() {
                             {products.find((p: ApiProduct) => p.id === item.productId)?.emoji}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className={`font-bold text-lg sm:text-xl truncate mb-1 ${isStarNexus ? "text-white" : "text-gray-900"}`}>{item.name}</h3>
+                            <h3 className={`font-bold text-lg sm:text-xl truncate mb-1 ${isDarkTheme ? "text-white" : "text-gray-900"}`}>{item.name}</h3>
                             <p className="text-primary font-black text-lg">{formatCurrency(item.price * item.qty)}</p>
                           </div>
                           <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3 bg-white rounded-xl shadow-sm p-1.5 border border-gray-200">
@@ -659,9 +661,9 @@ export function Home() {
               </div>
 
               {cart.length > 0 && (
-                <div className={`p-6 sm:p-8 border-t space-y-4 shrink-0 ${isStarNexus ? "bg-[#1d232d] border-white/10" : "bg-white border-gray-100"}`}>
+                <div className={`p-6 sm:p-8 border-t space-y-4 shrink-0 ${isDarkTheme ? "bg-[#1d232d] border-white/10" : "bg-white border-gray-100"}`}>
                   <div className="flex justify-between items-center">
-                    <span className={`text-xl sm:text-2xl font-bold ${isStarNexus ? "text-white/70" : "text-gray-700"}`}>Total</span>
+                    <span className={`text-xl sm:text-2xl font-bold ${isDarkTheme ? "text-white/70" : "text-gray-700"}`}>Total</span>
                     <span className="text-2xl sm:text-3xl font-black text-primary">{formatCurrency(totalCart)}</span>
                   </div>
                   <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}

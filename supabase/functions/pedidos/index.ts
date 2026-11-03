@@ -13,7 +13,7 @@ import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse, requireEmployee, hasEmployeeAccess } from '../_shared/helpers.ts';
 import { getClientIp, checkRateLimit } from '../_shared/security.ts';
 
-type CartItem = { productId: string; qty: number };
+type CartItem = { productId: string; qty: number; variantId?: string | null; modifierIds?: string[] };
 
 async function createOrder(
   supabase: SupabaseClient<any>,
@@ -23,7 +23,7 @@ async function createOrder(
   if (!cartItems?.length) throw { status: 400, message: 'Carrinho vazio.' };
   if (
     cartItems.length > 50 ||
-    cartItems.some((item) => !item.productId || !Number.isSafeInteger(item.qty) || item.qty < 1 || item.qty > 100) ||
+    cartItems.some((item) => !item.productId || !Number.isSafeInteger(item.qty) || item.qty < 1 || item.qty > 100 || (item.variantId != null && (typeof item.variantId !== 'string' || item.variantId.length > 50)) || (item.modifierIds != null && (!Array.isArray(item.modifierIds) || item.modifierIds.length > 40 || item.modifierIds.some((id) => typeof id !== 'string' || id.length > 50)))) ||
     new Set(cartItems.map((item) => item.productId)).size !== cartItems.length
   ) {
     throw { status: 400, message: 'Itens ou quantidades invalidas.' };
@@ -82,7 +82,7 @@ Deno.serve(async (req: Request) => {
       const rate = await checkRateLimit(supabase, 'menu_ip', getClientIp(req), 300, 15);
       if (!rate.allowed) return errorResponse('Muitas consultas. Tente novamente mais tarde.', 429);
 
-      const [productsResult, stockResult, promotionsResult, settingsResult] = await Promise.all([
+      const [productsResult, stockResult, promotionsResult, settingsResult, variantsResult, groupsResult, modifiersResult] = await Promise.all([
         supabase.from('products')
           .select('id, name, description, price, emoji, categoria, sazonal, disponivel, image_url, created_at, updated_at')
           .eq('establishment_id', establishment.id)
@@ -99,14 +99,40 @@ Deno.serve(async (req: Request) => {
           .eq('establishment_id', establishment.id)
           .eq('id', 1)
           .maybeSingle(),
+        supabase.from('product_variants').select('id, product_id, name, price_delta, sort_order').eq('establishment_id', establishment.id).eq('active', true).order('sort_order'),
+        supabase.from('product_modifier_groups').select('id, product_id, name, required, min_select, max_select, sort_order').eq('establishment_id', establishment.id).eq('active', true).order('sort_order'),
+        supabase.from('product_modifiers').select('id, product_id, group_id, name, price_delta, sort_order').eq('establishment_id', establishment.id).eq('active', true).order('sort_order'),
       ]);
-      const menuError = productsResult.error ?? stockResult.error ?? promotionsResult.error ?? settingsResult.error;
+      const menuError = productsResult.error ?? stockResult.error ?? promotionsResult.error ?? settingsResult.error ?? variantsResult.error ?? groupsResult.error ?? modifiersResult.error;
       if (menuError) throw menuError;
       const visibleProductIds = new Set((productsResult.data ?? []).map((product) => product.id));
+      const visibleGroups = (groupsResult.data ?? []).filter((group) => visibleProductIds.has(group.product_id));
+      const modifiersByGroup = new Map<string, typeof modifiersResult.data>();
+      for (const modifier of (modifiersResult.data ?? []).filter((item) => visibleProductIds.has(item.product_id))) {
+        const list = modifiersByGroup.get(modifier.group_id) ?? [];
+        list.push(modifier);
+        modifiersByGroup.set(modifier.group_id, list);
+      }
+      const groupsByProduct = new Map<string, Array<Record<string, unknown>>>();
+      for (const group of visibleGroups) {
+        const list = groupsByProduct.get(group.product_id) ?? [];
+        list.push({ ...group, modifiers: modifiersByGroup.get(group.id) ?? [] });
+        groupsByProduct.set(group.product_id, list);
+      }
+      const variantsByProduct = new Map<string, typeof variantsResult.data>();
+      for (const variant of (variantsResult.data ?? []).filter((item) => visibleProductIds.has(item.product_id))) {
+        const list = variantsByProduct.get(variant.product_id) ?? [];
+        list.push(variant);
+        variantsByProduct.set(variant.product_id, list);
+      }
 
       return jsonResponse({
         establishmentId: establishment.id,
-        products: productsResult.data ?? [],
+        products: (productsResult.data ?? []).map((product) => ({
+          ...product,
+          variants: variantsByProduct.get(product.id) ?? [],
+          modifier_groups: groupsByProduct.get(product.id) ?? [],
+        })),
         stock: (stockResult.data ?? []).filter((row) => visibleProductIds.has(row.product_id)),
         promotions: promotionsResult.data ?? [],
         settings: settingsResult.data ?? { id: 1, nome_loja: '', whatsapp_numero: '', logo_url: null, menu_primary_color: '#ff6600', menu_background_color: '#f7f3ed' },
@@ -195,7 +221,7 @@ Deno.serve(async (req: Request) => {
 
       const { data: items, error: itemsError } = await supabase
         .from('order_items')
-        .select('id, order_id, product_id, name, price, qty')
+        .select('id, order_id, product_id, name, price, qty, customizations')
         .eq('establishment_id', order.establishment_id)
         .eq('order_id', order.id);
       if (itemsError) throw itemsError;

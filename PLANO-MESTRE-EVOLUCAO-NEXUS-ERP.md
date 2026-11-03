@@ -396,3 +396,10 @@ Mais melhorias aplicadas:
 - Commits: `21c84eb12982a64eb50603ac0ae4ec11a9945405` e `ada1bcde4e7dca30c9a5ca139afbe8f0a4fdaee7`.
 - Workflow do commit `f097b02`: concluído com sucesso. Workflow do commit `21c84eb`: cancelado por push subsequente; workflow do commit `ada1bcd`: em execução na última consulta.
 - A revisão continua estática; ainda falta validar os seis temas no navegador/dispositivo real. Não declarar a Etapa 1 concluída antes disso.
+
+### Correção de validação — 03/11/2026
+
+- O workflow do commit `ada1bcd` falhou no typecheck por um erro de composição do arquivo: as regras CSS adicionadas ficaram fora da template string TypeScript.
+- A falha foi identificada pelos logs do job `build`; não foi uma falha de runtime nem do Supabase.
+- Corrigido no commit `c7731c8fdecb419e9b6b09ed5f971d2aba39926d`, movendo os overrides para dentro da string `MENU_TEMPLATE_STYLES`.
+- Novo workflow disparado para `c7731c8`; aguardando resultado. Não considerar a correção validada até o typecheck/build terminarem.

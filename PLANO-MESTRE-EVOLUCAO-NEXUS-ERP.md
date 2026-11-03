@@ -434,3 +434,36 @@ Mais melhorias aplicadas:
 - Workflow `41627628431` disparado para esse commit; estava em execução na última consulta.
 - Consulta de verificação no banco encontrou zero produtos cadastrados no projeto neste momento. Portanto, a coluna e o contrato foram confirmados, mas não há registros reais para validar a apresentação de descrições preenchidas.
 - A próxima parte da Etapa 2 exige modelagem coordenada de variantes/adicionais, snapshots históricos e validação de preço no RPC `checkout_order_atomic`. Não enviar preços calculados pelo navegador nem criar tabelas expostas sem RLS, grants e políticas tenant-scoped.
+
+
+### Etapa 2 — variantes, adicionais e snapshots de pedido — 03/11/2026
+
+**Schema e checkout**
+- Criadas tabelas tenant-scoped `product_variants`, `product_modifier_groups` e `product_modifiers`, com FKs compostas que impedem associar opções de outro estabelecimento/produto.
+- RLS habilitada nas três tabelas. Acesso direto de `anon` e `authenticated` revogado; somente `service_role` recebe grants, usado exclusivamente pelas Edge Functions.
+- `order_items.customizations` guarda snapshots JSON das escolhas e dos acréscimos de preço. Pedidos antigos continuam válidos pelo default `[]`.
+- RPC `checkout_order_atomic` valida variante, disponibilidade, grupos, mínimos/máximos e adicionais no banco; calcula o valor usando preços cadastrados no servidor; mantém idempotência e baixa de estoque atômica.
+- O checkout passou a aceitar várias linhas/configurações do mesmo produto. A validação e a baixa agregam a quantidade por produto para não ultrapassar estoque quando o mesmo item é pedido com personalizações diferentes.
+- Promoção percentual/fixa continua limitada ao preço-base; adicionais não recebem desconto involuntário.
+- RPC administrativa `save_product_options` substitui variantes/grupos/adicionais em uma transação, validando limites e preços.
+
+**Frontend e operação**
+- Cardápio público carrega variantes e grupos de adicionais apenas dos produtos visíveis do estabelecimento.
+- Botão de adicionar abre painel de personalização quando o produto tem opções; preço por unidade é pré-calculado para apresentação, mas o servidor recalcula o preço definitivo no checkout.
+- Carrinho mantém linhas separadas por combinação de variante/adicionais, preserva opções no localStorage e envia IDs selecionados ao checkout.
+- Painel de produtos ganhou campos de edição para variantes e grupos de adicionais. Formato: uma variante por linha `Nome|acréscimo`; um grupo por linha `Grupo|mínimo|máximo|sim/não|Opção:preço;Opção:preço`.
+- Tickets da cozinha exibem os nomes das escolhas salvas no snapshot do pedido.
+- Edge Functions implantadas: `pedidos` versão 27 e `gerenciar-dados` versão 28, ambas ACTIVE com `verify_jwt=true`.
+
+**Migrations aplicadas no Supabase**
+- `20261103113020` — schema de variantes/adicionais e snapshots.
+- `20261103113319`, `20261103113500`, `20261103113614` — evolução e endurecimento da RPC de checkout.
+- `20261103113655` — editor transacional das opções do produto.
+- Arquivos SQL correspondentes foram adicionados a `supabase/migrations/`.
+
+**Validações e pendências**
+- Consulta SQL confirmou RLS habilitada nas três tabelas, leitura via `service_role`, sem leitura direta via `anon`, e execução de `save_product_options` bloqueada para `anon`.
+- Chamada de teste da RPC administrativa com produto inexistente retornou `PRODUCT_NOT_FOUND`, confirmando execução e validação tenant-scoped.
+- Build do commit `2674c60` (primeiro modal de personalização) passou. Workflow do commit `498867e` estava em execução na última consulta; ainda precisa validar a cadeia final de TypeScript/build/publicação.
+- Ainda falta teste integrado com um produto real e dados de opções, porque o projeto Supabase consultado está sem produtos cadastrados. Também falta teste visual dos seis modelos no navegador.
+- O editor de opções usa campos de texto estruturados para permitir cadastro imediato; uma interface visual de linhas/cartões para adicionar opções poderá substituir esse formato numa rodada de UX.

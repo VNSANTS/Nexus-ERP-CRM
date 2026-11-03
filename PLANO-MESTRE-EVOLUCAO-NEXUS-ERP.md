@@ -406,3 +406,22 @@ Mais melhorias aplicadas:
 
 - Resultado final do workflow `41626563218` para o commit `c7731c8`: **sucesso**. TypeScript, build do frontend e publicação no GitHub Pages concluídos com sucesso.
 - A falha do commit `ada1bcd` foi corrigida e a versão compilada/publicada é a do commit `c7731c8`.
+
+### Etapa 2 — primeira entrega do catálogo rico: descrição de produto — 03/11/2026
+
+**Implementado e integrado:**
+- Adicionada a coluna `products.description` como texto não nulo com padrão vazio, preservando compatibilidade dos produtos existentes.
+- Limite de 500 caracteres validado na Edge Function para criação e edição.
+- API TypeScript agora representa `description` no contrato de produto.
+- A função pública `pedidos` inclui a descrição na resposta do cardápio, mantendo apenas produtos disponíveis e o escopo do estabelecimento.
+- Painel da cozinha ganhou campo de descrição opcional com contador de caracteres, edição e visualização compacta na listagem.
+- Cardápio público exibe a descrição somente quando cadastrada, sem preencher textos fictícios.
+- A migration `20261103112237_add_product_descriptions.sql` foi aplicada ao projeto Supabase `phckbsoygqdbkvuxgobr` e versionada neste repositório.
+- Edge Functions `gerenciar-dados` e `pedidos` foram implantadas no Supabase, versões 26 e 23, ambas ACTIVE e com verificação JWT mantida.
+- Verificação SQL confirmou a coluna `description` como `text NOT NULL DEFAULT ''`.
+- Commits de implementação: `2abfb3e`, `0afad99`, `925b6de`, `8f6b980`, `29947ab`; migration `d51710b`.
+
+**Validação:**
+- Workflow `41626945306` executou typecheck e build com sucesso; publicação do GitHub Pages estava em andamento na última consulta.
+- Advisors do Supabase foram consultados após a alteração. Os avisos de RLS sem policy, índices e proteção de senha já abrangem outras tabelas/áreas do projeto; a nova coluna não cria tabela nem altera grants ou policies. Não foram feitas mudanças de segurança fora do escopo.
+- Ainda falta validar a leitura da descrição pelo cardápio publicado e cadastrar descrições reais pelo painel. Não há descrição fictícia pré-preenchida.

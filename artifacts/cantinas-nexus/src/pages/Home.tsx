@@ -270,7 +270,7 @@ export function Home() {
             {CATEGORY_TABS.map((tab) => {
               const isActive = categoryFilter === tab.key;
               return (
-                 <button key={tab.key} onClick={() => setCategoryFilter(tab.key)}
+                 <button key={tab.key} type="button" aria-pressed={isActive} onClick={() => setCategoryFilter(tab.key)}
                     className={`group shrink-0 whitespace-nowrap flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-extrabold transition-all duration-300 sm:px-5 sm:text-sm ${isActive ? 'bg-primary text-white shadow-lg shadow-orange-950/25 ring-1 ring-primary/30' : 'border border-border bg-card/80 text-foreground hover:border-primary/50 hover:bg-muted'}`}>
                    <img src={`${REFERENCE_ASSET}${tab.icon}`} alt="" aria-hidden="true" className="w-6 h-6 sm:w-7 sm:h-7 object-contain rounded-full" />
                    {tab.label}
@@ -323,7 +323,7 @@ export function Home() {
            </motion.section>
 <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="font-mono text-[10px] font-bold uppercase tracking-[.28em] text-primary">// 01 — CARDÁPIO</p><h3 className="mt-2 font-display text-3xl font-black uppercase tracking-tight text-foreground sm:text-5xl">{categoryFilter === 'todos' ? 'Descubra o cardápio' : CATEGORY_TABS.find((tab) => tab.key === categoryFilter)?.label}</h3><p className="mt-2 text-sm text-muted-foreground">Encontre seu próximo favorito.</p></div><div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[260px]"><label htmlFor="menu-search" className="sr-only">Buscar produtos</label><div className="flex min-h-12 items-center gap-3 rounded-2xl border border-border bg-card/80 px-4 shadow-sm transition-colors focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15"><Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true"/><input id="menu-search" type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Buscar no cardápio..." className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"/><span className="whitespace-nowrap font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{visibleProducts.length} {visibleProducts.length === 1 ? 'item' : 'itens'}</span></div></div></div>
 
-           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} id="menu-products" className="grid grid-cols-1 gap-5 pt-1 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
+           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} id="menu-products" className="grid grid-cols-2 gap-3 pt-1 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
             {loadingProducts ? (
               <div className="col-span-full flex items-center justify-center py-24">
                 <Loader2 className="w-12 h-12 text-white animate-spin" />
@@ -346,7 +346,7 @@ export function Home() {
                       whileHover={disabled ? {} : { y: -5 }}
                       key={product.id}
                       aria-label={product.name}
-                       className={`group relative flex h-full flex-col overflow-hidden rounded-[1.6rem] border p-2.5 text-left transition-all duration-300 sm:rounded-[1.8rem] sm:p-4 ${isDarkTheme ? 'border-white/[.09] bg-gradient-to-b from-[#202630] to-[#15191f] shadow-[0_20px_45px_rgba(0,0,0,.3)]' : 'border-black/[.045] bg-white shadow-[0_8px_24px_rgba(36,31,24,.055)]'} ${disabled ? 'cursor-not-allowed opacity-55 grayscale' : 'hover:-translate-y-2 hover:border-primary/40 hover:shadow-[0_25px_55px_rgba(0,0,0,.12)]'}`}>
+                       className={`group relative flex h-full min-w-0 flex-col overflow-hidden rounded-[1.25rem] border p-2 text-left transition-all duration-300 sm:rounded-[1.8rem] sm:p-4 ${isDarkTheme ? 'border-white/[.09] bg-gradient-to-b from-[#202630] to-[#15191f] shadow-[0_20px_45px_rgba(0,0,0,.3)]' : 'border-black/[.045] bg-white shadow-[0_8px_24px_rgba(36,31,24,.055)]'} ${disabled ? 'cursor-not-allowed opacity-55 grayscale' : 'hover:-translate-y-2 hover:border-primary/40 hover:shadow-[0_25px_55px_rgba(0,0,0,.12)]'}`}>
                       {product.sazonal && (
                         <span className="absolute top-4 left-4 z-10 flex items-center gap-1 bg-amber-400 text-amber-950 text-[10px] sm:text-xs font-black px-3 py-1 rounded-full shadow-md">
                           <Sparkles className="w-3 h-3" /> SAZONAL
@@ -364,7 +364,7 @@ export function Home() {
                        >
                          <Heart className={`h-4 w-4 ${favoriteIds.includes(product.id) ? 'fill-current' : ''}`} />
                        </button>
-                        <div className={`mb-4 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-[1.2rem] sm:rounded-[1.4rem] ${isDarkTheme ? 'bg-[#202630]' : 'bg-[#f5f0e8]'}`}>
+                        <div className={`mb-3 flex aspect-square w-full items-center justify-center overflow-hidden rounded-[1rem] sm:mb-4 sm:aspect-[4/3] sm:rounded-[1.4rem] ${isDarkTheme ? 'bg-[#202630]' : 'bg-[#f5f0e8]'}`}>
                          <motion.div whileHover={disabled ? {} : { rotate: 5, scale: 1.1 }} className="w-full h-full flex items-center justify-center">
                            {product.imageUrl ? (
                              <img src={product.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -377,7 +377,7 @@ export function Home() {
                          </motion.div>
                       </div>
                       <div className="flex-1 flex flex-col justify-end">
-                         <h3 className="mb-2 line-clamp-2 font-display text-base font-black uppercase leading-[.95] tracking-tight text-foreground sm:text-xl">{product.name}</h3>
+                         <h3 className="mb-2 line-clamp-2 min-h-[2.1em] font-display text-xs font-black uppercase leading-[1.05] tracking-tight text-foreground sm:text-xl">{product.name}</h3>
                         <div className="flex items-end gap-2 flex-wrap mt-auto">
                            <span className="font-display text-xl font-black text-primary sm:text-2xl">{formatCurrency(price)}</span>
                            {hasPromo && <span className="text-[10px] sm:text-xs font-bold text-muted-foreground line-through mb-1">{formatCurrency(original)}</span>}
@@ -388,7 +388,7 @@ export function Home() {
                                cartStore.add(product.id, product.name, price);
                                toast.success(`${product.name} adicionado!`, { duration: 1200 });
                              }}
-                             className="ml-auto inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-primary px-4 text-xs font-extrabold text-primary-foreground shadow-sm transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+                             className="ml-auto inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full bg-primary px-3 text-[10px] font-extrabold text-primary-foreground sm:min-h-10 sm:gap-2 sm:px-4 sm:text-xs shadow-sm transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
                            >
                              <Plus className="h-4 w-4" strokeWidth={2.5} /> Adicionar
                            </button>

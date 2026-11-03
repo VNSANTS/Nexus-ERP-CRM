@@ -321,11 +321,11 @@ export function Kitchen() {
       const saved = form.id
         ? await api.products.update(form.id, { name: form.name, description: form.description, price: form.price, emoji: form.emoji, categoria: form.categoria, sazonal: form.sazonal, disponivel: form.disponivel, imageUrl: form.imageUrl })
         : await api.products.create({ id, name: form.name, description: form.description, price: form.price, emoji: form.emoji, categoria: form.categoria, sazonal: form.sazonal, disponivel: form.disponivel, imageUrl: form.imageUrl, quantidadeInicial: Number(form.quantidadeInicial ?? 0) });
-      const variants = form.variantsText.split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
+      const variants = form.variantsText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
         const [name, rawPrice = '0'] = line.split('|');
         return { name: name.trim(), priceDelta: Number(rawPrice.trim().replace(',', '.')) };
       });
-      const groups = form.modifierGroupsText.split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
+      const groups = form.modifierGroupsText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
         const [name, rawMin = '0', rawMax = '1', rawRequired = 'nao', rawOptions = ''] = line.split('|');
         const modifiers = rawOptions.split(';').map((option) => option.trim()).filter(Boolean).map((option) => {
           const [optionName, rawPrice = '0'] = option.split(':');

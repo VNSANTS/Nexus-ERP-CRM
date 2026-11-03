@@ -378,7 +378,10 @@ export function Home() {
                          </motion.div>
                       </div>
                       <div className="flex-1 flex flex-col justify-end">
-                         <h3 className="mb-2 line-clamp-2 min-h-[2.1em] font-display text-xs font-black uppercase leading-[1.05] tracking-tight text-foreground sm:text-xl">{product.name}</h3>
+                         <div className="mb-2 min-h-[2.1em]">
+                           <h3 className="line-clamp-2 font-display text-xs font-black uppercase leading-[1.05] tracking-tight text-foreground sm:text-xl">{product.name}</h3>
+                           {product.description && <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-muted-foreground sm:text-xs">{product.description}</p>}
+                         </div>
                         <div className="flex items-end gap-2 flex-wrap mt-auto">
                            <span className="font-display text-xl font-black text-primary sm:text-2xl">{formatCurrency(price)}</span>
                            {hasPromo && <span className="text-[10px] sm:text-xs font-bold text-muted-foreground line-through mb-1">{formatCurrency(original)}</span>}

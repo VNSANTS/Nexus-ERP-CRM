@@ -425,3 +425,12 @@ Mais melhorias aplicadas:
 - Workflow `41626945306` executou typecheck e build com sucesso; publicação do GitHub Pages estava em andamento na última consulta.
 - Advisors do Supabase foram consultados após a alteração. Os avisos de RLS sem policy, índices e proteção de senha já abrangem outras tabelas/áreas do projeto; a nova coluna não cria tabela nem altera grants ou policies. Não foram feitas mudanças de segurança fora do escopo.
 - Ainda falta validar a leitura da descrição pelo cardápio publicado e cadastrar descrições reais pelo painel. Não há descrição fictícia pré-preenchida.
+
+
+### Continuação da Etapa 2 — busca por descrição — 03/11/2026
+
+- A busca pública do cardápio passou a considerar também o campo `description`, além do nome e da categoria. Isso permite localizar produtos por características que o próprio estabelecimento cadastrou.
+- Commit: `9a7a8320f496cd65ec8f22d1ac1365fb494e9da6`.
+- Workflow `41627628431` disparado para esse commit; estava em execução na última consulta.
+- Consulta de verificação no banco encontrou zero produtos cadastrados no projeto neste momento. Portanto, a coluna e o contrato foram confirmados, mas não há registros reais para validar a apresentação de descrições preenchidas.
+- A próxima parte da Etapa 2 exige modelagem coordenada de variantes/adicionais, snapshots históricos e validação de preço no RPC `checkout_order_atomic`. Não enviar preços calculados pelo navegador nem criar tabelas expostas sem RLS, grants e políticas tenant-scoped.

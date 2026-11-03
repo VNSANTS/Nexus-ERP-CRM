@@ -467,3 +467,12 @@ Mais melhorias aplicadas:
 - Build do commit `2674c60` (primeiro modal de personalização) passou. Workflow do commit `498867e` estava em execução na última consulta; ainda precisa validar a cadeia final de TypeScript/build/publicação.
 - Ainda falta teste integrado com um produto real e dados de opções, porque o projeto Supabase consultado está sem produtos cadastrados. Também falta teste visual dos seis modelos no navegador.
 - O editor de opções usa campos de texto estruturados para permitir cadastro imediato; uma interface visual de linhas/cartões para adicionar opções poderá substituir esse formato numa rodada de UX.
+
+
+### Verificação complementar — 03/11/2026
+
+- Workflow `41629160252` para o commit `498867e`: **typecheck, build e publicação GitHub Pages concluídos com sucesso**.
+- Edge Functions finais após o ajuste das mensagens de validação: `pedidos` versão 27 ACTIVE e `gerenciar-dados` versão 28 ACTIVE, ambas com JWT obrigatório.
+- Migration `20261103114100_index_product_options_tenant_foreign_keys` aplicada e versionada; adiciona índices de cobertura às FKs compostas das novas tabelas.
+- Advisors do Supabase confirmaram RLS habilitada nas tabelas de opções e ausência de grants diretos para `anon`. O linter ainda reporta o padrão RLS-enabled/no-policy em 25 tabelas (incluindo as três novas), intencional neste desenho: acesso somente pelo service role em Edge Functions, com validação de funcionário e estabelecimento. Aviso de proteção contra senha vazada e outros índices sem cobertura já existiam em áreas anteriores; os índices das FKs novas foram adicionados.
+- Ainda não há produtos no banco consultado, então não foi possível executar compra integrada com opções reais. O workflow valida o frontend, mas não substitui o teste de fluxo com dados reais nem a revisão visual em navegador.

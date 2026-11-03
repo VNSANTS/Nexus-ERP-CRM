@@ -414,7 +414,12 @@ export function Kitchen() {
   });
   const saveSettingsMut = useMutation({
     mutationFn: (payload?: Partial<ApiSettings>) => api.settings.update(payload ?? settingsForm!),
-    onSuccess: () => { toast.success('Configurações salvas!'); setSettingsForm(null); qc.invalidateQueries({ queryKey: ['settings'] }); },
+    onSuccess: (savedSettings) => {
+      if (savedSettings) qc.setQueryData(['settings'], savedSettings);
+      toast.success('Configurações salvas!');
+      setSettingsForm(null);
+      qc.invalidateQueries({ queryKey: ['settings'] });
+    },
     onError: (error: Error) => toast.error(error.message || 'Não foi possível salvar as configurações.'),
   });
   const clearSalesMut = useMutation({

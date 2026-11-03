@@ -823,7 +823,7 @@ export function Home() {
                   </legend>
                   {group.modifiers.map((modifier) => (
                     <label key={modifier.id} className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-current/10 p-3">
-                      <input type={group.maxSelect === 1 ? 'radio' : 'checkbox'}
+                      <input type="checkbox"
                         name={`modifier-${group.id}`}
                         checked={selectedModifierIds.includes(modifier.id)}
                         onChange={() => toggleModifier(group.id, modifier.id, group.maxSelect)}

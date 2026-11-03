@@ -17,7 +17,7 @@ import {
   Trash2, Plus, Minus, CreditCard, Wallet, Banknote, QrCode,
   ArrowLeft, CheckCircle2, ShoppingCart, X, MessageCircle,
   Sparkles, Heart, XCircle, Loader2,
-  Search, Info,
+  Search, Info, ImageOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -371,7 +371,7 @@ export function Home() {
                              <img src={product.imageUrl} alt={product.name} loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                            ) : (
                              <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary/5 via-transparent to-primary/10 text-primary/70">
-                               <ShoppingCart className="h-10 w-10 sm:h-12 sm:w-12" strokeWidth={1.35} aria-hidden="true" />
+                               <ImageOff className="h-10 w-10 sm:h-12 sm:w-12" strokeWidth={1.35} aria-hidden="true" />
                                <span className="text-[10px] font-bold uppercase tracking-[.18em] text-muted-foreground">Foto não disponível</span>
                              </div>
                            )}

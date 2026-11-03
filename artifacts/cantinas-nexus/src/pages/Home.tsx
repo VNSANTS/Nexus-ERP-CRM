@@ -225,7 +225,7 @@ export function Home() {
             <img src={settings?.logoUrl || `${REFERENCE_ASSET}logo.webp`} alt={settings?.nomeLoja || 'Logo do estabelecimento'} className="h-full w-full object-contain" />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-base font-black tracking-tight text-foreground sm:text-xl">{settings?.nomeLoja || 'StarNexus'}</p>
+            <p className="truncate text-base font-black tracking-tight text-foreground sm:text-xl">{settings?.nomeLoja || 'Seu estabelecimento'}</p>
             <p className="text-[10px] font-extrabold uppercase tracking-[.2em] text-primary sm:text-xs">Seu momento. Seu sabor.</p>
           </div>
         </div>

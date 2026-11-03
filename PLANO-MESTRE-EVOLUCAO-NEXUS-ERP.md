@@ -386,3 +386,13 @@ Mais melhorias aplicadas:
 - A etapa não está concluída: falta confirmar o workflow no commit mais recente, revisar o restante do fluxo visual (hero, categorias, carrinho, pagamento e tracking) e testar a experiência publicada.
 - Descrições de produto, variantes e adicionais dependem da Etapa 2 e de mudanças coordenadas no backend. Não serão inventados no frontend.
 - Não foi feita alteração de banco de dados nesta rodada.
+
+### Sexta rodada da Etapa 1 — identidade visual dos modelos — 03/11/2026
+
+- Reforçada a identidade visual dos seis modelos sem alterar seus IDs, cores cadastradas ou mecanismo de seleção.
+- Categorias, estados ativos, busca e cards receberam ajustes específicos por tema: Modern Dark e Luxury com superfícies escuras e detalhes próprios; Minimal mais limpo; Editorial com tipografia serifada e papel quente; Vibrant com blocos mais expressivos; Compact com densidade maior.
+- Corrigida a superfície do campo de busca nos temas escuros para não herdar fundo claro dos estilos globais.
+- Estados vazios dos temas escuros também foram alinhados à paleta.
+- Commits: `21c84eb12982a64eb50603ac0ae4ec11a9945405` e `ada1bcde4e7dca30c9a5ca139afbe8f0a4fdaee7`.
+- Workflow do commit `f097b02`: concluído com sucesso. Workflow do commit `21c84eb`: cancelado por push subsequente; workflow do commit `ada1bcd`: em execução na última consulta.
+- A revisão continua estática; ainda falta validar os seis temas no navegador/dispositivo real. Não declarar a Etapa 1 concluída antes disso.

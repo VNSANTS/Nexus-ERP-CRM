@@ -81,7 +81,6 @@ export const MENU_TEMPLATE_STYLES = `
 .menu-template-compact #menu-products article [class*=aspect-] { margin-bottom:.55rem; border-radius:.65rem; }
 @media(min-width:1024px){.menu-template-compact #menu-products{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
 @media(max-width:640px){.menu-hero{padding:1.35rem!important}.menu-qr{width:100%}}
-`;
 
 /* Template identity layer — category navigation, search and interactive states */
 .menu-template-modern-dark header { border-color:rgba(148,163,184,.12); }
@@ -163,3 +162,5 @@ export const MENU_TEMPLATE_STYLES = `
 .menu-template-modern-dark .menu-empty-feature p:not(.text-primary),
 .menu-template-luxury .menu-empty-feature p:not(.text-primary) { color:#aeb8c6; }
 .menu-template-luxury .menu-empty-feature { border-color:rgba(184,149,85,.25); }
+
+`;

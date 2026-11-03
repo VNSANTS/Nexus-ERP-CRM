@@ -26,6 +26,7 @@ import { convertImageToWebp } from '../lib/image-convert';
 import { useOwnerAuth } from '../lib/owner-auth';
 import { PasswordField } from '../components/PasswordField';
 import { Login } from './Login';
+import { MENU_TEMPLATES, getMenuTemplate } from '../lib/menu-templates';
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -412,8 +413,9 @@ export function Kitchen() {
     menuBackgroundColor: settings?.menuBackgroundColor ?? '#f7f3ed',
   });
   const saveSettingsMut = useMutation({
-    mutationFn: () => api.settings.update(settingsForm!),
+    mutationFn: (payload?: Partial<ApiSettings>) => api.settings.update(payload ?? settingsForm!),
     onSuccess: () => { toast.success('Configurações salvas!'); setSettingsForm(null); qc.invalidateQueries({ queryKey: ['settings'] }); },
+    onError: (error: Error) => toast.error(error.message || 'Não foi possível salvar as configurações.'),
   });
   const clearSalesMut = useMutation({
     mutationFn: api.reports.clearSales,
@@ -1909,7 +1911,63 @@ export function Kitchen() {
           <div className="max-w-2xl mx-auto space-y-6">
             <h2 className="text-2xl font-display font-black text-gray-900">Configurações</h2>
             <div className="bg-white rounded-2xl shadow-sm p-6 space-y-5">
-              <h3 className="font-black text-gray-700">Dados da Loja</h3>
+              <section className="space-y-4">
+                <div>
+                  <h3 className="font-black text-gray-800">Modelo do cardápio</h3>
+                  <p className="mt-1 text-sm text-gray-500">Escolha a experiência visual do seu estabelecimento. A troca altera somente o design: produtos, preços, estoque e pedidos continuam iguais.</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {MENU_TEMPLATES.map((template) => {
+                    const activeTemplate = getMenuTemplate(
+                      settingsForm?.menuPrimaryColor ?? settings?.menuPrimaryColor,
+                      settingsForm?.menuBackgroundColor ?? settings?.menuBackgroundColor,
+                    );
+                    const selected = activeTemplate.id === template.id;
+                    return (
+                      <button key={template.id} type="button" disabled={saveSettingsMut.isPending}
+                        onClick={() => {
+                          const payload = {
+                            ...(settingsForm ?? settingsDraft()),
+                            menuPrimaryColor: template.primary,
+                            menuBackgroundColor: template.background,
+                          };
+                          setSettingsForm(payload);
+                          saveSettingsMut.mutate(payload);
+                        }}
+                        className={`group overflow-hidden rounded-2xl border-2 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-60 ${selected ? 'border-primary ring-2 ring-primary/15 shadow-md' : 'border-gray-200 hover:border-gray-300'}`}>
+                        <div className="relative h-28 overflow-hidden p-3" style={{ background: template.background }}>
+                          <div className="flex items-center justify-between">
+                            <span className="h-5 w-16 rounded-full opacity-90" style={{ background: template.primary }} />
+                            <span className="h-5 w-5 rounded-full border" style={{ borderColor: template.dark ? '#ffffff55' : '#00000022' }} />
+                          </div>
+                          <div className="mt-3 flex gap-2">
+                            <div className="h-12 w-[42%] rounded-lg shadow-sm" style={{ background: template.dark ? '#ffffff16' : '#ffffffcc', border: template.dark ? '1px solid #ffffff20' : '1px solid #0000000d' }}>
+                              <div className="m-2 h-2 w-2/3 rounded-full" style={{ background: template.primary }} />
+                              <div className="mx-2 h-1.5 w-1/2 rounded-full" style={{ background: template.dark ? '#ffffff55' : '#64748b55' }} />
+                            </div>
+                            <div className="h-12 flex-1 rounded-lg shadow-sm" style={{ background: template.dark ? '#ffffff10' : '#ffffffcc', border: template.dark ? '1px solid #ffffff20' : '1px solid #0000000d' }}>
+                              <div className="m-2 h-2 w-3/4 rounded-full" style={{ background: template.dark ? '#ffffffaa' : '#33415555' }} />
+                              <div className="mx-2 h-3 w-8 rounded-full" style={{ background: template.primary }} />
+                            </div>
+                          </div>
+                          {selected && <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-black text-white"><Check className="h-3 w-3" /> ATUAL</span>}
+                        </div>
+                        <div className="p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-black text-gray-800">{template.name}</span>
+                            <span className="h-3 w-3 rounded-full" style={{ background: template.primary }} />
+                          </div>
+                          <p className="mt-1 text-xs leading-relaxed text-gray-500">{template.description}</p>
+                          <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">{template.mood}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {saveSettingsMut.isPending && <p className="text-xs font-semibold text-primary">Aplicando modelo ao cardápio...</p>}
+              </section>
+              <div className="border-t border-gray-100 pt-5">
+                <h3 className="font-black text-gray-700">Dados da Loja</h3>
               <div>
                 <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Nome da Loja</label>
                 <input

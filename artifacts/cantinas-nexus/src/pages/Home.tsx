@@ -171,7 +171,7 @@ export function Home() {
           ? p.sazonal
           : p.categoria === categoryFilter;
       const normalizedSearch = searchTerm.trim().toLocaleLowerCase('pt-BR');
-      const matchesSearch = !normalizedSearch || `${p.name} ${CATEGORY_LABELS[p.categoria as keyof typeof CATEGORY_LABELS] ?? p.categoria}`.toLocaleLowerCase('pt-BR').includes(normalizedSearch);
+      const matchesSearch = !normalizedSearch || `${p.name} ${p.description ?? ''} ${CATEGORY_LABELS[p.categoria as keyof typeof CATEGORY_LABELS] ?? p.categoria}`.toLocaleLowerCase('pt-BR').includes(normalizedSearch);
       return matchesCategory && matchesSearch;
     });
   }, [products, categoryFilter, searchTerm]);

@@ -458,17 +458,17 @@ export function Home() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
              className="max-w-5xl mx-auto h-full flex flex-col justify-center items-center pt-8 sm:pt-12 text-foreground">
             <button onClick={() => setView('menu')}
-              className="absolute top-4 left-4 sm:top-8 sm:left-8 flex items-center gap-2 text-foreground hover:bg-[#FFF0DC] font-bold text-sm sm:text-xl px-4 sm:px-6 py-3 sm:py-4 rounded-2xl transition-colors bg-card border border-border shadow-sm">
+              className="absolute top-4 left-4 sm:top-8 sm:left-8 flex items-center gap-2 text-foreground hover:bg-muted font-bold text-sm sm:text-xl px-4 sm:px-6 py-3 sm:py-4 rounded-2xl transition-colors bg-card border border-border shadow-sm">
               <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" /> Voltar ao Cardápio
             </button>
 
             <h2 className="text-3xl sm:text-6xl font-display font-extrabold text-foreground mb-4 text-center px-4">Como você quer pagar?</h2>
-            <div className="bg-white text-primary text-2xl sm:text-4xl font-black px-8 py-4 rounded-full shadow-2xl mb-8 sm:mb-12 border-4 border-orange-300/30">
+            <div className="bg-card text-primary text-2xl sm:text-4xl font-black px-8 py-4 rounded-full shadow-lg mb-8 sm:mb-12 border border-border">
               Total: {formatCurrency(totalCart)}
             </div>
 
             {loyaltyStatus && (
-              <div className="bg-[#FFF0DC] border border-[#F8D8B1] text-foreground rounded-2xl px-6 sm:px-8 py-4 mb-8 sm:mb-12 flex items-center gap-3 sm:gap-4 text-base sm:text-xl font-bold max-w-2xl text-center shadow-sm">
+              <div className="bg-accent border border-border text-foreground rounded-2xl px-6 sm:px-8 py-4 mb-8 sm:mb-12 flex items-center gap-3 sm:gap-4 text-base sm:text-xl font-bold max-w-2xl text-center shadow-sm">
                 <Heart className="w-6 h-6 sm:w-8 sm:h-8 text-primary shrink-0 fill-primary" />
                 {loyaltyStatus.ganhouBrinde
                  ? 'Parabéns! Você ganhou um brinde de fidelidade neste pedido!'
@@ -488,13 +488,13 @@ export function Home() {
                   <motion.button whileHover={{ y: -8, scale: 1.02 }} whileTap={{ scale: 0.95 }} key={method.id}
                     disabled={checkoutMutation.isPending}
                     onClick={() => checkoutMutation.mutate(method.id)}
-                    className={`bg-white p-6 sm:p-10 rounded-[2rem] shadow-2xl border-4 border-transparent ${method.hover} transition-colors flex flex-col items-center justify-center gap-4 group disabled:opacity-60`}>
+                    className={`p-6 sm:p-10 rounded-[2rem] shadow-xl border border-border ${isDarkTheme ? 'bg-[#202630]' : 'bg-card'} ${method.hover} transition-colors flex flex-col items-center justify-center gap-4 group disabled:opacity-60`}>
                     <div className={`w-16 h-16 sm:w-24 sm:h-24 ${method.bg} ${method.color} rounded-full flex items-center justify-center transition-transform group-hover:scale-110`}>
                       {checkoutMutation.isPending ? <Loader2 className="w-8 h-8 animate-spin" /> : <Icon className="w-8 h-8 sm:w-12 sm:h-12" strokeWidth={2.5} />}
                     </div>
                     <div className="text-center">
-                      <span className="block text-lg sm:text-2xl font-display font-bold text-gray-900 mb-1">{method.label}</span>
-                      <span className="block text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-wider">{method.sub}</span>
+                      <span className="block text-lg sm:text-2xl font-display font-bold text-foreground mb-1">{method.label}</span>
+                      <span className="block text-xs sm:text-sm font-bold text-muted-foreground uppercase tracking-wider">{method.sub}</span>
                     </div>
                   </motion.button>
                 );
@@ -512,7 +512,7 @@ export function Home() {
             </motion.div>
             <h2 className="text-3xl sm:text-6xl font-display font-extrabold text-foreground mb-4">Pedido recebido!</h2>
             <p className="text-lg sm:text-2xl text-muted-foreground font-bold mb-6 sm:mb-8">Seu número de chamada é:</p>
-            <div className="text-6xl sm:text-9xl font-display font-black text-primary bg-white px-12 sm:px-24 py-8 sm:py-12 rounded-[3rem] shadow-2xl mb-6 sm:mb-8 border-4 border-white/50">
+            <div className="text-6xl sm:text-9xl font-display font-black text-primary bg-card px-12 sm:px-24 py-8 sm:py-12 rounded-[3rem] shadow-xl mb-6 sm:mb-8 border border-border">
               {createdOrder.code}
             </div>
             <div className="bg-card border border-border text-foreground px-6 sm:px-8 py-3 sm:py-4 rounded-full mb-8 sm:mb-12 font-mono text-sm sm:text-xl font-bold tracking-widest text-center shadow-sm">
@@ -599,16 +599,16 @@ export function Home() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setWhatsappOpen(false)} />
             <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-white rounded-[2rem] p-8 sm:p-10 max-w-sm w-full text-center shadow-2xl z-10">
-              <button onClick={() => setWhatsappOpen(false)} className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors">
+              className={`relative rounded-[2rem] p-8 sm:p-10 max-w-sm w-full text-center shadow-2xl z-10 ${isDarkTheme ? 'bg-[#1d232d] text-white border border-white/10' : 'bg-card text-foreground border border-border'}`}>
+              <button onClick={() => setWhatsappOpen(false)} className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors">
                 <X className="w-6 h-6" />
               </button>
               <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
                 <MessageCircle className="w-10 h-10" strokeWidth={2.5} />
               </div>
-              <h3 className="text-2xl sm:text-3xl font-display font-extrabold text-gray-900 mb-2">Fale conosco</h3>
-              <p className="text-gray-500 mb-8 font-medium text-base">Escaneie para conversar com a cantina pelo WhatsApp.</p>
-              <div className="flex justify-center bg-gray-50 p-6 rounded-3xl border-2 border-gray-100 shadow-inner">
+              <h3 className="text-2xl sm:text-3xl font-display font-extrabold text-foreground mb-2">Fale conosco</h3>
+              <p className="text-muted-foreground mb-8 font-medium text-base">Escaneie para conversar com a cantina pelo WhatsApp.</p>
+              <div className="flex justify-center bg-white p-6 rounded-3xl border border-border shadow-inner">
                 <QRCodeSVG value={whatsappUrl} size={180} />
               </div>
             </motion.div>
@@ -655,17 +655,17 @@ export function Home() {
                     <AnimatePresence>
                       {cart.map((item) => (
                         <motion.div layout initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, x: 20 }}
-                          key={item.productId} className="bg-gray-50 rounded-[1.5rem] p-4 flex gap-4 items-center border border-gray-100">
-                          <div className="text-4xl bg-white w-20 h-20 rounded-2xl flex items-center justify-center shadow-sm shrink-0">
+                          key={item.productId} className={`rounded-[1.5rem] p-4 flex gap-4 items-center border ${isDarkTheme ? 'bg-[#202630] border-white/10' : 'bg-muted/70 border-border'}`}>
+                          <div className={`text-4xl w-20 h-20 rounded-2xl flex items-center justify-center shadow-sm shrink-0 ${isDarkTheme ? 'bg-[#15191f] border border-white/10' : 'bg-card border border-border'}`}>
                             {products.find((p: ApiProduct) => p.id === item.productId)?.emoji}
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className={`font-bold text-lg sm:text-xl truncate mb-1 ${isDarkTheme ? "text-white" : "text-gray-900"}`}>{item.name}</h3>
                             <p className="text-primary font-black text-lg">{formatCurrency(item.price * item.qty)}</p>
                           </div>
-                          <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3 bg-white rounded-xl shadow-sm p-1.5 border border-gray-200">
+                          <div className={`flex flex-col sm:flex-row items-center gap-1 sm:gap-3 rounded-xl shadow-sm p-1.5 border ${isDarkTheme ? 'bg-[#15191f] border-white/10' : 'bg-card border-border'}`}>
                             <button onClick={() => cartStore.decrement(item.productId)}
-                              className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-gray-900 rounded-lg active:scale-95 transition-all">
+                              className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg active:scale-95 transition-all">
                               <Minus className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={3} />
                             </button>
                             <span className="font-black text-lg sm:text-xl w-6 sm:w-8 text-center">{item.qty}</span>
@@ -686,7 +686,7 @@ export function Home() {
                         <label className="block text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Observações (opcional)</label>
                         <textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)}
                           placeholder="Ex: sem cebola, molho à parte..."
-                          className="w-full border-2 border-gray-200 rounded-2xl p-4 text-base sm:text-lg resize-none h-20 sm:h-24 focus:border-primary focus:outline-none transition-colors font-medium" />
+                          className="w-full border border-border bg-background text-foreground placeholder:text-muted-foreground rounded-2xl p-4 text-base sm:text-lg resize-none h-20 sm:h-24 focus:border-primary focus:outline-none transition-colors font-medium" />
                       </div>
                       <div>
                         <label className="block text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">
@@ -694,7 +694,7 @@ export function Home() {
                         </label>
                         <input type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)}
                           placeholder="(11) 99999-9999"
-                          className="w-full border-2 border-gray-200 rounded-2xl px-5 py-4 text-base sm:text-lg focus:border-primary focus:outline-none transition-colors font-medium" />
+                          className="w-full border border-border bg-background text-foreground placeholder:text-muted-foreground rounded-2xl px-5 py-4 text-base sm:text-lg focus:border-primary focus:outline-none transition-colors font-medium" />
                         {loyaltyStatus && (
                           <p className={`mt-2 text-sm font-bold ${loyaltyStatus.ganhouBrinde ? 'text-emerald-600' : 'text-gray-500'}`}>
                            {loyaltyStatus.ganhouBrinde ? 'Você ganhou um brinde!' : `Faltam ${loyaltyStatus.restantes} pedido(s) para o brinde`}

@@ -123,6 +123,30 @@ function getPublicMenu(): Promise<PublicMenu> {
 
 export type ProductCategory = 'lanche' | 'bebida' | 'combo';
 
+export interface ApiProductVariant {
+  id: string;
+  name: string;
+  priceDelta: string | number;
+  sortOrder: number;
+}
+
+export interface ApiProductModifier {
+  id: string;
+  name: string;
+  priceDelta: string | number;
+  sortOrder: number;
+}
+
+export interface ApiProductModifierGroup {
+  id: string;
+  name: string;
+  required: boolean;
+  minSelect: number;
+  maxSelect: number;
+  sortOrder: number;
+  modifiers: ApiProductModifier[];
+}
+
 export interface ApiProduct {
   id: string;
   name: string;
@@ -135,6 +159,8 @@ export interface ApiProduct {
   imageUrl: string | null;
   createdAt: string;
   updatedAt: string;
+  variants?: ApiProductVariant[];
+  modifierGroups?: ApiProductModifierGroup[];
 }
 
 export const api = {
@@ -181,7 +207,7 @@ export const api = {
     },*/
     checkout: (data: {
       establishmentId?: string;
-      cartItems: Array<{ productId: string; qty: number }>;
+      cartItems: Array<{ productId: string; qty: number; variantId?: string | null; modifierIds?: string[] }>;
       paymentMethod: string;
       observacoes: string;
       telefone: string;
@@ -373,6 +399,14 @@ export const api = {
 // Types (mirroring DB schema)
 // ---------------------------------------------------------------------------
 
+export interface ApiOrderCustomization {
+  type: 'variant' | 'modifier';
+  id: string;
+  name: string;
+  groupName?: string;
+  priceDelta: string | number;
+}
+
 export interface ApiOrderItem {
   id: number;
   orderId: string;
@@ -380,6 +414,7 @@ export interface ApiOrderItem {
   name: string;
   price: string;
   qty: number;
+  customizations?: ApiOrderCustomization[];
 }
 
 export interface ApiOrder {

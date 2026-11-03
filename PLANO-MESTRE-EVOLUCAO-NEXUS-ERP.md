@@ -403,3 +403,6 @@ Mais melhorias aplicadas:
 - A falha foi identificada pelos logs do job `build`; não foi uma falha de runtime nem do Supabase.
 - Corrigido no commit `c7731c8fdecb419e9b6b09ed5f971d2aba39926d`, movendo os overrides para dentro da string `MENU_TEMPLATE_STYLES`.
 - Novo workflow disparado para `c7731c8`; aguardando resultado. Não considerar a correção validada até o typecheck/build terminarem.
+
+- Resultado final do workflow `41626563218` para o commit `c7731c8`: **sucesso**. TypeScript, build do frontend e publicação no GitHub Pages concluídos com sucesso.
+- A falha do commit `ada1bcd` foi corrigida e a versão compilada/publicada é a do commit `c7731c8`.

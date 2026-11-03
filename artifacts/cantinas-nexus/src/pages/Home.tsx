@@ -272,20 +272,42 @@ export function Home() {
        <main className="flex-1 overflow-y-auto px-4 sm:px-8 lg:px-12 pb-24 relative z-0 hide-scrollbar max-w-[1500px] w-full mx-auto">
         {view === 'menu' && (
            <>
-           <motion.section initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="starnexus-hero relative isolate mb-10 mt-3 min-h-[540px] overflow-hidden rounded-[2rem] border border-white/10 bg-[#101116] text-white shadow-[0_35px_100px_rgba(0,0,0,.45)] sm:min-h-[610px] lg:min-h-[660px]">
-<div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-50" style={{backgroundImage:"radial-gradient(ellipse at 76% 42%, rgba(255,104,0,.32), transparent 38%), radial-gradient(ellipse at 15% 100%, rgba(255,104,0,.12), transparent 38%)"}} />
-<div aria-hidden="true" className="starnexus-grid pointer-events-none absolute inset-0 opacity-30" />
-<div aria-hidden="true" className="starnexus-orbit starnexus-orbit-one absolute right-[-15%] top-[5%] h-[78%] aspect-square rounded-full border border-orange-400/20" />
-<div aria-hidden="true" className="starnexus-orbit starnexus-orbit-two absolute right-[-7%] top-[12%] h-[64%] aspect-square rounded-full border border-white/10" />
-{isDarkTheme && <img src={`${REFERENCE_ASSET}food-combo.webp`} alt="" aria-hidden="true" className="pointer-events-none absolute -right-[16%] bottom-[-13%] z-[1] h-[92%] w-[90%] object-contain drop-shadow-[0_35px_45px_rgba(0,0,0,.65)] sm:-right-[7%] sm:bottom-[-16%] sm:h-[112%] sm:w-[78%] lg:right-[-2%] lg:h-[118%] lg:w-[68%]" /> }
-<div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[2] bg-gradient-to-r from-[#101116] via-[#101116]/90 to-transparent" />
-<div className="relative z-10 flex min-h-[540px] flex-col justify-between p-6 sm:min-h-[610px] sm:p-10 lg:min-h-[660px] lg:p-14">
-<div className="flex items-center justify-between gap-4"><p className="inline-flex items-center gap-2 rounded-full border border-orange-400/30 bg-orange-400/10 px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-[.24em] text-orange-200 sm:text-xs"><Sparkles className="h-3.5 w-3.5" /> CARDÁPIO DIGITAL</p><span className="hidden font-mono text-[10px] uppercase tracking-[.25em] text-white/40 sm:block">Nº 001 / MENU DIGITAL</span></div>
-<div className="grid items-end gap-8 lg:grid-cols-[1fr_auto]"><div className="max-w-3xl"><p className="mb-4 font-mono text-[10px] uppercase tracking-[.32em] text-orange-300 sm:text-xs">// ESCOLHA SEU PRÓXIMO FAVORITO.</p><h2 className="max-w-3xl font-display text-[clamp(3.5rem,10vw,8.8rem)] font-black uppercase leading-[.78] tracking-[-.055em]">Descubra<br /><span className="starnexus-outline">novos</span><br /><span className="text-orange-400">sabores.</span></h2><p className="mt-7 max-w-md text-sm leading-relaxed text-white/65 sm:text-base">Explore as opções, escolha seus favoritos e monte seu pedido em poucos toques.</p><div className="mt-8 flex flex-wrap items-center gap-3"><button type="button" onClick={() => document.getElementById('menu-products')?.scrollIntoView({behavior:'smooth',block:'start'})} className="group inline-flex items-center gap-3 rounded-full bg-[#ff6a00] px-7 py-4 text-xs font-black uppercase tracking-[.16em] text-white shadow-[0_12px_40px_rgba(255,106,0,.25)] transition-all hover:-translate-y-1 hover:bg-orange-500 sm:text-sm">Explorar cardápio <span className="text-lg transition-transform group-hover:translate-x-1">↗</span></button><span className="rounded-full border border-white/15 px-5 py-4 font-mono text-[10px] uppercase tracking-[.18em] text-white/55">Seu pedido começa aqui</span></div></div>
-<div className="flex items-end justify-between gap-4 lg:flex-col lg:items-end"><div className="hidden text-right lg:block"><p className="font-display text-6xl font-black leading-none text-white/10">SN—01</p><p className="mt-2 font-mono text-[9px] uppercase tracking-[.25em] text-white/40">Feito para você</p></div>{establishmentMenuUrl && <button type="button" onClick={() => setMenuQrOpen(true)} aria-label="Ampliar QR code do cardápio" className="rounded-2xl border border-white/15 bg-white p-3 text-[10px] font-bold text-slate-800 shadow-2xl transition-transform hover:-translate-y-1"><QRCodeSVG value={establishmentMenuUrl} size={68} level="H" /><span className="mt-1 block">COMPARTILHAR</span></button>}</div></div>
-<div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-5 font-mono text-[9px] uppercase tracking-[.2em] text-white/40 sm:text-[10px]"><span>01 — Escolha seu sabor</span><span>02 — Monte seu pedido</span><span>03 — Aproveite o momento</span><span className="text-orange-300">SCROLL TO EXPLORE ↓</span></div>
-</div></motion.section>
-<div className="starnexus-marquee relative -mx-4 mb-12 overflow-hidden border-y border-orange-500/30 bg-[#ff6a00] py-4 text-[#17120e] sm:-mx-8 lg:-mx-12"><div className="flex w-max animate-[starnexus-marquee_28s_linear_infinite] gap-8 whitespace-nowrap font-display text-2xl font-black uppercase tracking-wide sm:text-3xl">{Array.from({length:2}).map((_,index)=><div key={index} aria-hidden={index===1} className="flex items-center gap-8">{['FEITO PARA VOCÊ','SABORES QUE ENCANTAM','ESCOLHA SEU FAVORITO','PEÇA EM POUCOS TOQUES'].map(item=><span key={item} className="flex items-center gap-8">{item}<span aria-hidden="true">✳</span></span>)}</div>)}</div></div>
+           <motion.section
+             initial={{ opacity: 0, y: 14 }}
+             animate={{ opacity: 1, y: 0 }}
+             className="menu-hero relative mb-9 mt-5 overflow-hidden rounded-[1.75rem] border border-border bg-card px-6 py-7 shadow-sm sm:px-10 sm:py-9"
+           >
+             <div className="menu-hero-accent pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full opacity-[.09]" />
+             <div className="relative z-10 flex flex-col gap-7 sm:flex-row sm:items-end sm:justify-between">
+               <div className="max-w-2xl">
+                 <p className="mb-3 text-[11px] font-extrabold uppercase tracking-[.2em] text-primary">Cardápio digital</p>
+                 <h2 className="font-display text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-5xl">
+                   O que vamos <span className="text-primary">pedir hoje?</span>
+                 </h2>
+                 <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                   Confira nossas opções, escolha seus favoritos e faça seu pedido com praticidade.
+                 </p>
+                 <button
+                   type="button"
+                   onClick={() => document.getElementById('menu-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                   className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-extrabold text-white shadow-sm transition-all hover:brightness-95"
+                 >
+                   Ver produtos <span aria-hidden="true">→</span>
+                 </button>
+               </div>
+               {establishmentMenuUrl && (
+                 <button
+                   type="button"
+                   onClick={() => setMenuQrOpen(true)}
+                   aria-label="Ampliar QR code do cardápio"
+                   className="menu-qr inline-flex w-fit items-center gap-3 rounded-2xl border border-border bg-background p-3 text-left transition-colors hover:border-primary/50"
+                 >
+                   <span className="rounded-lg bg-white p-2"><QRCodeSVG value={establishmentMenuUrl} size={58} level="H" /></span>
+                   <span className="pr-2"><span className="block text-xs font-extrabold text-foreground">Compartilhe</span><span className="mt-1 block text-[11px] text-muted-foreground">Acesse pelo QR Code</span></span>
+                 </button>
+               )}
+             </div>
+           </motion.section>
 <div className="mb-6 flex items-end justify-between gap-3"><div><p className="font-mono text-[10px] font-bold uppercase tracking-[.28em] text-primary">// 01 — CARDÁPIO</p><h3 className="mt-2 font-display text-3xl font-black uppercase tracking-tight text-foreground sm:text-5xl">{categoryFilter === 'todos' ? 'Descubra o cardápio' : CATEGORY_TABS.find((tab) => tab.key === categoryFilter)?.label}</h3></div><span className="font-mono text-[10px] uppercase tracking-[.16em] text-muted-foreground">{visibleProducts.length} {visibleProducts.length === 1 ? 'opção' : 'opções'}</span></div>
 
            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} id="menu-products" className="grid grid-cols-1 gap-5 pt-1 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
@@ -400,9 +422,9 @@ export function Home() {
                 </div>
               </motion.section>
             ) : (
-              <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .18 }} className="mt-7 relative aspect-[82/27] overflow-hidden rounded-[1.5rem] border border-[#F8D8B1] bg-[#FFF0DC] shadow-[0_16px_40px_rgba(140,76,20,.10)]">
-                <button onClick={() => setCategoryFilter('combo')} className="absolute inset-0 z-10 cursor-pointer" aria-label="Ver combos" />
-                <img src={`${REFERENCE_ASSET}combo-banner.webp`} alt="Combos especiais" className="absolute inset-0 block h-full w-full object-cover object-center" />
+              <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .18 }} className="menu-empty-feature mt-8 flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+                <div><p className="text-[11px] font-extrabold uppercase tracking-[.18em] text-primary">Uma boa escolha</p><h3 className="mt-2 font-display text-xl font-extrabold text-foreground sm:text-2xl">Explore todas as opções</h3><p className="mt-1 text-sm text-muted-foreground">Veja os produtos disponíveis e encontre seu próximo favorito.</p></div>
+                <button type="button" onClick={() => setCategoryFilter('todos')} className="w-fit rounded-xl bg-primary px-5 py-3 text-sm font-extrabold text-white transition-all hover:brightness-95">Ver cardápio</button>
               </motion.section>
             )}
            </>

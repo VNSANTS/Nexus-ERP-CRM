@@ -23,8 +23,7 @@ async function createOrder(
   if (!cartItems?.length) throw { status: 400, message: 'Carrinho vazio.' };
   if (
     cartItems.length > 50 ||
-    cartItems.some((item) => !item.productId || !Number.isSafeInteger(item.qty) || item.qty < 1 || item.qty > 100 || (item.variantId != null && (typeof item.variantId !== 'string' || item.variantId.length > 50)) || (item.modifierIds != null && (!Array.isArray(item.modifierIds) || item.modifierIds.length > 40 || item.modifierIds.some((id) => typeof id !== 'string' || id.length > 50)))) ||
-    new Set(cartItems.map((item) => item.productId)).size !== cartItems.length
+    cartItems.some((item) => !item.productId || !Number.isSafeInteger(item.qty) || item.qty < 1 || item.qty > 100 || (item.variantId != null && (typeof item.variantId !== 'string' || item.variantId.length > 50)) || (item.modifierIds != null && (!Array.isArray(item.modifierIds) || item.modifierIds.length > 40 || item.modifierIds.some((id) => typeof id !== 'string' || id.length > 50))))
   ) {
     throw { status: 400, message: 'Itens ou quantidades invalidas.' };
   }

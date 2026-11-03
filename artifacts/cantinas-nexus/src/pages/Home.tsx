@@ -519,11 +519,11 @@ export function Home() {
               CÓDIGO: {createdOrder.paymentCode}
             </div>
 
-            <div className="mb-8 flex w-full max-w-2xl items-start gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-left sm:p-6">
-              <Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+            <div className={`mb-8 flex w-full max-w-2xl items-start gap-4 rounded-2xl border p-5 text-left sm:p-6 ${isDarkTheme ? 'border-amber-400/20 bg-amber-400/10' : 'border-amber-200 bg-amber-50'}`}>
+              <Info className={`mt-0.5 h-5 w-5 shrink-0 ${isDarkTheme ? 'text-amber-300' : 'text-amber-700'}`} />
               <div>
-                <h3 className="font-black text-amber-900">Pagamento pendente de confirmação</h3>
-                <p className="mt-1 text-sm leading-relaxed text-amber-800">
+                <h3 className={`font-black ${isDarkTheme ? 'text-amber-200' : 'text-amber-900'}`}>Pagamento pendente de confirmação</h3>
+                <p className={`mt-1 text-sm leading-relaxed ${isDarkTheme ? 'text-amber-100/80' : 'text-amber-800'}`}>
                   {createdOrder.paymentMethod === 'pix'
                     ? 'O sistema ainda não gera cobrança Pix. Peça a chave ao atendente e aguarde a confirmação do pagamento.'
                     : 'Faça o pagamento no balcão ou na maquininha. A equipe confirmará o recebimento no painel.'}
@@ -543,7 +543,7 @@ export function Home() {
 
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center">
               <button onClick={() => { setCreatedOrder(null); setTelefone(''); setView('menu'); }}
-                className="w-full sm:w-auto bg-gray-900 text-white px-10 sm:px-16 py-5 sm:py-6 rounded-2xl sm:rounded-3xl font-black text-xl sm:text-2xl hover:bg-gray-800 transition-colors shadow-xl active:scale-95">
+                className="w-full sm:w-auto bg-primary text-primary-foreground px-10 sm:px-16 py-5 sm:py-6 rounded-2xl sm:rounded-3xl font-black text-xl sm:text-2xl hover:brightness-95 transition-all shadow-xl active:scale-95">
                 Fazer Novo Pedido
               </button>
               {createdOrder.status === 'recebido' && (
@@ -632,12 +632,12 @@ export function Home() {
                 <div className="flex items-center gap-2">
                   {cart.length > 0 && (
                     <button onClick={() => cartStore.clear()}
-                      className="text-gray-400 hover:text-red-500 font-bold px-3 sm:px-4 py-2 rounded-full hover:bg-red-50 transition-colors flex items-center gap-2 text-sm sm:text-base">
+                      className="text-muted-foreground hover:text-red-500 font-bold px-3 sm:px-4 py-2 rounded-full hover:bg-red-500/10 transition-colors flex items-center gap-2 text-sm sm:text-base">
                       <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" /><span className="hidden sm:inline">Limpar</span>
                     </button>
                   )}
                   <button onClick={() => setCartOpen(false)}
-                    className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-gray-200 rounded-full transition-colors bg-white shadow-sm">
+                    className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors border border-border bg-card shadow-sm">
                     <X className="w-6 h-6 sm:w-7 sm:h-7" />
                   </button>
                 </div>
@@ -645,10 +645,10 @@ export function Home() {
 
               <div className={`flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 hide-scrollbar ${isDarkTheme ? "bg-[#15191f]" : "bg-white"}`}>
                 {cart.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8 text-center">
-                     <div className="w-32 h-32 bg-gray-50 rounded-full flex items-center justify-center mb-6 shadow-inner"><ShoppingCart className="w-14 h-14 text-muted-foreground" /></div>
-                    <h3 className="text-xl font-display font-bold text-gray-900 mb-2">Seu carrinho está vazio</h3>
-                    <p className="text-base font-medium">Toque nos itens do cardápio para adicionar.</p>
+                  <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-8 text-center">
+                     <div className={`w-32 h-32 rounded-full flex items-center justify-center mb-6 shadow-inner ${isDarkTheme ? 'bg-[#202630] border border-white/10' : 'bg-muted'}`}><ShoppingCart className="w-14 h-14 text-muted-foreground" /></div>
+                    <h3 className="text-xl font-display font-bold text-foreground mb-2">Seu carrinho está vazio</h3>
+                    <p className="text-base font-medium text-muted-foreground">Toque nos itens do cardápio para adicionar.</p>
                   </div>
                 ) : (
                   <>
@@ -683,7 +683,7 @@ export function Home() {
 
                     <div className="pt-6 space-y-5">
                       <div>
-                        <label className="block text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Observações (opcional)</label>
+                        <label className="block text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">Observações (opcional)</label>
                         <textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)}
                           placeholder="Ex: sem cebola, molho à parte..."
                           className="w-full border border-border bg-background text-foreground placeholder:text-muted-foreground rounded-2xl p-4 text-base sm:text-lg resize-none h-20 sm:h-24 focus:border-primary focus:outline-none transition-colors font-medium" />

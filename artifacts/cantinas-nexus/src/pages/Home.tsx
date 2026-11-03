@@ -75,6 +75,9 @@ export function Home() {
   const [observacoes, setObservacoes] = useState('');
   const [telefone, setTelefone] = useState('');
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [configuringProduct, setConfiguringProduct] = useState<ApiProduct | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+  const [selectedModifierIds, setSelectedModifierIds] = useState<string[]>([]);
   const checkoutAttemptRef = useRef<{ fingerprint: string; key: string } | null>(null);
   const cart = useCart();
 
@@ -111,7 +114,7 @@ export function Home() {
 
   const checkoutMutation = useMutation({
     mutationFn: (paymentMethod: string) => {
-      const cartItems = cart.map((i) => ({ productId: i.productId, qty: i.qty }));
+      const cartItems = cart.map((i) => ({ productId: i.productId, qty: i.qty, variantId: i.variantId, modifierIds: i.modifierIds }));
       const fingerprint = JSON.stringify({ establishmentId, cartItems, paymentMethod, observacoes, telefone });
       if (checkoutAttemptRef.current?.fingerprint !== fingerprint) {
         checkoutAttemptRef.current = { fingerprint, key: crypto.randomUUID() };
@@ -183,8 +186,65 @@ export function Home() {
     : null;
 
   const getStock = (productId: string) => stock.find((s) => s.productId === productId)?.quantidade ?? 0;
-  const getCartQuantity = (productId: string) => cart.find((item) => item.productId === productId)?.qty ?? 0;
+  const getCartQuantity = (productId: string) => cart.filter((item) => item.productId === productId).reduce((total, item) => total + item.qty, 0);
   const canAddToCart = (productId: string) => getCartQuantity(productId) < getStock(productId);
+
+  const addProductToCart = (product: ApiProduct) => {
+    if (!canAddToCart(product.id)) return;
+    const hasOptions = Boolean(product.variants?.length || product.modifierGroups?.length);
+    if (hasOptions) {
+      setConfiguringProduct(product);
+      setSelectedVariantId(product.variants?.[0]?.id ?? null);
+      setSelectedModifierIds([]);
+      return;
+    }
+    const price = getEffectivePrice(product, promotions).price;
+    cartStore.add(product.id, product.name, price);
+    toast.success(`${product.name} adicionado!`, { duration: 1200 });
+  };
+
+  const selectedConfigurationPrice = configuringProduct
+    ? getEffectivePrice(configuringProduct, promotions).price
+      + Number(configuringProduct.variants?.find((variant) => variant.id === selectedVariantId)?.priceDelta ?? 0)
+      + (configuringProduct.modifierGroups ?? []).flatMap((group) => group.modifiers)
+        .filter((modifier) => selectedModifierIds.includes(modifier.id))
+        .reduce((sum, modifier) => sum + Number(modifier.priceDelta), 0)
+    : 0;
+
+  const configurationValid = Boolean(configuringProduct)
+    && (!configuringProduct?.variants?.length || Boolean(selectedVariantId))
+    && (configuringProduct?.modifierGroups ?? []).every((group) => {
+      const count = group.modifiers.filter((modifier) => selectedModifierIds.includes(modifier.id)).length;
+      return count >= group.minSelect && count <= group.maxSelect;
+    });
+
+  const toggleModifier = (groupId: string, modifierId: string, maxSelect: number) => {
+    const group = configuringProduct?.modifierGroups?.find((group) => group.id === groupId);
+    if (!group) return;
+    setSelectedModifierIds((current) => {
+      if (current.includes(modifierId)) return current.filter((id) => id !== modifierId);
+      const selectedInGroup = current.filter((id) => group.modifiers.some((modifier) => modifier.id === id));
+      if (selectedInGroup.length >= maxSelect) {
+        return [...current.filter((id) => !group.modifiers.some((modifier) => modifier.id === id)), modifierId];
+      }
+      return [...current, modifierId];
+    });
+  };
+
+  const confirmProductConfiguration = () => {
+    if (!configuringProduct || !configurationValid || !canAddToCart(configuringProduct.id)) return;
+    const variant = configuringProduct.variants?.find((item) => item.id === selectedVariantId);
+    const modifiers = (configuringProduct.modifierGroups ?? []).flatMap((group) =>
+      group.modifiers.filter((modifier) => selectedModifierIds.includes(modifier.id)).map((modifier) => modifier.name));
+    const label = [variant?.name, ...modifiers].filter(Boolean).join(' • ');
+    cartStore.add(configuringProduct.id, configuringProduct.name, selectedConfigurationPrice, {
+      variantId: selectedVariantId,
+      modifierIds: selectedModifierIds,
+      customizationLabel: label,
+    });
+    toast.success(`${configuringProduct.name} adicionado!`, { duration: 1200 });
+    setConfiguringProduct(null);
+  };
 
   const whatsappUrl = `https://wa.me/${settings?.whatsappNumero ?? '5511999999999'}`;
   const menuPrimary = settings?.menuPrimaryColor ?? '#ff6600';
@@ -390,8 +450,7 @@ export function Home() {
                              disabled={disabled || !canAddMore}
                              onClick={() => {
                                if (!canAddToCart(product.id)) return;
-                               cartStore.add(product.id, product.name, price);
-                               toast.success(`${product.name} adicionado!`, { duration: 1200 });
+                               addProductToCart(product);
                              }}
                              className="ml-auto inline-flex min-h-11 items-center justify-center gap-1 rounded-full bg-primary px-2.5 text-[10px] font-extrabold text-primary-foreground shadow-sm transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-10 sm:gap-2 sm:px-4 sm:text-xs"
                            >
@@ -441,7 +500,7 @@ export function Home() {
                   
                   <div className="mt-7 flex flex-wrap items-end gap-4">
                     <div><p className="font-mono text-[9px] uppercase tracking-[.2em] text-muted-foreground">Preço do combo</p><p className="font-display text-4xl font-black text-primary">{formatCurrency(getEffectivePrice(featuredCombo, promotions).price)}</p></div>
-                    <button type="button" onClick={() => { if (!canAddToCart(featuredCombo.id)) return; const comboPrice = getEffectivePrice(featuredCombo, promotions).price; cartStore.add(featuredCombo.id, featuredCombo.name, comboPrice); toast.success(`${featuredCombo.name} adicionado!`, { duration: 1200 }); }}
+                    <button type="button" onClick={() => addProductToCart(featuredCombo)}
                       disabled={!canAddToCart(featuredCombo.id)}
                       className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-6 py-3.5 text-xs font-black uppercase tracking-[.14em] text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:-translate-y-1 hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50">
                       {getStock(featuredCombo.id) <= 0 ? 'Esgotado' : canAddToCart(featuredCombo.id) ? 'Adicionar combo' : 'Limite atingido'} <Plus className="h-4 w-4" />
@@ -661,23 +720,24 @@ export function Home() {
                     <AnimatePresence>
                       {cart.map((item) => (
                         <motion.div layout initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, x: 20 }}
-                          key={item.productId} className={`rounded-[1.5rem] p-4 flex gap-4 items-center border ${isDarkTheme ? 'bg-[#202630] border-white/10' : 'bg-muted/70 border-border'}`}>
+                          key={item.key} className={`rounded-[1.5rem] p-4 flex gap-4 items-center border ${isDarkTheme ? 'bg-[#202630] border-white/10' : 'bg-muted/70 border-border'}`}>
                           <div className={`text-4xl w-20 h-20 rounded-2xl flex items-center justify-center shadow-sm shrink-0 ${isDarkTheme ? 'bg-[#15191f] border border-white/10' : 'bg-card border border-border'}`}>
                             {products.find((p: ApiProduct) => p.id === item.productId)?.emoji}
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className={`font-bold text-lg sm:text-xl truncate mb-1 ${isDarkTheme ? "text-white" : "text-gray-900"}`}>{item.name}</h3>
+                            {item.customizationLabel && <p className="mb-1 text-xs text-muted-foreground line-clamp-2">{item.customizationLabel}</p>}
                             <p className="text-primary font-black text-lg">{formatCurrency(item.price * item.qty)}</p>
                           </div>
                           <div className={`flex flex-row items-center gap-1 sm:gap-3 rounded-xl shadow-sm p-1.5 border ${isDarkTheme ? 'bg-[#15191f] border-white/10' : 'bg-card border-border'}`}>
-                            <button type="button" aria-label={`Diminuir ${item.name}`} onClick={() => cartStore.decrement(item.productId)}
+                            <button type="button" aria-label={`Diminuir ${item.name}`} onClick={() => cartStore.decrement(item.key)}
                               className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg active:scale-95 transition-all">
                               <Minus className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={3} />
                             </button>
                             <span className="font-black text-lg sm:text-xl w-6 sm:w-8 text-center">{item.qty}</span>
                             <button type="button" aria-label={`Adicionar mais ${item.name}`} disabled={item.qty >= getStock(item.productId)} onClick={() => {
                               const p = products.find((x: ApiProduct) => x.id === item.productId);
-                              if (p && item.qty < getStock(item.productId)) cartStore.add(p.id, p.name, getEffectivePrice(p, promotions).price);
+                              if (p && getCartQuantity(item.productId) < getStock(item.productId)) cartStore.add(p.id, p.name, item.price, { variantId: item.variantId, modifierIds: item.modifierIds, customizationLabel: item.customizationLabel });
                             }}
                               className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-primary hover:bg-primary/10 rounded-lg active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-35">
                               <Plus className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={3} />
@@ -729,6 +789,66 @@ export function Home() {
           </div>
         )}
       </AnimatePresence>
+      {configuringProduct && (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/65 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+          role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfiguringProduct(null); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="product-config-title"
+            className={`max-h-[90dvh] w-full max-w-xl overflow-hidden rounded-t-[2rem] border shadow-2xl sm:rounded-[2rem] ${isDarkTheme ? 'border-white/10 bg-[#171c24] text-white' : 'border-border bg-white text-gray-900'}`}>
+            <div className="flex items-start justify-between gap-4 border-b border-current/10 p-5 sm:p-6">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[.18em] text-primary">Personalize seu pedido</p>
+                <h2 id="product-config-title" className="mt-1 text-xl font-black">{configuringProduct.name}</h2>
+                {configuringProduct.description && <p className="mt-1 text-sm text-muted-foreground">{configuringProduct.description}</p>}
+              </div>
+              <button type="button" onClick={() => setConfiguringProduct(null)} aria-label="Fechar personalização" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-current/10"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="max-h-[58dvh] space-y-6 overflow-y-auto p-5 sm:p-6">
+              {!!configuringProduct.variants?.length && (
+                <fieldset className="space-y-3">
+                  <legend className="font-black">Escolha uma opção <span className="text-xs font-semibold text-primary">Obrigatório</span></legend>
+                  {configuringProduct.variants.map((variant) => (
+                    <label key={variant.id} className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-current/10 p-3">
+                      <input type="radio" name="product-variant" checked={selectedVariantId === variant.id} onChange={() => setSelectedVariantId(variant.id)} className="h-4 w-4 accent-[hsl(var(--primary))]" />
+                      <span className="flex-1 font-semibold">{variant.name}</span>
+                      <span className="text-sm font-bold text-primary">{Number(variant.priceDelta) > 0 ? `+${formatCurrency(Number(variant.priceDelta))}` : 'Sem acréscimo'}</span>
+                    </label>
+                  ))}
+                </fieldset>
+              )}
+              {(configuringProduct.modifierGroups ?? []).map((group) => (
+                <fieldset key={group.id} className="space-y-3">
+                  <legend className="flex w-full items-center justify-between gap-3 font-black">
+                    <span>{group.name}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{group.minSelect > 0 ? `Escolha ${group.minSelect}+` : 'Opcional'} · até {group.maxSelect}</span>
+                  </legend>
+                  {group.modifiers.map((modifier) => (
+                    <label key={modifier.id} className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-current/10 p-3">
+                      <input type={group.maxSelect === 1 ? 'radio' : 'checkbox'}
+                        name={`modifier-${group.id}`}
+                        checked={selectedModifierIds.includes(modifier.id)}
+                        onChange={() => toggleModifier(group.id, modifier.id, group.maxSelect)}
+                        className="h-4 w-4 accent-[hsl(var(--primary))]" />
+                      <span className="flex-1 font-semibold">{modifier.name}</span>
+                      <span className="text-sm font-bold text-primary">{Number(modifier.priceDelta) > 0 ? `+${formatCurrency(Number(modifier.priceDelta))}` : 'Grátis'}</span>
+                    </label>
+                  ))}
+                </fieldset>
+              ))}
+            </div>
+            <div className="flex items-center gap-4 border-t border-current/10 p-5 sm:p-6">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Preço por unidade</p>
+                <p className="text-2xl font-black text-primary">{formatCurrency(selectedConfigurationPrice)}</p>
+              </div>
+              <button type="button" disabled={!configurationValid || !canAddToCart(configuringProduct.id)}
+                onClick={confirmProductConfiguration}
+                className="min-h-12 rounded-full bg-primary px-6 text-sm font-black text-primary-foreground shadow-lg disabled:cursor-not-allowed disabled:opacity-45">
+                Adicionar
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

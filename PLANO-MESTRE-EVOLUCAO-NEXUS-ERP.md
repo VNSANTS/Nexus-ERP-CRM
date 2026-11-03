@@ -354,6 +354,15 @@ Alterações adicionais aplicadas diretamente na branch `main`:
 - Conferências estáticas confirmaram busca, limpeza, skeletons, lazy loading, guardas de estoque e tokens de tema no código.
 - Ainda não houve teste de interação visual real em dispositivo/browser nesta rodada. A Etapa 1 continua em andamento e não deve ser marcada como concluída.
 
+### Quinta rodada da Etapa 1 — 03/11/2026
+
+- O destaque de combo agora aparece somente quando o usuário está na visão geral do cardápio, evitando competir com resultados de busca ou categorias específicas.
+- Removido texto promocional genérico que poderia sugerir características não cadastradas do combo.
+- Rótulo de preço ajustado de “A partir de” para “Preço do combo”, pois a API fornece um preço único.
+- A ação do combo comunica corretamente esgotamento ou limite de quantidade no carrinho.
+- Commit: `f097b022b7a6761e4e124fe4d99d91b7bf1f3653`.
+- Não houve alteração no backend, schema ou fluxo de checkout.
+
 ### Quarta rodada da Etapa 1 — execução ampliada em 03/11/2026
 
 Mais melhorias aplicadas:

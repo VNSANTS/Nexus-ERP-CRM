@@ -278,10 +278,11 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
         {postLoginAccounts.length === 0 && mode === 'login' && (
           <form onSubmit={handleLogin} className="mt-6 space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">
+              <label htmlFor="login-identifier" className="mb-1 block text-sm font-medium text-neutral-700">
                 {ownerMode ? 'E-mail do responsável' : 'E-mail, usuário, telefone ou CPF'}
               </label>
               <input
+                id="login-identifier"
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
@@ -291,8 +292,9 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">Senha</label>
+              <label htmlFor="login-password" className="mb-1 block text-sm font-medium text-neutral-700">Senha</label>
               <PasswordField
+                id="login-password"
                 value={loginSenha}
                 onChange={(e) => setLoginSenha(e.target.value)}
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
@@ -322,8 +324,9 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
         {!ownerMode && mode === 'signup' && !signupSent && (
           <form onSubmit={handleSignup} className="mt-6 space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">E-mail</label>
+              <label htmlFor="signup-email" className="mb-1 block text-sm font-medium text-neutral-700">E-mail</label>
               <input
+                id="signup-email"
                 type="email"
                 value={signupEmail}
                 onChange={(e) => {
@@ -365,8 +368,9 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
               )}
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">Senha</label>
+              <label htmlFor="signup-password" className="mb-1 block text-sm font-medium text-neutral-700">Senha</label>
               <PasswordField
+                id="signup-password"
                 value={signupSenha}
                 onChange={(e) => setSignupSenha(e.target.value)}
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
@@ -375,8 +379,9 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">Confirmar senha</label>
+              <label htmlFor="signup-password-confirm" className="mb-1 block text-sm font-medium text-neutral-700">Confirmar senha</label>
               <PasswordField
+                id="signup-password-confirm"
                 value={signupSenhaConfirm}
                 onChange={(e) => setSignupSenhaConfirm(e.target.value)}
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"

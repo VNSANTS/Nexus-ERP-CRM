@@ -142,17 +142,6 @@ export function Home() {
     onError: () => toast.error('Erro ao finalizar pedido. Tente novamente.'),
   });
 
-  const cancelMutation = useMutation({
-    mutationFn: (id: string) => api.orders.updateStatus(id, 'cancelado'),
-    onSuccess: () => {
-      toast.success('Pedido cancelado.');
-      setCreatedOrder(null);
-      setTelefone('');
-      setView('menu');
-      qc.invalidateQueries({ queryKey: ['orders'] });
-    },
-  });
-
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -610,17 +599,6 @@ export function Home() {
                 className="w-full sm:w-auto bg-primary text-primary-foreground px-10 sm:px-16 py-5 sm:py-6 rounded-2xl sm:rounded-3xl font-black text-xl sm:text-2xl hover:brightness-95 transition-all shadow-xl active:scale-95">
                 Fazer Novo Pedido
               </button>
-              {createdOrder.status === 'recebido' && (
-                <button
-                  onClick={() => {
-                    if (!window.confirm('Cancelar este pedido?')) return;
-                    cancelMutation.mutate(createdOrder.id);
-                  }}
-                  disabled={cancelMutation.isPending}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 text-red-100 font-bold text-lg sm:text-xl px-8 py-5 sm:py-6 rounded-2xl sm:rounded-3xl bg-red-600 hover:bg-red-700 transition-colors shadow-xl active:scale-95 disabled:opacity-60">
-                  <XCircle className="w-5 h-5 sm:w-6 sm:h-6" /> Cancelar
-                </button>
-              )}
             </div>
           </motion.div>
         )}

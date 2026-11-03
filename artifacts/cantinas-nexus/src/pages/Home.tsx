@@ -265,7 +265,7 @@ export function Home() {
               const isActive = categoryFilter === tab.key;
               return (
                  <button key={tab.key} onClick={() => setCategoryFilter(tab.key)}
-                    className={`group shrink-0 whitespace-nowrap flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-extrabold transition-all duration-300 sm:px-5 sm:text-sm ${isActive ? 'bg-foreground text-white shadow-lg shadow-slate-900/15' : 'border border-border bg-card/80 text-foreground hover:border-primary/50 hover:bg-white'}`}>
+                    className={`group shrink-0 whitespace-nowrap flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-extrabold transition-all duration-300 sm:px-5 sm:text-sm ${isActive ? 'bg-primary text-white shadow-lg shadow-orange-950/25 ring-1 ring-primary/30' : 'border border-border bg-card/80 text-foreground hover:border-primary/50 hover:bg-muted'}`}>
                    <img src={`${REFERENCE_ASSET}${tab.icon}`} alt="" aria-hidden="true" className="w-6 h-6 sm:w-7 sm:h-7 object-contain rounded-full" />
                    {tab.label}
                 </button>
@@ -389,7 +389,7 @@ export function Home() {
                         </div>
                       </div>
                       {disabled && (
-                        <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] rounded-[2rem] flex items-center justify-center z-20">
+                        <div className={`absolute inset-0 backdrop-blur-[2px] rounded-[2rem] flex items-center justify-center z-20 ${isDarkTheme ? 'bg-black/45' : 'bg-foreground/20'}`} >
                           <div className="bg-gray-900 text-white font-black px-6 py-3 rounded-full text-sm sm:text-lg shadow-2xl -rotate-12 border-4 border-white/20">ESGOTADO</div>
                         </div>
                       )}
@@ -397,11 +397,11 @@ export function Home() {
                   );
                 })}
                 {!loadingProducts && visibleProducts.length === 0 && (
-                  <div className={`col-span-full rounded-[1.8rem] border border-dashed border-border px-5 py-14 text-center ${isDarkTheme ? 'bg-[#171c24]' : 'bg-white/70'}`}>
-                     <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fff0df] text-primary"><Search className="h-6 w-6" /></div>
+                  <div className={`col-span-full rounded-[1.8rem] border border-dashed border-border px-5 py-14 text-center ${isDarkTheme ? 'bg-[#171c24]' : 'bg-card/70'}`}>
+                     <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary"><Search className="h-6 w-6" /></div>
                      <p className="font-display text-lg font-black text-foreground">Essa prateleira está vazia</p>
                      <p className="mt-1 text-sm text-muted-foreground">Ainda não há itens disponíveis nesta categoria.</p>
-                     <button type="button" onClick={() => setCategoryFilter('todos')} className="mt-5 rounded-full bg-foreground px-5 py-2.5 text-xs font-black text-white">Ver todo o cardápio</button>
+                     <button type="button" onClick={() => setCategoryFilter('todos')} className="mt-5 rounded-full border border-primary/30 bg-primary/10 px-5 py-2.5 text-xs font-black text-primary transition-colors hover:bg-primary hover:text-white">Ver todo o cardápio</button>
                   </div>
                 )}
                </AnimatePresence>

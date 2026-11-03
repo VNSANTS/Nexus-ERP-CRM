@@ -336,8 +336,16 @@ Deno.serve(async (req: Request) => {
         updates.menu_background_color = menuBackgroundColor.toLowerCase();
       }
 
-      const { data, error } = await supabase.from('settings').update(updates).eq('establishment_id', caller.establishmentId).eq('id', 1).select().maybeSingle();
+      const { data, error } = await supabase.from('settings')
+        .upsert({
+          id: 1,
+          establishment_id: caller.establishmentId,
+          ...updates,
+        }, { onConflict: 'establishment_id,id' })
+        .select()
+        .single();
       if (error) throw error;
+      if (!data) return errorResponse('Não foi possível salvar as configurações do estabelecimento.', 500);
       return jsonResponse(data);
     }
 

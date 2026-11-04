@@ -998,3 +998,376 @@ export function Home() {
         )}
 
         {/* ── VIEW: SUCESSO ─────────────────────────────────────────────────── */}
+        {view === 'success' && createdOrder && (
+          <motion.div
+            initial={{ opacity: 0, scale: .95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="max-w-4xl mx-auto h-full flex flex-col justify-center items-center text-center py-8 sm:py-12 px-4 text-foreground"
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', bounce: .5, delay: .15 }}
+              className="w-24 h-24 sm:w-28 sm:h-28 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-[0_0_60px_rgba(16,185,129,.5)] mb-6 sm:mb-8"
+            >
+              <CheckCircle2 className="w-12 h-12 sm:w-14 sm:h-14" strokeWidth={2.5} />
+            </motion.div>
+
+            <h2 className="text-3xl sm:text-6xl font-display font-extrabold text-foreground mb-3 tracking-tight">Pedido recebido!</h2>
+            <p className="text-base sm:text-xl text-muted-foreground font-bold mb-6">Seu número de chamada é:</p>
+
+            <motion.div
+              initial={{ scale: .8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: .25, type: 'spring', bounce: .4 }}
+              className={`text-6xl sm:text-9xl font-display font-black text-primary px-12 sm:px-24 py-8 sm:py-12 rounded-[3rem] shadow-2xl mb-6 border border-border ${isDarkTheme ? 'bg-[#1b2028]' : 'bg-card'}`}
+            >
+              {createdOrder.code}
+            </motion.div>
+
+            <div className={`px-6 sm:px-8 py-3 rounded-full mb-8 font-mono text-sm sm:text-lg font-bold tracking-widest shadow-sm border border-border ${isDarkTheme ? 'bg-[#1b2028]' : 'bg-card'}`}>
+              CÓDIGO: {createdOrder.paymentCode}
+            </div>
+
+            <div className={`mb-8 flex w-full max-w-2xl items-start gap-4 rounded-2xl border p-5 text-left sm:p-6 ${isDarkTheme ? 'border-amber-400/20 bg-amber-400/8' : 'border-amber-200 bg-amber-50'}`}>
+              <Info className={`mt-0.5 h-5 w-5 shrink-0 ${isDarkTheme ? 'text-amber-300' : 'text-amber-700'}`} />
+              <div>
+                <h3 className={`font-black ${isDarkTheme ? 'text-amber-200' : 'text-amber-900'}`}>Pagamento pendente de confirmação</h3>
+                <p className={`mt-1 text-sm leading-relaxed ${isDarkTheme ? 'text-amber-100/80' : 'text-amber-800'}`}>
+                  {createdOrder.paymentMethod === 'pix'
+                    ? 'O sistema ainda não gera cobrança Pix. Peça a chave ao atendente e aguarde a confirmação do pagamento.'
+                    : 'Faça o pagamento no balcão ou na maquininha. A equipe confirmará o recebimento no painel.'}
+                </p>
+              </div>
+            </div>
+
+            <div className={`p-6 sm:p-8 rounded-[2rem] flex flex-col sm:flex-row items-center gap-6 mb-8 max-w-2xl w-full border border-border shadow-sm ${isDarkTheme ? 'bg-[#1b2028]' : 'bg-card'} text-foreground`}>
+              <div className="bg-white p-3 rounded-2xl shadow-md">
+                <QRCodeSVG value={`${window.location.origin}${import.meta.env.BASE_URL}acompanhar/${createdOrder.trackingToken ?? createdOrder.code}`} size={100} />
+              </div>
+              <div className="text-center sm:text-left">
+                <p className="font-display font-bold text-xl sm:text-2xl mb-1.5">Acompanhe pelo celular</p>
+                <p className="text-muted-foreground font-medium text-sm sm:text-base">Escaneie para saber quando seu pedido estiver pronto!</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center">
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: .97 }}
+                onClick={() => { setCreatedOrder(null); setTelefone(''); setView('menu'); }}
+                className="w-full sm:w-auto bg-primary text-white px-10 sm:px-16 py-5 sm:py-6 rounded-2xl sm:rounded-3xl font-black text-xl sm:text-2xl hover:brightness-95 transition-all shadow-xl"
+              >
+                Fazer Novo Pedido
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </main>
+
+      {/* ── MODAL QR MENU ─────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {menuQrOpen && establishmentMenuUrl && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+            <motion.button
+              type="button"
+              aria-label="Fechar QR code"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-md"
+              onClick={() => setMenuQrOpen(false)}
+            />
+            <motion.section
+              role="dialog" aria-modal="true" aria-labelledby="menu-qr-title"
+              initial={{ opacity: 0, scale: .92, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: .92, y: 16 }}
+              className={`relative z-10 w-full max-w-sm rounded-[2rem] p-6 text-center shadow-2xl sm:p-8 border border-border ${isDarkTheme ? 'bg-[#1b2028]' : 'bg-card'}`}
+            >
+              <button type="button" onClick={() => setMenuQrOpen(false)} aria-label="Fechar" className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted">
+                <X className="h-5 w-5" />
+              </button>
+              <p className="text-xs font-black uppercase tracking-[.18em] text-primary">Compartilhe</p>
+              <h2 id="menu-qr-title" className="mt-2 text-2xl font-black text-foreground">QR code do cardápio</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Escaneie com outro celular para abrir o cardápio.</p>
+              <div className="mx-auto mt-6 inline-flex rounded-2xl bg-white p-4 shadow-sm">
+                <QRCodeSVG value={establishmentMenuUrl} size={240} level="H" includeMargin />
+              </div>
+              <p className="mt-4 break-all text-xs text-muted-foreground">{establishmentMenuUrl}</p>
+            </motion.section>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── MODAL WHATSAPP ────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {whatsappOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md"
+              onClick={() => setWhatsappOpen(false)}
+            />
+            <motion.div
+              initial={{ scale: .9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: .9, opacity: 0, y: 20 }}
+              className={`relative rounded-[2rem] p-8 sm:p-10 max-w-sm w-full text-center shadow-2xl z-10 border border-border ${isDarkTheme ? 'bg-[#1b2028] text-white' : 'bg-card text-foreground'}`}
+            >
+              <button onClick={() => setWhatsappOpen(false)} className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+              <div className={`w-18 h-18 rounded-full flex items-center justify-center mx-auto mb-6 ${isDarkTheme ? 'bg-emerald-400/10 text-emerald-300' : 'bg-emerald-100 text-emerald-600'}`}>
+                <MessageCircle className="w-10 h-10" strokeWidth={2} />
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-display font-extrabold text-foreground mb-2">Fale conosco</h3>
+              <p className="text-muted-foreground mb-8 font-medium text-sm">Escaneie para conversar pelo WhatsApp.</p>
+              <div className="flex justify-center bg-white p-6 rounded-3xl border border-border shadow-inner">
+                <QRCodeSVG value={whatsappUrl} size={180} />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── CART DRAWER ───────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {cartOpen && (
+          <div className="fixed inset-0 z-40 flex justify-end">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md"
+              onClick={() => setCartOpen(false)}
+            />
+            <motion.aside
+              role="dialog" aria-modal="true" aria-labelledby="cart-title"
+              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 26, stiffness: 220 }}
+              className={`relative w-full sm:max-w-md md:max-w-lg h-full shadow-2xl flex flex-col z-10 sm:rounded-l-[2rem] overflow-hidden ${isDarkTheme ? 'bg-[#13171e] text-white' : 'bg-white text-gray-900'}`}
+            >
+              {/* Header do carrinho */}
+              <div className={`p-6 sm:p-8 flex justify-between items-center border-b ${isDarkTheme ? 'bg-[#1b2028] border-white/8' : 'bg-gray-50 border-gray-100'}`}>
+                <h2 id="cart-title" className="text-2xl sm:text-3xl font-display font-extrabold flex items-center gap-3 text-foreground">
+                  <ShoppingCart className="w-6 h-6 sm:w-7 sm:h-7 text-primary" /> Seu Pedido
+                </h2>
+                <div className="flex items-center gap-2">
+                  {cart.length > 0 && (
+                    <button
+                      onClick={() => cartStore.clear()}
+                      className="text-muted-foreground hover:text-red-500 font-bold px-3 py-2 rounded-full hover:bg-red-500/10 transition-colors flex items-center gap-1.5 text-sm"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span className="hidden sm:inline">Limpar</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setCartOpen(false)}
+                    className={`w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center rounded-full border border-border transition-colors ${isDarkTheme ? 'bg-[#242a33] hover:bg-[#2e3540]' : 'bg-card hover:bg-muted'} text-muted-foreground hover:text-foreground`}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Items */}
+              <div className={`flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 hide-scrollbar ${isDarkTheme ? 'bg-[#13171e]' : 'bg-white'}`}>
+                {cart.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-8 text-center">
+                    <div className={`w-28 h-28 rounded-full flex items-center justify-center mb-6 ${isDarkTheme ? 'bg-[#1b2028] border border-white/8' : 'bg-muted'}`}>
+                      <ShoppingCart className="w-12 h-12 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-xl font-display font-bold text-foreground mb-1.5">Carrinho vazio</h3>
+                    <p className="text-sm font-medium text-muted-foreground">Toque nos itens para adicionar.</p>
+                    <button
+                      type="button"
+                      onClick={() => { setCartOpen(false); document.getElementById('menu-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+                      className="mt-5 min-h-11 rounded-full bg-primary px-6 text-sm font-extrabold text-white transition hover:brightness-95"
+                    >
+                      Explorar produtos
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <AnimatePresence>
+                      {cart.map((item) => (
+                        <motion.div
+                          layout
+                          initial={{ opacity: 0, scale: .92, y: 8 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: .92, x: 24 }}
+                          key={item.key}
+                          className={`rounded-2xl p-3.5 flex gap-3.5 items-center border ${isDarkTheme ? 'bg-[#1b2028] border-white/8' : 'bg-muted/50 border-border'}`}
+                        >
+                          <div className={`text-3xl w-16 h-16 rounded-xl flex items-center justify-center shadow-sm shrink-0 ${isDarkTheme ? 'bg-[#13171e] border border-white/8' : 'bg-card border border-border'}`}>
+                            {products.find((p: ApiProduct) => p.id === item.productId)?.emoji}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-base truncate mb-0.5 text-foreground">{item.name}</h3>
+                            {item.customizationLabel && <p className="mb-1 text-xs text-muted-foreground line-clamp-1">{item.customizationLabel}</p>}
+                            <p className="text-primary font-black">{formatCurrency(item.price * item.qty)}</p>
+                          </div>
+                          <div className={`flex items-center gap-1 rounded-xl p-1 border ${isDarkTheme ? 'bg-[#13171e] border-white/8' : 'bg-card border-border'}`}>
+                            <button type="button" aria-label={`Diminuir ${item.name}`} onClick={() => cartStore.decrement(item.key)}
+                              className="w-9 h-9 flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg active:scale-90 transition-all">
+                              <Minus className="w-4 h-4" strokeWidth={3} />
+                            </button>
+                            <span className="font-black text-base w-6 text-center text-foreground">{item.qty}</span>
+                            <button type="button" aria-label={`Adicionar mais ${item.name}`}
+                              disabled={item.qty >= getStock(item.productId)}
+                              onClick={() => {
+                                const p = products.find((x: ApiProduct) => x.id === item.productId);
+                                if (p && getCartQuantity(item.productId) < getStock(item.productId)) {
+                                  cartStore.add(p.id, p.name, item.price, { variantId: item.variantId, modifierIds: item.modifierIds, customizationLabel: item.customizationLabel });
+                                }
+                              }}
+                              className="w-9 h-9 flex items-center justify-center text-primary hover:bg-primary/10 rounded-lg active:scale-90 transition-all disabled:cursor-not-allowed disabled:opacity-30"
+                            >
+                              <Plus className="w-4 h-4" strokeWidth={3} />
+                            </button>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+
+                    {/* Observações + fidelidade */}
+                    <div className="pt-4 space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">
+                          Observações (opcional)
+                        </label>
+                        <textarea
+                          value={observacoes}
+                          onChange={(e) => setObservacoes(e.target.value)}
+                          placeholder="Ex: sem cebola, molho à parte..."
+                          className={`w-full border border-border rounded-2xl p-4 text-sm resize-none h-20 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15 transition-all font-medium bg-background text-foreground placeholder:text-muted-foreground`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">
+                          <Heart className="inline w-3.5 h-3.5 text-pink-500 mr-1" />
+                          Seu celular (fidelidade)
+                        </label>
+                        <input
+                          type="tel"
+                          value={telefone}
+                          onChange={(e) => setTelefone(e.target.value)}
+                          placeholder="(11) 99999-9999"
+                          className="w-full border border-border bg-background text-foreground placeholder:text-muted-foreground rounded-2xl px-4 py-3.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15 transition-all font-medium"
+                        />
+                        {loyaltyStatus && (
+                          <p className={`mt-2 text-xs font-bold ${loyaltyStatus.ganhouBrinde ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                            {loyaltyStatus.ganhouBrinde ? '🎉 Você ganhou um brinde!' : `Faltam ${loyaltyStatus.restantes} pedido(s) para o brinde`}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Footer do carrinho */}
+              {cart.length > 0 && (
+                <div className={`p-5 sm:p-6 border-t space-y-4 shrink-0 ${isDarkTheme ? 'bg-[#1b2028] border-white/8' : 'bg-white border-gray-100'}`}>
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-bold text-muted-foreground">Total</span>
+                    <span className="text-2xl sm:text-3xl font-black text-primary">{formatCurrency(totalCart)}</span>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: .97 }}
+                    onClick={() => { setCartOpen(false); setView('payment'); }}
+                    className="w-full bg-primary text-white py-4.5 sm:py-5 rounded-2xl font-black text-lg sm:text-xl shadow-lg shadow-primary/25 hover:brightness-95 transition-all"
+                  >
+                    Escolher Pagamento →
+                  </motion.button>
+                </div>
+              )}
+            </motion.aside>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── MODAL CONFIGURAR PRODUTO ──────────────────────────────────────── */}
+      {configuringProduct && (
+        <div
+          className="fixed inset-0 z-[80] flex items-end justify-center bg-black/65 p-0 backdrop-blur-md sm:items-center sm:p-4"
+          role="presentation"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setConfiguringProduct(null); }}
+        >
+          <motion.section
+            initial={{ y: '100%', opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: '100%', opacity: 0 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 220 }}
+            role="dialog" aria-modal="true" aria-labelledby="product-config-title"
+            className={`max-h-[90dvh] w-full max-w-xl overflow-hidden rounded-t-[2rem] border shadow-2xl sm:rounded-[2rem] ${isDarkTheme ? 'border-white/10 bg-[#1b2028] text-white' : 'border-border bg-white text-gray-900'}`}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-border/60 p-5 sm:p-6">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[.18em] text-primary">Personalize seu pedido</p>
+                <h2 id="product-config-title" className="mt-1 text-xl font-black text-foreground">{configuringProduct.name}</h2>
+                {configuringProduct.description && <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{configuringProduct.description}</p>}
+              </div>
+              <button type="button" onClick={() => setConfiguringProduct(null)} aria-label="Fechar personalização"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                <X className="h-4.5 w-4.5" />
+              </button>
+            </div>
+
+            <div className="max-h-[58dvh] space-y-5 overflow-y-auto p-5 sm:p-6 hide-scrollbar">
+              {!!configuringProduct.variants?.length && (
+                <fieldset className="space-y-2.5">
+                  <legend className="font-black text-foreground">
+                    Escolha uma opção{' '}
+                    <span className="text-xs font-semibold text-primary ml-1">Obrigatório</span>
+                  </legend>
+                  {configuringProduct.variants.map((variant) => (
+                    <label key={variant.id} className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors ${selectedVariantId === variant.id ? 'border-primary bg-primary/8' : 'border-border hover:border-primary/40'}`}>
+                      <input type="radio" name="product-variant" checked={selectedVariantId === variant.id} onChange={() => setSelectedVariantId(variant.id)} className="h-4 w-4 accent-[hsl(var(--primary))]" />
+                      <span className="flex-1 font-semibold text-foreground text-sm">{variant.name}</span>
+                      <span className="text-sm font-bold text-primary">{Number(variant.priceDelta) > 0 ? `+${formatCurrency(Number(variant.priceDelta))}` : 'Sem acréscimo'}</span>
+                    </label>
+                  ))}
+                </fieldset>
+              )}
+
+              {(configuringProduct.modifierGroups ?? []).map((group) => (
+                <fieldset key={group.id} className="space-y-2.5">
+                  <legend className="flex w-full items-center justify-between gap-3 font-black text-foreground">
+                    <span>{group.name}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      {group.minSelect > 0 ? `Escolha ${group.minSelect}+` : 'Opcional'} · até {group.maxSelect}
+                    </span>
+                  </legend>
+                  {group.modifiers.map((modifier) => (
+                    <label key={modifier.id} className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors ${selectedModifierIds.includes(modifier.id) ? 'border-primary bg-primary/8' : 'border-border hover:border-primary/40'}`}>
+                      <input type="checkbox" name={`modifier-${group.id}`} checked={selectedModifierIds.includes(modifier.id)}
+                        onChange={() => toggleModifier(group.id, modifier.id, group.maxSelect)} className="h-4 w-4 accent-[hsl(var(--primary))]" />
+                      <span className="flex-1 font-semibold text-foreground text-sm">{modifier.name}</span>
+                      <span className="text-sm font-bold text-primary">{Number(modifier.priceDelta) > 0 ? `+${formatCurrency(Number(modifier.priceDelta))}` : 'Grátis'}</span>
+                    </label>
+                  ))}
+                </fieldset>
+              ))}
+            </div>
+
+            <div className={`flex items-center gap-4 border-t border-border/60 p-5 sm:p-6 ${isDarkTheme ? 'bg-[#13171e]' : 'bg-gray-50'}`}>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Preço por unidade</p>
+                <p className="text-2xl font-black text-primary">{formatCurrency(selectedConfigurationPrice)}</p>
+              </div>
+              <motion.button
+                type="button"
+                whileTap={{ scale: .93 }}
+                disabled={!configurationValid || !canAddToCart(configuringProduct.id)}
+                onClick={confirmProductConfiguration}
+                className="min-h-12 rounded-full bg-primary px-7 text-sm font-black text-white shadow-lg shadow-primary/25 disabled:cursor-not-allowed disabled:opacity-40 transition-all hover:brightness-95"
+              >
+                Adicionar
+              </motion.button>
+            </div>
+          </motion.section>
+        </div>
+      )}
+    </div>
+  );
+}

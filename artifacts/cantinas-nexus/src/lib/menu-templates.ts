@@ -168,7 +168,7 @@ export const MENU_TEMPLATE_STYLES = `
   --menu-card-radius: 1.25rem;
   --menu-card-shadow: 0 10px 30px rgba(25, 28, 34, .07);
   --menu-card-hover-shadow: 0 22px 44px rgba(25, 28, 34, .13);
-  --menu-border: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --menu-border: hsl(var(--foreground) / .10);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }

@@ -241,22 +241,16 @@ Deno.serve(async (req: Request) => {
       if (!rawCode) return errorResponse('Código é obrigatório.', 400);
       const code = rawCode.padStart(3, '0');
 
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-
-      const { data: order } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('establishment_id', pickupCaller.establishmentId)
-        .eq('code', code)
-        .gte('created_at', todayStart.toISOString())
-        .maybeSingle();
-
-      if (!order) return jsonResponse({ ok: false, message: 'Pedido não encontrado para hoje.' });
-      if (order.status === 'cancelado') return jsonResponse({ ok: false, message: 'Este pedido foi cancelado.' });
-      if (order.status === 'retirado') return jsonResponse({ ok: false, message: 'Este pedido já foi retirado.' });
-
-      await supabase.from('orders').update({ status: 'retirado', updated_at: new Date().toISOString() }).eq('establishment_id', pickupCaller.establishmentId).eq('id', order.id);
+      const { data: order, error } = await supabase.rpc('transition_order_atomic', {
+        p_establishment_id: pickupCaller.establishmentId, p_order_id: null,
+        p_action: 'pickup', p_pickup_code: code,
+      });
+      if (error) {
+        if (error.code === 'P0002') return errorResponse('Pedido não encontrado para hoje.', 404);
+        if (error.code === 'P0003') return errorResponse('Código ambíguo. Localize o pedido no painel.', 409);
+        if (error.code === '22023') return errorResponse('O pedido precisa estar pronto para retirada.', 409);
+        throw error;
+      }
       return jsonResponse({ ok: true, message: `Pedido ${order.code} retirado com sucesso!` });
     }
 
@@ -312,49 +306,25 @@ Deno.serve(async (req: Request) => {
         observacoes: body.observacoes,
         telefone: body.telefone,
         transactionStatus: 'confirmado',
+        idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
       });
       return jsonResponse(result, 201);
     }
 
-    if (action === 'set-status') {
+    if (action === 'set-status' || action === 'advance') {
       if (!hasEmployeeAccess(caller, 'cozinha') && !hasEmployeeAccess(caller, 'adm')) return errorResponse('Acesso restrito a cozinha.', 403);
       const { id, status } = body;
-      if (!id || !['recebido', 'preparo', 'pronto', 'retirado', 'cancelado'].includes(status)) return errorResponse('Status do pedido invalido.', 400);
-      const now = new Date().toISOString();
-      const { data: updated, error } = await supabase
-        .from('orders')
-        .update({ status, updated_at: now })
-        .eq('establishment_id', caller.establishmentId)
-        .eq('id', id)
-        .select()
-        .maybeSingle();
-      if (error) throw error;
-      if (!updated) return errorResponse('Pedido não encontrado.', 404);
-
-      if (status === 'cancelado') {
-        await supabase.from('transactions').update({ status: 'estornado' }).eq('establishment_id', caller.establishmentId).eq('order_id', id).eq('status', 'confirmado');
-        await supabase.from('transactions').update({ status: 'cancelado' }).eq('establishment_id', caller.establishmentId).eq('order_id', id).eq('status', 'pendente');
+      if (typeof id !== 'string' || !id.trim()) return errorResponse('Informe o pedido.', 400);
+      if (action === 'set-status' && !['recebido', 'preparo', 'pronto', 'retirado', 'cancelado'].includes(status)) return errorResponse('Status do pedido inválido.', 400);
+      const { data: updated, error } = await supabase.rpc('transition_order_atomic', {
+        p_establishment_id: caller.establishmentId, p_order_id: id,
+        p_action: action, p_status: action === 'set-status' ? status : (typeof body.expectedStatus === 'string' ? body.expectedStatus : null),
+      });
+      if (error) {
+        if (error.code === 'P0002') return errorResponse('Pedido não encontrado.', 404);
+        if (error.code === '22023') return errorResponse('A transição não é permitida para o estado atual do pedido.', 409);
+        throw error;
       }
-      return jsonResponse(updated);
-    }
-
-    if (action === 'advance') {
-      if (!hasEmployeeAccess(caller, 'cozinha') && !hasEmployeeAccess(caller, 'adm')) return errorResponse('Acesso restrito a cozinha.', 403);
-      const flow = ['recebido', 'preparo', 'pronto', 'retirado'];
-      const { data: order } = await supabase.from('orders').select('*').eq('establishment_id', caller.establishmentId).eq('id', body.id).maybeSingle();
-      if (!order) return errorResponse('Pedido não encontrado.', 404);
-
-      const idx = flow.indexOf(order.status);
-      if (idx === -1 || idx === flow.length - 1) return jsonResponse(order);
-
-      const { data: updated, error } = await supabase
-        .from('orders')
-        .update({ status: flow[idx + 1], updated_at: new Date().toISOString() })
-        .eq('establishment_id', caller.establishmentId)
-        .eq('id', order.id)
-        .select()
-        .single();
-      if (error) throw error;
       return jsonResponse(updated);
     }
 

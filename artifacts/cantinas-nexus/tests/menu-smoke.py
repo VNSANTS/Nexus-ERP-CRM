@@ -51,7 +51,7 @@ def route(r):
             result = {'summary': [], 'log': []}
         if act == 'report-daily':
             result = {}
-        return r.fulfill(json=result, headers={'access-control-allow-origin': '*'})
+        return r.fulfill(json=result, content_type='application/json', headers={'access-control-allow-origin': '*'})
     return r.abort()
 with sync_playwright() as pw:
     browser = pw.chromium.launch(executable_path=shutil.which('google-chrome') or shutil.which('chromium'), args=['--no-sandbox'])

@@ -14,12 +14,16 @@ emp = dict(id='employee-test', role='admin', nome='Teste', **{'acesso' + k: True
 settings = dict(nomeLoja='Loja de teste', whatsappNumero='')
 orders = []
 saved = []
+failed_chunks = []
 staff_writes = []
 errors = []
 
 def route(r):
     u = urlparse(r.request.url)
     path = u.path
+    if u.hostname in ('nexus.test', 'vnsants.github.io') and '/assets/Kitchen-' in path and not failed_chunks:
+        failed_chunks.append(path)
+        return r.abort()
     if published and u.hostname == 'vnsants.github.io' and path.startswith('/Nexus-ERP-CRM/') and r.request.method == 'GET':
         return r.continue_()
     if not published and u.hostname == 'nexus.test':
@@ -77,6 +81,7 @@ with sync_playwright() as pw:
                 btn('Ampliar QR code do cardápio').click()
                 expect(pg.get_by_role('dialog')).to_be_visible()
                 pg.get_by_role('dialog').get_by_role('button', name='Fechar', exact=True).click()
+                expect(pg.get_by_role('dialog')).to_have_count(0)
             pg.screenshot(path=f'menu-screens/{width}-{id}.png', animations='disabled')
             btn('Bebidas').click()
             expect(pg.get_by_role('article')).to_have_count(1)
@@ -112,6 +117,13 @@ with sync_playwright() as pw:
             btn('Adicionar Suco').click()
             btn('Confirmar Pedido').click()
             expect(pg.get_by_text('Pedido #STAFF-QA criado!')).to_be_visible()
+        if label == 'Produtos':
+            btn('Novo Produto').click()
+            pg.get_by_label('Nome', exact=True).fill('Produto QA')
+            expect(btn('Salvar')).to_be_disabled()
+            pg.get_by_label(re.compile('Emoji')).fill('🥪')
+            expect(btn('Salvar')).to_be_enabled()
+            btn('Cancelar').click()
         if label == 'CRM':
             btn('Novo Cliente').click()
             dlg.get_by_label('Telefone').fill('+5500000000000')
@@ -127,5 +139,6 @@ with sync_playwright() as pw:
         expect(b).to_be_enabled()
     assert [(s['menuPrimaryColor'], s['menuBackgroundColor']) for s in saved] == [(t[2], t[3]) for t in themes]
     assert [entry['action'] for entry in staff_writes] == ['manual', 'upsert']
+    assert len(failed_chunks) == 1
     assert not errors, errors
     print('OK all')

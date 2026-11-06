@@ -2,6 +2,16 @@ import { createRoot } from 'react-dom/client';
 
 import './index.css';
 
+// Uma aba aberta durante o deploy pode apontar para um chunk que já foi removido.
+window.addEventListener('vite:preloadError', (event) => {
+  const key = 'nexus:last-asset-reload';
+  const now = Date.now();
+  if (now - Number(sessionStorage.getItem(key) ?? 0) < 60_000) return;
+  sessionStorage.setItem(key, String(now));
+  event.preventDefault();
+  window.location.reload();
+});
+
 // Corrige a URL antes de renderizar, caso o usuário tenha chegado via o
 // redirecionamento do 404.html (acesso direto ou reload numa rota da SPA,
 // ex: /Nexus-ERP-CRM/cozinha). Ver public/404.html para o outro lado disso.

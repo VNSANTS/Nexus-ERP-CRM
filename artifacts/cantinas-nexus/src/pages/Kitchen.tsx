@@ -1592,7 +1592,7 @@ export function Kitchen() {
                 <Plus className="w-4 h-4" /> Novo Produto
               </button>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>{['Emoji', 'Nome', 'Categoria', 'Preço', 'Estoque', 'Status', 'Ações'].map((h) => <th key={h} className="text-left px-4 py-3 text-xs font-black text-gray-400 uppercase tracking-wider">{h}</th>)}</tr>
@@ -1636,13 +1636,13 @@ export function Kitchen() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Nome</label>
-                        <input value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
+                        <label htmlFor="product-name" className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Nome</label>
+                        <input id="product-name" value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
                           className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none" />
                       </div>
                       <div>
-                        <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Emoji {productForm.imageUrl && <span className="normal-case font-semibold text-gray-300">(opcional com foto)</span>}</label>
-                        <input value={productForm.emoji} onChange={(e) => setProductForm({ ...productForm, emoji: e.target.value })}
+                        <label htmlFor="product-emoji" className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Emoji <span className="normal-case font-semibold text-gray-600">{productForm.imageUrl ? "(opcional com foto)" : "(obrigatório sem foto)"}</span></label>
+                        <input id="product-emoji" value={productForm.emoji} onChange={(e) => setProductForm({ ...productForm, emoji: e.target.value })}
                           className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold text-center text-2xl focus:border-primary focus:outline-none" />
                       </div>
                     </div>
@@ -1685,8 +1685,8 @@ export function Kitchen() {
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Descrição do produto <span className="normal-case font-semibold text-gray-300">({productForm.description.length}/500)</span></label>
-                      <textarea rows={3} maxLength={500} value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+                      <label htmlFor="product-description" className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Descrição do produto <span className="normal-case font-semibold text-gray-300">({productForm.description.length}/500)</span></label>
+                      <textarea id="product-description" rows={3} maxLength={500} value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
                         placeholder="Conte o que acompanha o produto, ingredientes ou características importantes..."
                         className="w-full resize-y border-2 border-gray-200 rounded-xl px-3 py-3 text-sm font-medium focus:border-primary focus:outline-none" />
                       <p className="mt-1 text-xs text-gray-400">Opcional. Use apenas informações confirmadas sobre o produto.</p>
@@ -1708,13 +1708,13 @@ export function Kitchen() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Preço (R$)</label>
-                        <input type="number" step="0.01" min="0" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
+                        <label htmlFor="product-price" className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Preço (R$)</label>
+                        <input id="product-price" type="number" step="0.01" min="0" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
                           className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none" />
                       </div>
                       <div>
-                        <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Categoria</label>
-                        <select value={productForm.categoria} onChange={(e) => setProductForm({ ...productForm, categoria: e.target.value })}
+                        <label htmlFor="product-categoria" className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Categoria</label>
+                        <select id="product-categoria" value={productForm.categoria} onChange={(e) => setProductForm({ ...productForm, categoria: e.target.value })}
                           className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none">
                           {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                         </select>
@@ -1722,8 +1722,8 @@ export function Kitchen() {
                     </div>
                     {!productForm.id ? (
                       <div>
-                        <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Estoque inicial</label>
-                        <input type="number" step="1" min="0" value={productForm.quantidadeInicial ?? '0'}
+                        <label htmlFor="product-quantidadeInicial" className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Estoque inicial</label>
+                        <input id="product-quantidadeInicial" type="number" step="1" min="0" value={productForm.quantidadeInicial ?? '0'}
                           onChange={(e) => setProductForm({ ...productForm, quantidadeInicial: e.target.value })}
                           className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none" />
                       </div>
@@ -1761,7 +1761,7 @@ export function Kitchen() {
                     </div>
                     <div className="flex gap-3 pt-2">
                       <button onClick={() => setProductForm(null)} className="flex-1 py-3 border-2 border-gray-200 rounded-xl font-bold hover:bg-gray-50">Cancelar</button>
-                      <button onClick={() => createProductMut.mutate()} disabled={createProductMut.isPending || !productForm.name}
+                      <button onClick={() => createProductMut.mutate()} disabled={createProductMut.isPending || uploadingImage || !productForm.name.trim() || (!productForm.emoji.trim() && !productForm.imageUrl)}
                         className="flex-1 py-3 bg-primary text-white rounded-xl font-black hover:bg-orange-600 disabled:opacity-50">
                         {createProductMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Salvar'}
                       </button>

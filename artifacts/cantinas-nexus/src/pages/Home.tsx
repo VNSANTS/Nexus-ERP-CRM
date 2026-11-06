@@ -744,6 +744,8 @@ export function Home() {
                                 decoding="async"
                                 className="h-full w-full object-cover"
                               />
+                            ) : product.emoji?.trim() ? (
+                              <span aria-hidden="true" className="select-none text-5xl sm:text-6xl">{product.emoji}</span>
                             ) : (
                               <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary/5 via-transparent to-primary/10 text-primary/60">
                                 <ImageOff className="h-9 w-9 sm:h-11 sm:w-11" strokeWidth={1.35} aria-hidden="true" />
@@ -906,27 +908,7 @@ export function Home() {
                   </button>
                 </div>
               </motion.section>
-            ) : (
-              <motion.section
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: .15 }}
-                className={`menu-empty-feature mt-8 flex flex-col gap-4 rounded-2xl border border-border p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8 ${isDarkTheme ? 'bg-[#1b2028]' : 'bg-card'}`}
-              >
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase tracking-[.18em] text-primary">Uma boa escolha</p>
-                  <h3 className="mt-2 font-display text-xl font-extrabold text-foreground sm:text-2xl">Explore todas as opções</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">Veja os produtos disponíveis e encontre seu próximo favorito.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCategoryFilter('todos')}
-                  className="nexus-primary-action w-fit rounded-xl bg-primary px-5 py-3 text-sm font-extrabold text-primary-foreground transition-all hover:brightness-95"
-                >
-                  Ver cardápio
-                </button>
-              </motion.section>
-            )}
+            ) : null}
           </>
         )}
 

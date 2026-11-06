@@ -64,6 +64,7 @@ jobs:
           "$RUNNER_TEMP/nexus-qa/bin/python" artifacts/cantinas-nexus/tests/menu-smoke.py
 
       - name: Guarda capturas dos seis modelos
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: menu-screens
@@ -93,3 +94,11 @@ jobs:
       - name: Publica no GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      - uses: actions/checkout@v4
+      - name: Testa o site publicado interceptando pedidos e chamadas do painel
+        env:
+          CHECK_PUBLISHED: '1'
+        run: |
+          python -m venv "$RUNNER_TEMP/nexus-qa"
+          "$RUNNER_TEMP/nexus-qa/bin/pip" install playwright==1.56.0
+          "$RUNNER_TEMP/nexus-qa/bin/python" artifacts/cantinas-nexus/tests/menu-smoke.py

@@ -214,4 +214,28 @@ execute('ALTER TABLE stock_history DROP CONSTRAINT qa_reject_history')
 assert quantity() == 1
 print('PASS inventory/checkout race, concurrent entry/waste and history failure rollback')
 
+# Daily numbers retain every digit after 999 instead of truncating to 100.
+execute("INSERT INTO daily_counter(establishment_id,date,count) VALUES (%s,to_char(clock_timestamp() AT TIME ZONE 'America/Sao_Paulo','YYYY-MM-DD'),999) ON CONFLICT(establishment_id,date) DO UPDATE SET count=999", (A,))
+reset_quantity(2)
+thousandth = checkout(A)
+assert thousandth['code'] == '1000', thousandth['code']
+next_order = checkout(A)
+assert next_order['code'] == '1001', next_order['code']
+print('PASS daily order numbers remain unique and untruncated after 999')
+
+# Existing duplicate numbers must fail closed instead of picking an arbitrary row.
+execute("UPDATE orders SET status='pronto',code='1000' WHERE id IN (%s,%s)", (thousandth['id'], next_order['id']))
+try:
+    transition(A, None, action='pickup', code='1000')
+except psycopg.Error as exc:
+    assert exc.sqlstate == 'P0003', str(exc)
+else:
+    raise AssertionError('Ambiguous pickup code should be rejected')
+assert scalar("SELECT count(*) FROM orders WHERE id IN (%s,%s) AND status='pronto'", (thousandth['id'],next_order['id'])) == 2
+execute("UPDATE orders SET code='1001' WHERE id=%s", (next_order['id'],))
+assert transition(A, None, action='pickup', code='1000')['id'] == thousandth['id']
+assert scalar('SELECT status FROM orders WHERE id=%s', (thousandth['id'],)) == 'retirado'
+assert scalar('SELECT status FROM orders WHERE id=%s', (next_order['id'],)) == 'pronto'
+print('PASS ambiguous pickup rejects P0003 without changing either order')
+
 print('ALL POSTGRESQL INTEGRITY TESTS PASSED')

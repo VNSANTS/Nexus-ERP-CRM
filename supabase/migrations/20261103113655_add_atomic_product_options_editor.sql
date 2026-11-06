@@ -88,7 +88,7 @@ BEGIN
 
   RETURN jsonb_build_object('ok', true, 'variants', v_variant_count, 'groups', v_group_count);
 END;
-$function$
+$function$;
 ;
 REVOKE ALL ON FUNCTION public.save_product_options(uuid, text, jsonb, jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.save_product_options(uuid, text, jsonb, jsonb) TO service_role;

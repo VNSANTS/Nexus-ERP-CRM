@@ -1,6 +1,7 @@
 import { Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
 import { lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { Toaster } from 'sonner';
+import { MotionConfig } from 'framer-motion';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { CustomerAuthProvider, useCustomerAuth } from './lib/customer-auth';
 import { AdminAuthProvider } from './lib/admin-auth';
@@ -124,21 +125,23 @@ function RecoveryRedirect() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <CustomerAuthProvider>
-        <AdminAuthProvider>
-          <OwnerAuthProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-              <RecoveryRedirect />
-              <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">Carregando...</div>}>
-                <Router />
-              </Suspense>
-            </WouterRouter>
-            <Toaster position="top-center" />
-          </OwnerAuthProvider>
-        </AdminAuthProvider>
-      </CustomerAuthProvider>
-    </QueryClientProvider>
+    <MotionConfig reducedMotion="user">
+      <QueryClientProvider client={queryClient}>
+        <CustomerAuthProvider>
+          <AdminAuthProvider>
+            <OwnerAuthProvider>
+              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+                <RecoveryRedirect />
+                <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">Carregando...</div>}>
+                  <Router />
+                </Suspense>
+              </WouterRouter>
+              <Toaster position="top-center" />
+            </OwnerAuthProvider>
+          </AdminAuthProvider>
+        </CustomerAuthProvider>
+      </QueryClientProvider>
+    </MotionConfig>
   );
 }
 

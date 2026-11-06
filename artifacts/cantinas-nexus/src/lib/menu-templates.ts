@@ -371,4 +371,138 @@ export const MENU_TEMPLATE_STYLES = `
 }
 
 
+/* Premium menu polish — scoped to the public menu, not the back office. */
+/* The category rail uses theme-native SVGs rather than fixed black/white bitmaps. */
+.nexus-cats {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  background: hsl(var(--background) / .94);
+  border-bottom: 1px solid var(--menu-border);
+}
+:is(.menu-template-modern-dark, .menu-template-minimal, .menu-template-editorial, .menu-template-vibrant, .menu-template-luxury, .menu-template-compact) .nexus-cats .nexus-category-tab {
+  min-height: 50px;
+  min-width: max-content;
+  gap: .6rem;
+  padding: .42rem .95rem .42rem .45rem;
+  letter-spacing: -.005em;
+  font-weight: 700;
+  font-size: .8rem;
+  line-height: 1.2;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+}
+:is(.menu-template-modern-dark, .menu-template-minimal, .menu-template-editorial, .menu-template-vibrant, .menu-template-luxury, .menu-template-compact) .nexus-cats .nexus-category-tab[aria-pressed="false"] {
+  color: hsl(var(--foreground));
+  background: color-mix(in srgb, hsl(var(--card)) 88%, hsl(var(--background)));
+  border: 1px solid hsl(var(--foreground) / .12);
+}
+:is(.menu-template-modern-dark, .menu-template-minimal, .menu-template-editorial, .menu-template-vibrant, .menu-template-luxury, .menu-template-compact) .nexus-cats .nexus-category-tab[aria-pressed="true"] {
+  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary));
+  border: 1px solid hsl(var(--primary));
+  box-shadow: 0 6px 18px hsl(var(--primary) / .18);
+}
+.nexus-category-icon {
+  background: hsl(var(--primary) / .11);
+  color: hsl(var(--primary));
+  transition: background-color 180ms ease, color 180ms ease;
+}
+.nexus-category-tab[aria-pressed="true"] .nexus-category-icon {
+  color: inherit;
+  background: color-mix(in srgb, currentColor 17%, transparent);
+}
+:is(.menu-template-modern-dark, .menu-template-minimal, .menu-template-editorial, .menu-template-vibrant, .menu-template-luxury, .menu-template-compact) .nexus-cats .nexus-category-tab:focus-visible,
+.nexus-primary-action:focus-visible,
+#menu-products article button:focus-visible,
+.nexus-search-wrap:focus-within {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 3px;
+}
+.nexus-primary-action {
+  color: hsl(var(--primary-foreground));
+  font-weight: 750;
+  -webkit-tap-highlight-color: transparent;
+}
+.nexus-primary-action:disabled { box-shadow: none; }
+@media (hover: hover) and (pointer: fine) {
+  :is(.menu-template-modern-dark, .menu-template-minimal, .menu-template-editorial, .menu-template-vibrant, .menu-template-luxury, .menu-template-compact) .nexus-cats .nexus-category-tab[aria-pressed="false"]:hover {
+    border-color: hsl(var(--primary) / .52);
+    background: color-mix(in srgb, hsl(var(--primary)) 7%, hsl(var(--card)));
+  }
+  .nexus-primary-action:not(:disabled):hover {
+    box-shadow: 0 8px 18px hsl(var(--primary) / .2);
+  }
+}
+
+/* Six recognizable personalities, one consistent control system. */
+.menu-template-minimal .nexus-cats { box-shadow: none; }
+.menu-template-editorial .nexus-cats .nexus-category-tab { border-radius: .85rem; }
+.menu-template-editorial .nexus-cats .nexus-category-tab[aria-pressed="false"] { background: #fffaf4; }
+.menu-template-vibrant .nexus-cats .nexus-category-tab { border-radius: 1rem; }
+.menu-template-luxury .nexus-cats .nexus-category-tab { letter-spacing: .01em; }
+.menu-template-compact .nexus-cats .nexus-category-tab { border-radius: .75rem; }
+.menu-template-compact .nexus-cats .nexus-category-icon { border-radius: .5rem; }
+
+/* Functional-first product cards: clearer title, readable actions and refined focus. */
+:is(.menu-template-modern-dark, .menu-template-minimal, .menu-template-editorial, .menu-template-vibrant, .menu-template-luxury, .menu-template-compact) #menu-products .nexus-card {
+  border-width: 1px;
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+}
+:is(.menu-template-modern-dark, .menu-template-minimal, .menu-template-editorial, .menu-template-vibrant, .menu-template-luxury, .menu-template-compact) #menu-products .nexus-card:focus-within {
+  border-color: hsl(var(--primary) / .55);
+}
+:is(.menu-template-modern-dark, .menu-template-minimal, .menu-template-editorial, .menu-template-vibrant, .menu-template-luxury, .menu-template-compact) #menu-products .nexus-card h3 {
+  font-size: clamp(.85rem, 1.15vw, 1.07rem);
+  font-weight: 750;
+  text-transform: none;
+  letter-spacing: -.02em;
+  line-height: 1.32;
+}
+:is(.menu-template-modern-dark, .menu-template-minimal, .menu-template-editorial, .menu-template-vibrant, .menu-template-luxury, .menu-template-compact) #menu-products .nexus-card p {
+  line-height: 1.5;
+}
+:is(.menu-template-modern-dark, .menu-template-minimal, .menu-template-editorial, .menu-template-vibrant, .menu-template-luxury, .menu-template-compact) #menu-products .nexus-card button:not(.nexus-fav) {
+  min-height: 44px;
+  font-size: .75rem;
+  line-height: 1.15;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+.menu-template-compact #menu-products .nexus-card h3 { font-size: clamp(.82rem, 1vw, .95rem); }
+.menu-template-compact #menu-products .nexus-card button:not(.nexus-fav) { padding-inline: .75rem; }
+
+/* Featured combo inherits merchant accent instead of always injecting orange. */
+.nexus-featured-glow {
+  background: radial-gradient(circle at 45% 48%, hsl(var(--primary) / .16), transparent 64%);
+}
+.nexus-featured-wordmark { color: hsl(var(--primary) / .13); }
+.menu-template-luxury .nexus-featured-wordmark { color: rgba(184,149,85,.12); }
+
+/* Small-screen comfort: swipeable categories and legible two-column cards. */
+@media (max-width: 640px) {
+  .nexus-cats {
+    gap: .5rem;
+    padding-bottom: .7rem;
+    padding-top: .65rem;
+  }
+  :is(.menu-template-modern-dark, .menu-template-minimal, .menu-template-editorial, .menu-template-vibrant, .menu-template-luxury, .menu-template-compact) .nexus-cats .nexus-category-tab {
+    min-height: 46px;
+    padding: .35rem .8rem .35rem .36rem;
+    font-size: .75rem;
+  }
+  .nexus-category-icon { width: 2rem; height: 2rem; }
+  :is(.menu-template-modern-dark, .menu-template-minimal, .menu-template-editorial, .menu-template-vibrant, .menu-template-luxury, .menu-template-compact) #menu-products .nexus-card > div:last-child {
+    padding: .85rem;
+  }
+  :is(.menu-template-modern-dark, .menu-template-minimal, .menu-template-editorial, .menu-template-vibrant, .menu-template-luxury, .menu-template-compact) #menu-products .nexus-card button:not(.nexus-fav) {
+    font-size: .74rem;
+    min-height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nexus-category-icon,
+  .nexus-category-tab,
+  .nexus-primary-action { transition: none !important; }
+}
+
 `;

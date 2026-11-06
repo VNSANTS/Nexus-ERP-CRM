@@ -17,21 +17,19 @@ import {
   Trash2, Plus, Minus, CreditCard, Wallet, Banknote, QrCode,
   ArrowLeft, CheckCircle2, ShoppingCart, X, MessageCircle,
   Sparkles, Heart, Loader2,
-  Search, Info, ImageOff,
+  Search, Info, ImageOff, LayoutGrid, UtensilsCrossed, CupSoda, Boxes, type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCustomerAuth } from '../lib/customer-auth';
 import { getMenuTemplate, MENU_TEMPLATE_STYLES } from '../lib/menu-templates';
 
-const REFERENCE_ASSET = `${import.meta.env.BASE_URL}reference/`;
-
-const CATEGORY_TABS: Array<{ key: 'todos' | 'lanche' | 'bebida' | 'combo' | 'sazonal'; label: string; icon: string }> = [
-  { key: 'todos', label: 'Todos', icon: 'icon-all.webp' },
-  { key: 'lanche', label: CATEGORY_LABELS.lanche, icon: 'icon-lanche.webp' },
-  { key: 'bebida', label: CATEGORY_LABELS.bebida, icon: 'icon-bebida.webp' },
-  { key: 'combo', label: CATEGORY_LABELS.combo, icon: 'icon-combo.webp' },
-  { key: 'sazonal', label: 'Sazonais', icon: 'icon-sazonal.webp' },
+const CATEGORY_TABS: Array<{ key: 'todos' | 'lanche' | 'bebida' | 'combo' | 'sazonal'; label: string; icon: LucideIcon }> = [
+  { key: 'todos', label: 'Todos', icon: LayoutGrid },
+  { key: 'lanche', label: CATEGORY_LABELS.lanche, icon: UtensilsCrossed },
+  { key: 'bebida', label: CATEGORY_LABELS.bebida, icon: CupSoda },
+  { key: 'combo', label: CATEGORY_LABELS.combo, icon: Boxes },
+  { key: 'sazonal', label: 'Sazonais', icon: Sparkles },
 ];
 
 function hexToHsl(hex: string) {
@@ -55,6 +53,19 @@ function hexToHsl(hex: string) {
   const lightness = (max + min) / 2;
   const saturation = delta ? delta / (1 - Math.abs(2 * lightness - 1)) : 0;
   return `${Math.round(hue)} ${Math.round(saturation * 100)}% ${Math.round(lightness * 100)}%`;
+}
+
+/** Pick the higher-contrast label for a merchant-configurable accent color. */
+function readableOnPrimary(hex: string): string {
+  const match = /^#([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!match) return '0 0% 100%';
+  const rgb = [0, 2, 4].map((offset) => parseInt(match[1].slice(offset, offset + 2), 16) / 255);
+  const linear = rgb.map((channel) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
+  const luminance = linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+  // #18222e has a luminance of approximately 0.015.
+  const contrastWithDark = (luminance + 0.05) / 0.065;
+  const contrastWithWhite = 1.05 / (luminance + 0.05);
+  return contrastWithDark > contrastWithWhite ? '220 24% 12%' : '0 0% 100%';
 }
 
 export function Home() {
@@ -244,7 +255,7 @@ export function Home() {
     '--primary': hexToHsl(menuPrimary),
     '--ring': hexToHsl(menuPrimary),
     '--background': hexToHsl(menuBackground),
-    '--primary-foreground': '0 0% 100%',
+    '--primary-foreground': readableOnPrimary(menuPrimary),
     ...(isDarkTheme ? {
       '--foreground': '0 0% 96%',
       '--card': menuTemplate.id === 'luxury' ? '330 10% 13%' : '220 18% 11%',
@@ -296,7 +307,7 @@ export function Home() {
     }
 
     /* Category tabs — scroll snap */
-    .nexus-cats { scroll-snap-type: x mandatory; }
+    .nexus-cats { scroll-snap-type: x proximity; scroll-padding-inline: 1rem; }
     .nexus-cats button { scroll-snap-align: start; }
 
     /* Product card — hover ring premium */
@@ -331,7 +342,7 @@ export function Home() {
     .nexus-shimmer {
       background: linear-gradient(90deg, transparent 0%, hsl(var(--primary)/.08) 50%, transparent 100%);
       background-size: 200% 100%;
-      animation: nexus-shimmer 3s ease infinite;
+      animation: none;
     }
 
     /* Scrollbar oculta */
@@ -374,7 +385,7 @@ export function Home() {
 
     /* Fav button refined */
     .nexus-fav { transition: transform 180ms cubic-bezier(.34,1.56,.64,1), color 150ms ease; }
-    .nexus-fav:hover, .nexus-fav[aria-pressed="true"] { transform: scale(1.2); }
+    .nexus-fav:hover, .nexus-fav[aria-pressed="true"] { transform: scale(1.06); }
 
     /* Search focus ring */
     .nexus-search-wrap:focus-within {
@@ -456,7 +467,7 @@ export function Home() {
                   whileTap={{ scale: .92 }}
                   onClick={() => setCartOpen(true)}
                   aria-label="Abrir carrinho"
-                  className="nexus-cart-pulse relative flex h-11 w-11 items-center justify-center rounded-full bg-primary text-white shadow-lg sm:h-12 sm:w-12"
+                  className="nexus-cart-pulse relative flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg sm:h-12 sm:w-12"
                 >
                   <ShoppingCart className="h-5 w-5" />
                   <AnimatePresence>
@@ -491,25 +502,24 @@ export function Home() {
           >
             {CATEGORY_TABS.map((tab) => {
               const isActive = categoryFilter === tab.key;
+              const CategoryIcon = tab.icon;
               return (
                 <motion.button
                   key={tab.key}
                   type="button"
                   aria-pressed={isActive}
+                  aria-controls="menu-products"
                   onClick={() => setCategoryFilter(tab.key)}
-                  whileTap={{ scale: .93 }}
-                  className={`group shrink-0 whitespace-nowrap flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-extrabold transition-all duration-200 sm:px-5 sm:text-sm ${
+                  whileTap={{ scale: .97 }}
+                  className={`nexus-category-tab group inline-flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-full border px-3 py-2.5 text-xs font-bold transition-[color,background-color,border-color,box-shadow] duration-200 sm:px-4 sm:text-sm ${
                     isActive
-                      ? 'bg-primary text-white shadow-md shadow-primary/25 ring-1 ring-primary/40 scale-[1.02]'
-                      : 'border border-border bg-card/80 text-foreground hover:border-primary/40 hover:bg-card'
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-border bg-card text-foreground hover:border-primary/40'
                   }`}
                 >
-                  <img
-                    src={`${REFERENCE_ASSET}${tab.icon}`}
-                    alt=""
-                    aria-hidden="true"
-                    className={`w-6 h-6 sm:w-7 sm:h-7 object-contain rounded-full transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-105'}`}
-                  />
+                  <span className="nexus-category-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-full" aria-hidden="true">
+                    <CategoryIcon className="h-[17px] w-[17px]" strokeWidth={1.9} />
+                  </span>
                   {tab.label}
                 </motion.button>
               );
@@ -574,7 +584,7 @@ export function Home() {
                     whileTap={{ scale: .96 }}
                     type="button"
                     onClick={() => document.getElementById('menu-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                    className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-extrabold text-white shadow-md shadow-primary/25 transition-all hover:brightness-95"
+                    className="nexus-primary-action mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-extrabold text-primary-foreground shadow-md shadow-primary/25 transition-all hover:brightness-95"
                   >
                     Ver produtos <span aria-hidden="true">↓</span>
                   </motion.button>
@@ -607,7 +617,7 @@ export function Home() {
             {/* Título da seção + busca */}
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[.28em] text-primary">// 01 — CARDÁPIO</p>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[.28em] text-primary">CARDÁPIO</p>
                 <h3 className="mt-2 font-display text-3xl font-black uppercase tracking-tight text-foreground sm:text-5xl">
                   {categoryFilter === 'todos'
                     ? 'Descubra o cardápio'
@@ -801,7 +811,7 @@ export function Home() {
                                 if (!canAddToCart(product.id)) return;
                                 addProductToCart(product);
                               }}
-                              className="ml-auto inline-flex min-h-[2.6rem] items-center justify-center gap-1.5 rounded-full bg-primary px-3 text-[10px] font-extrabold text-white shadow-sm transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-10 sm:gap-2 sm:px-4 sm:text-xs"
+                              className="nexus-primary-action ml-auto inline-flex min-h-[2.6rem] items-center justify-center gap-1.5 rounded-full bg-primary px-3 text-[10px] font-extrabold text-primary-foreground shadow-sm transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-10 sm:gap-2 sm:px-4 sm:text-xs"
                             >
                               <Plus className="h-3.5 w-3.5" strokeWidth={3} />
                               {disabled ? 'Esgotado' : canAddMore ? 'Adicionar' : 'Limite'}
@@ -854,8 +864,8 @@ export function Home() {
 
                 {/* Imagem */}
                 <div className="relative min-h-[250px] overflow-hidden md:col-span-7 md:min-h-[470px]">
-                  <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_45%_48%,rgba(255,106,0,.2),transparent_60%)]" />
-                  <div aria-hidden="true" className="absolute inset-[8%] rounded-full border border-orange-400/15" />
+                  <div aria-hidden="true" className="nexus-featured-glow absolute inset-0" />
+                  <div aria-hidden="true" className="absolute inset-[8%] rounded-full border border-primary/20" />
                   <div aria-hidden="true" className="absolute inset-[17%] rounded-full border border-dashed border-white/8" />
                   {featuredCombo.imageUrl ? (
                     <img
@@ -870,14 +880,14 @@ export function Home() {
                       <span className="text-xs font-bold uppercase tracking-[.2em] text-muted-foreground">Destaque da casa</span>
                     </div>
                   )}
-                  <span className="absolute bottom-4 left-5 font-display text-[16vw] font-black uppercase leading-none text-white/[.07] md:text-[9vw] select-none">
+                  <span className="nexus-featured-wordmark absolute bottom-4 left-5 select-none font-display text-[16vw] font-black uppercase leading-none md:text-[9vw]">
                     COMBO
                   </span>
                 </div>
 
                 {/* Texto */}
                 <div className="relative z-20 flex flex-col justify-center px-6 py-9 sm:px-10 md:col-span-5 md:px-12">
-                  <p className="font-mono text-[10px] font-bold uppercase tracking-[.3em] text-primary">// 02 — DESTAQUE DA CASA</p>
+                  <p className="font-mono text-[10px] font-bold uppercase tracking-[.3em] text-primary">EM DESTAQUE</p>
                   <h3 className="mt-4 font-display text-4xl font-black uppercase leading-[.9] tracking-tight text-foreground sm:text-5xl">
                     {featuredCombo.name}
                   </h3>
@@ -897,7 +907,7 @@ export function Home() {
                       whileTap={{ scale: .95 }}
                       onClick={() => addProductToCart(featuredCombo)}
                       disabled={!canAddToCart(featuredCombo.id)}
-                      className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-6 py-3.5 text-xs font-black uppercase tracking-[.14em] text-white shadow-lg shadow-primary/25 transition-all hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="nexus-primary-action inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-6 py-3.5 text-xs font-black uppercase tracking-[.14em] text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {getStock(featuredCombo.id) <= 0 ? 'Esgotado' : canAddToCart(featuredCombo.id) ? 'Adicionar combo' : 'Limite atingido'}
                       <Plus className="h-4 w-4" />
@@ -927,7 +937,7 @@ export function Home() {
                 <button
                   type="button"
                   onClick={() => setCategoryFilter('todos')}
-                  className="w-fit rounded-xl bg-primary px-5 py-3 text-sm font-extrabold text-white transition-all hover:brightness-95"
+                  className="nexus-primary-action w-fit rounded-xl bg-primary px-5 py-3 text-sm font-extrabold text-primary-foreground transition-all hover:brightness-95"
                 >
                   Ver cardápio
                 </button>

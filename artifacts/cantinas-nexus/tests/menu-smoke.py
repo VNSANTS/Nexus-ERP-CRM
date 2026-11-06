@@ -72,6 +72,11 @@ with sync_playwright() as pw:
             expect(card).to_be_visible()
             assert pg.evaluate('document.documentElement.scrollWidth <= innerWidth')
             assert pg.locator('.nexus-category-icon svg').count() >= 4
+            if width == 390:
+                expect(card.get_by_role('button', name='Adicionar', exact=True)).to_be_in_viewport()
+                btn('Ampliar QR code do cardápio').click()
+                expect(pg.get_by_role('dialog')).to_be_visible()
+                pg.get_by_role('dialog').get_by_role('button', name='Fechar', exact=True).click()
             pg.screenshot(path=f'menu-screens/{width}-{id}.png', animations='disabled')
             btn('Bebidas').click()
             expect(pg.get_by_role('article')).to_have_count(1)

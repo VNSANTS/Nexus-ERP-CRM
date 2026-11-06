@@ -427,12 +427,10 @@ export function Home() {
 
           {/* Nome + tagline */}
           <div className="min-w-0">
-            <p className="truncate text-base font-black tracking-tight text-foreground sm:text-xl">
+            <h1 className="truncate text-base font-black tracking-tight text-foreground sm:text-xl">
               {settings?.nomeLoja || 'Seu estabelecimento'}
-            </p>
-            <p className="text-[10px] font-extrabold uppercase tracking-[.2em] text-primary sm:text-xs">
-              Seu momento. Seu sabor.
-            </p>
+            </h1>
+
           </div>
         </div>
 
@@ -451,6 +449,12 @@ export function Home() {
                 exit={{ opacity: 0, scale: .9 }}
                 className="flex gap-2"
               >
+                {establishmentMenuUrl && (
+                  <button type="button" aria-label="Ampliar QR code do cardápio" onClick={() => setMenuQrOpen(true)}
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-foreground sm:hidden">
+                    <QrCode className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                )}
                 {/* WhatsApp */}
                 {whatsappUrl && <motion.button
                   whileHover={{ scale: 1.08 }}
@@ -539,7 +543,7 @@ export function Home() {
             <motion.section
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
-              className="menu-hero relative mb-8 mt-5 overflow-hidden rounded-[2rem] border border-border bg-card shadow-[0_20px_60px_rgba(0,0,0,.12)] sm:rounded-[2.5rem]"
+              className="menu-hero relative hidden sm:block mb-8 mt-5 overflow-hidden rounded-[2rem] border border-border bg-card shadow-[0_20px_60px_rgba(0,0,0,.12)] sm:rounded-[2.5rem]"
             >
               {/* Accent blob */}
               <div className="menu-hero-accent pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full blur-3xl opacity-[.14]" />
@@ -548,16 +552,6 @@ export function Home() {
 
               <div className="relative z-10 flex flex-col gap-6 px-6 py-7 sm:flex-row sm:items-end sm:justify-between sm:px-10 sm:py-9">
                 <div className="max-w-2xl">
-                  <motion.p
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: .08 }}
-                    className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[.2em] text-primary"
-                  >
-                    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-primary" />
-                    Cardápio digital
-                  </motion.p>
-
                   <motion.h2
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -567,15 +561,6 @@ export function Home() {
                     O que vamos{' '}
                     <span className="text-primary">pedir hoje?</span>
                   </motion.h2>
-
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: .18 }}
-                    className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base"
-                  >
-                    Confira nossas opções, escolha seus favoritos e faça seu pedido com praticidade.
-                  </motion.p>
 
                   <motion.button
                     initial={{ opacity: 0, y: 6 }}
@@ -616,15 +601,13 @@ export function Home() {
             </motion.section>
 
             {/* Título da seção + busca */}
-            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="mt-4 mb-4 flex flex-col gap-3 sm:mt-0 sm:mb-6 sm:gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[.28em] text-primary">CARDÁPIO</p>
-                <h3 className="mt-2 font-display text-3xl font-black uppercase tracking-tight text-foreground sm:text-5xl">
+                <h2 className="font-display text-2xl font-black tracking-tight text-foreground sm:text-4xl">
                   {categoryFilter === 'todos'
-                    ? 'Descubra o cardápio'
+                    ? 'Cardápio'
                     : CATEGORY_TABS.find((tab) => tab.key === categoryFilter)?.label}
-                </h3>
-                <p className="mt-1.5 text-sm text-muted-foreground">Encontre seu próximo favorito.</p>
+                </h2>
               </div>
 
               {/* Busca */}

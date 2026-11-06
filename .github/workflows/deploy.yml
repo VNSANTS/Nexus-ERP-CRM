@@ -50,6 +50,25 @@ jobs:
       - name: Verifica tipos TypeScript
         run: pnpm --filter @workspace/cantinas-nexus run typecheck
 
+      - name: Testa isolamento e atualização do carrinho
+        run: node --test artifacts/cantinas-nexus/tests/*.test.mjs
+
+      - name: Valida cardápios e painel com dados fictícios
+        env:
+          VITE_SUPABASE_URL: https://fixture.supabase.co
+          VITE_SUPABASE_ANON_KEY: test-only
+        run: |
+          python -m venv "$RUNNER_TEMP/nexus-qa"
+          "$RUNNER_TEMP/nexus-qa/bin/pip" install playwright==1.56.0
+          pnpm --filter @workspace/cantinas-nexus run build
+          "$RUNNER_TEMP/nexus-qa/bin/python" artifacts/cantinas-nexus/tests/menu-smoke.py
+
+      - name: Guarda capturas dos seis modelos
+        uses: actions/upload-artifact@v4
+        with:
+          name: menu-screens
+          path: menu-screens/
+
       - name: Build do frontend (cantinas-nexus)
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}

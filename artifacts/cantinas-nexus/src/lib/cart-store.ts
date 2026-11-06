@@ -2,7 +2,7 @@
  * Carrinho local — persiste em localStorage (client-only).
  * Configurações diferentes do mesmo produto são linhas independentes.
  */
-import { useSyncExternalStore } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 
 export interface CartItem {
   key: string;
@@ -27,13 +27,19 @@ function configurationKey(productId: string, variantId: string | null, modifierI
   return `${productId}::${variantId ?? ''}::${[...modifierIds].sort().join(',')}`;
 }
 
-class CartStore {
-  private items: CartItem[] = this.load();
+export class CartStore {
+  private storageKey: string | null;
+  private items: CartItem[];
+
+  constructor(establishmentId: string | null) {
+    this.storageKey = establishmentId ? `${CART_KEY}:${establishmentId}` : null;
+    this.items = this.load();
+  }
   private listeners = new Set<() => void>();
 
   private load(): CartItem[] {
     try {
-      const raw = localStorage.getItem(CART_KEY);
+      const raw = this.storageKey && localStorage.getItem(this.storageKey);
       const parsed = raw ? JSON.parse(raw) : [];
       if (!Array.isArray(parsed)) return [];
       return parsed.map((item: Partial<CartItem>) => {
@@ -53,7 +59,7 @@ class CartStore {
   }
 
   private persist() {
-    localStorage.setItem(CART_KEY, JSON.stringify(this.items));
+    if (this.storageKey) localStorage.setItem(this.storageKey, JSON.stringify(this.items));
   }
 
   private notify() {
@@ -73,7 +79,7 @@ class CartStore {
     const key = configurationKey(productId, variantId, modifierIds);
     const existing = this.items.find((item) => item.key === key);
     if (existing) {
-      existing.qty += 1;
+      this.items = this.items.map((item) => item === existing ? { ...item, qty: item.qty + 1 } : item);
     } else {
       this.items = [...this.items, {
         key, productId, name, price, qty: 1, variantId, modifierIds,
@@ -87,8 +93,9 @@ class CartStore {
   decrement(key: string) {
     const existing = this.items.find((item) => item.key === key);
     if (!existing) return;
-    existing.qty -= 1;
-    if (existing.qty <= 0) this.items = this.items.filter((item) => item.key !== key);
+    this.items = existing.qty === 1
+      ? this.items.filter((item) => item.key !== key)
+      : this.items.map((item) => item === existing ? { ...item, qty: item.qty - 1 } : item);
     this.persist();
     this.notify();
   }
@@ -106,8 +113,8 @@ class CartStore {
   }
 }
 
-export const cartStore = new CartStore();
-
-export function useCart(): CartItem[] {
-  return useSyncExternalStore(cartStore.subscribe, cartStore.getSnapshot, cartStore.getSnapshot);
+export function useCart(establishmentId: string | null) {
+  const cartStore = useMemo(() => new CartStore(establishmentId), [establishmentId]);
+  const cart = useSyncExternalStore(cartStore.subscribe, cartStore.getSnapshot, cartStore.getSnapshot);
+  return { cartStore, cart };
 }

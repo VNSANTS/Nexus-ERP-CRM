@@ -593,7 +593,7 @@ export function Kitchen() {
               {kitchenMode === 'admin' ? <ShieldCheck className="w-5 h-5 text-primary" /> : <ToggleLeft className="w-5 h-5" />}
             </button>
           )}
-          <button onClick={() => {
+          <button aria-label="Sair do painel" onClick={() => {
             if (ownerAdminAccess) {
               setLocation('/estabelecimento');
               return;
@@ -614,7 +614,7 @@ export function Kitchen() {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
           return (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            <button key={tab.key} aria-pressed={isActive} onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-1.5 px-3 sm:px-5 py-3 sm:py-4 text-xs sm:text-sm font-black whitespace-nowrap border-b-2 transition-all ${isActive ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}>
               <Icon className="w-4 h-4 shrink-0" /><span className="hidden sm:inline">{tab.label}</span>
               <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
@@ -1980,7 +1980,7 @@ export function Kitchen() {
                     );
                     const selected = activeTemplate.id === template.id;
                     return (
-                      <button key={template.id} type="button" disabled={saveSettingsMut.isPending}
+                      <button key={template.id} type="button" aria-pressed={selected} disabled={saveSettingsMut.isPending}
                         onClick={() => {
                           const payload = {
                             ...(settingsForm ?? settingsDraft()),

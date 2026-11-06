@@ -224,31 +224,33 @@ export function Kitchen() {
 
   // ─── Queries ────────────────────────────────────────────────────────────────
 
+  const panelKey = (resource: string) => [resource, 'kitchen', ownerEstablishment?.id, loggedEmployee?.id];
+
   const { data: orders = [], isLoading: loadingOrders } = useQuery({
-    queryKey: ['orders'],
+    queryKey: panelKey('orders'),
     queryFn: api.orders.list,
     refetchInterval: 4000,
     enabled: !!loggedEmployee,
   });
-  const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: api.products.listForEmployee, enabled: !!loggedEmployee });
-  const { data: stock = [] } = useQuery({ queryKey: ['stock'], queryFn: api.stock.list, refetchInterval: 15000, enabled: !!loggedEmployee });
-  const { data: stockHistory = [] } = useQuery({ queryKey: ['stock-history'], queryFn: api.stock.history, enabled: !!loggedEmployee && activeTab === 'estoque' });
-  const { data: wasteLog = [] } = useQuery({ queryKey: ['waste-log'], queryFn: api.stock.waste, enabled: !!loggedEmployee && activeTab === 'estoque' });
-  const { data: employees = [] } = useQuery({ queryKey: ['employees'], queryFn: api.employees.list, enabled: !!loggedEmployee && loggedEmployee.acessoFuncionarios });
-  const { data: promotions = [] } = useQuery({ queryKey: ['promotions'], queryFn: api.promotions.list, enabled: !!loggedEmployee && loggedEmployee.acessoPromocoes });
-  const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: api.customers.list, enabled: !!loggedEmployee && activeTab === 'crm' });
-  const { data: customerInsights = [] } = useQuery<ApiCustomerInsight[]>({ queryKey: ['customer-insights'], queryFn: api.customers.insights, enabled: !!loggedEmployee && loggedEmployee.acessoCrm && activeTab === 'crm' });
-  const { data: interactions = [] } = useQuery({ queryKey: ['customer-interactions'], queryFn: api.customers.interactions, enabled: !!loggedEmployee && activeTab === 'crm' });
-  const { data: suppliers = [] } = useQuery({ queryKey: ['suppliers'], queryFn: api.suppliers.list, enabled: !!loggedEmployee && activeTab === 'fornecedores' });
-  const { data: supplyRequests = [] } = useQuery({ queryKey: ['supply-requests'], queryFn: api.suppliers.requests, enabled: !!loggedEmployee && activeTab === 'fornecedores' });
-  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: api.settings.getForEmployee, enabled: !!loggedEmployee });
+  const { data: products = [] } = useQuery({ queryKey: panelKey('products'), queryFn: api.products.listForEmployee, enabled: !!loggedEmployee });
+  const { data: stock = [] } = useQuery({ queryKey: panelKey('stock'), queryFn: api.stock.list, refetchInterval: 15000, enabled: !!loggedEmployee });
+  const { data: stockHistory = [] } = useQuery({ queryKey: panelKey('stock-history'), queryFn: api.stock.history, enabled: !!loggedEmployee && activeTab === 'estoque' });
+  const { data: wasteLog = [] } = useQuery({ queryKey: panelKey('waste-log'), queryFn: api.stock.waste, enabled: !!loggedEmployee && activeTab === 'estoque' });
+  const { data: employees = [] } = useQuery({ queryKey: panelKey('employees'), queryFn: api.employees.list, enabled: !!loggedEmployee && loggedEmployee.acessoFuncionarios });
+  const { data: promotions = [] } = useQuery({ queryKey: panelKey('promotions'), queryFn: api.promotions.list, enabled: !!loggedEmployee && loggedEmployee.acessoPromocoes });
+  const { data: customers = [] } = useQuery({ queryKey: panelKey('customers'), queryFn: api.customers.list, enabled: !!loggedEmployee && activeTab === 'crm' });
+  const { data: customerInsights = [] } = useQuery<ApiCustomerInsight[]>({ queryKey: panelKey('customer-insights'), queryFn: api.customers.insights, enabled: !!loggedEmployee && loggedEmployee.acessoCrm && activeTab === 'crm' });
+  const { data: interactions = [] } = useQuery({ queryKey: panelKey('customer-interactions'), queryFn: api.customers.interactions, enabled: !!loggedEmployee && activeTab === 'crm' });
+  const { data: suppliers = [] } = useQuery({ queryKey: panelKey('suppliers'), queryFn: api.suppliers.list, enabled: !!loggedEmployee && activeTab === 'fornecedores' });
+  const { data: supplyRequests = [] } = useQuery({ queryKey: panelKey('supply-requests'), queryFn: api.suppliers.requests, enabled: !!loggedEmployee && activeTab === 'fornecedores' });
+  const { data: settings } = useQuery({ queryKey: panelKey('settings'), queryFn: api.settings.getForEmployee, enabled: !!loggedEmployee });
   const canAccessCashier = loggedEmployee?.acessoCaixa === true;
   const canAccessKitchen = loggedEmployee?.acessoCozinha === true;
-  const { data: dailyReport } = useQuery({ queryKey: ['report-daily'], queryFn: api.reports.daily, refetchInterval: 10000, enabled: !!loggedEmployee && loggedEmployee.acessoRelatorios });
-  const { data: productRanking = [] } = useQuery({ queryKey: ['report-products'], queryFn: api.reports.products, refetchInterval: 15000, enabled: !!loggedEmployee && (activeTab === 'dashboard' || activeTab === 'relatorios') });
-  const { data: hourlyData = [] } = useQuery({ queryKey: ['report-hourly'], queryFn: api.reports.hourly, refetchInterval: 15000, enabled: !!loggedEmployee && (activeTab === 'dashboard' || activeTab === 'relatorios') });
-  const { data: transactions = [] } = useQuery({ queryKey: ['transactions'], queryFn: api.reports.transactions, enabled: !!loggedEmployee && activeTab === 'relatorios' });
-  const { data: wasteReport } = useQuery({ queryKey: ['waste-report'], queryFn: api.reports.waste, enabled: !!loggedEmployee && activeTab === 'relatorios' });
+  const { data: dailyReport } = useQuery({ queryKey: panelKey('report-daily'), queryFn: api.reports.daily, refetchInterval: 10000, enabled: !!loggedEmployee && loggedEmployee.acessoRelatorios });
+  const { data: productRanking = [] } = useQuery({ queryKey: panelKey('report-products'), queryFn: api.reports.products, refetchInterval: 15000, enabled: !!loggedEmployee && (activeTab === 'dashboard' || activeTab === 'relatorios') });
+  const { data: hourlyData = [] } = useQuery({ queryKey: panelKey('report-hourly'), queryFn: api.reports.hourly, refetchInterval: 15000, enabled: !!loggedEmployee && (activeTab === 'dashboard' || activeTab === 'relatorios') });
+  const { data: transactions = [] } = useQuery({ queryKey: panelKey('transactions'), queryFn: api.reports.transactions, enabled: !!loggedEmployee && activeTab === 'relatorios' });
+  const { data: wasteReport } = useQuery({ queryKey: panelKey('waste-report'), queryFn: api.reports.waste, enabled: !!loggedEmployee && activeTab === 'relatorios' });
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
 
@@ -384,7 +386,7 @@ export function Kitchen() {
   const [crmVisibleCount, setCrmVisibleCount] = useState(30);
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
   const [interactionForm, setInteractionForm] = useState<{ tipo: string; nota: string } | null>(null);
-  const [customerForm, setCustomerForm] = useState<{ telefone: string; nome: string; tags: string; observacoes: string } | null>(null);
+  const [customerForm, setCustomerForm] = useState<{ editing: boolean; telefone: string; nome: string; tags: string; observacoes: string } | null>(null);
 
   const addInteractionMut = useMutation({
     mutationFn: () => api.customers.addInteraction(selectedCustomer!, interactionForm!.tipo, interactionForm!.nota),
@@ -431,7 +433,7 @@ export function Kitchen() {
   const saveSettingsMut = useMutation({
     mutationFn: (payload?: Partial<ApiSettings>) => api.settings.update(payload ?? settingsForm!),
     onSuccess: (savedSettings) => {
-      if (savedSettings) qc.setQueryData(['settings'], savedSettings);
+      if (savedSettings) qc.setQueryData(panelKey('settings'), savedSettings);
       toast.success('Configurações salvas!');
       setSettingsForm(null);
       qc.invalidateQueries({ queryKey: ['settings'] });
@@ -593,7 +595,7 @@ export function Kitchen() {
               {kitchenMode === 'admin' ? <ShieldCheck className="w-5 h-5 text-primary" /> : <ToggleLeft className="w-5 h-5" />}
             </button>
           )}
-          <button onClick={() => {
+          <button aria-label="Sair do painel" onClick={() => {
             if (ownerAdminAccess) {
               setLocation('/estabelecimento');
               return;
@@ -614,7 +616,7 @@ export function Kitchen() {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
           return (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            <button key={tab.key} aria-label={tab.label} aria-pressed={isActive} onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-1.5 px-3 sm:px-5 py-3 sm:py-4 text-xs sm:text-sm font-black whitespace-nowrap border-b-2 transition-all ${isActive ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}>
               <Icon className="w-4 h-4 shrink-0" /><span className="hidden sm:inline">{tab.label}</span>
               <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
@@ -708,12 +710,12 @@ export function Kitchen() {
                       <p className="font-bold text-sm text-center text-gray-800">{p.name}</p>
                       <p className="text-primary font-black text-sm">{formatCurrency(Number(p.price))}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <button onClick={() => setManualItems((m) => ({ ...m, [p.id]: Math.max(0, (m[p.id] ?? 0) - 1) }))}
+                        <button aria-label={`Diminuir ${p.name}`} onClick={() => setManualItems((m) => ({ ...m, [p.id]: Math.max(0, (m[p.id] ?? 0) - 1) }))}
                           className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors">
                           <Minus className="w-4 h-4" />
                         </button>
                         <span className="font-black w-6 text-center">{qty}</span>
-                        <button onClick={() => setManualItems((m) => ({ ...m, [p.id]: (m[p.id] ?? 0) + 1 }))}
+                        <button aria-label={`Adicionar ${p.name}`} onClick={() => setManualItems((m) => ({ ...m, [p.id]: (m[p.id] ?? 0) + 1 }))}
                           className="w-8 h-8 bg-primary hover:bg-orange-600 rounded-lg flex items-center justify-center text-white transition-colors">
                           <Plus className="w-4 h-4" />
                         </button>
@@ -1164,7 +1166,7 @@ export function Kitchen() {
                 <h2 className="text-2xl font-display font-black text-gray-900">Relacionamento com clientes</h2>
                 <p className="mt-1 text-sm text-gray-500">Entenda quem compra, acompanhe retornos e encontre clientes para reativar.</p>
               </div>
-              <button onClick={() => setCustomerForm({ telefone: '', nome: '', tags: '', observacoes: '' })}
+              <button onClick={() => setCustomerForm({ editing: false, telefone: '', nome: '', tags: '', observacoes: '' })}
                 className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-orange-600 transition-colors flex items-center gap-2">
                 <Plus className="w-4 h-4" /> Novo Cliente
               </button>
@@ -1299,7 +1301,7 @@ export function Kitchen() {
                             className="flex-1 rounded-lg border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50 flex items-center justify-center gap-1">
                             <Plus className="h-3 w-3" /> Registrar
                           </button>
-                          <button onClick={() => setCustomerForm({ telefone: c.telefone, nome: c.nome, tags: c.tags.join(', '), observacoes: c.observacoes })}
+                          <button onClick={() => setCustomerForm({ editing: true, telefone: c.telefone, nome: c.nome, tags: c.tags.join(', '), observacoes: c.observacoes })}
                             className="flex-1 rounded-lg border border-gray-200 bg-white py-2 text-xs font-bold text-gray-700 transition-colors hover:bg-gray-50 flex items-center justify-center gap-1">
                             <Edit2 className="w-3 h-3" /> Editar
                           </button>
@@ -1371,29 +1373,29 @@ export function Kitchen() {
             {/* Customer form modal */}
             {customerForm && (
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl">
-                  <h3 className="text-xl font-black mb-5">{customerForm.telefone ? 'Editar Cliente' : 'Novo Cliente'}</h3>
+                <div role="dialog" aria-modal="true" aria-labelledby="crm-customer-title" className="max-h-[90dvh] overflow-y-auto bg-white rounded-3xl p-5 sm:p-8 w-full max-w-md shadow-2xl">
+                  <h3 id="crm-customer-title" className="text-xl font-black mb-5">{customerForm.editing ? 'Editar Cliente' : 'Novo Cliente'}</h3>
                   <div className="space-y-4">
-                    {!customerForm.telefone.startsWith('+') && (
+                    {!customerForm.editing && (
                       <div>
-                        <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Telefone</label>
-                        <input value={customerForm.telefone} onChange={(e) => setCustomerForm({ ...customerForm, telefone: e.target.value })}
+                        <label htmlFor="crm-telefone" className="text-xs font-black text-gray-600 uppercase tracking-wider block mb-1">Telefone</label>
+                        <input id="crm-telefone" value={customerForm.telefone} onChange={(e) => setCustomerForm({ ...customerForm, telefone: e.target.value })}
                           placeholder="11999999999" className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none" />
                       </div>
                     )}
                     <div>
-                      <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Nome</label>
-                      <input value={customerForm.nome} onChange={(e) => setCustomerForm({ ...customerForm, nome: e.target.value })}
+                      <label htmlFor="crm-nome" className="text-xs font-black text-gray-600 uppercase tracking-wider block mb-1">Nome</label>
+                      <input id="crm-nome" value={customerForm.nome} onChange={(e) => setCustomerForm({ ...customerForm, nome: e.target.value })}
                         className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none" />
                     </div>
                     <div>
-                      <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Tags (separadas por vírgula)</label>
-                      <input value={customerForm.tags} onChange={(e) => setCustomerForm({ ...customerForm, tags: e.target.value })}
+                      <label htmlFor="crm-tags" className="text-xs font-black text-gray-600 uppercase tracking-wider block mb-1">Tags (separadas por vírgula)</label>
+                      <input id="crm-tags" value={customerForm.tags} onChange={(e) => setCustomerForm({ ...customerForm, tags: e.target.value })}
                         placeholder="VIP, Escola, Frequente" className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none" />
                     </div>
                     <div>
-                      <label className="text-xs font-black text-gray-400 uppercase tracking-wider block mb-1">Observações</label>
-                      <textarea value={customerForm.observacoes} onChange={(e) => setCustomerForm({ ...customerForm, observacoes: e.target.value })}
+                      <label htmlFor="crm-observacoes" className="text-xs font-black text-gray-600 uppercase tracking-wider block mb-1">Observações</label>
+                      <textarea id="crm-observacoes" value={customerForm.observacoes} onChange={(e) => setCustomerForm({ ...customerForm, observacoes: e.target.value })}
                         rows={3} className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 font-bold focus:border-primary focus:outline-none resize-none" />
                     </div>
                     <div className="flex gap-3 pt-2">
@@ -1980,7 +1982,7 @@ export function Kitchen() {
                     );
                     const selected = activeTemplate.id === template.id;
                     return (
-                      <button key={template.id} type="button" disabled={saveSettingsMut.isPending}
+                      <button key={template.id} type="button" aria-pressed={selected} disabled={saveSettingsMut.isPending}
                         onClick={() => {
                           const payload = {
                             ...(settingsForm ?? settingsDraft()),

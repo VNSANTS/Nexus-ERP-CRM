@@ -11,7 +11,7 @@ import {
   type ApiOrder,
   type ApiProduct,
 } from '../lib/api';
-import { cartStore, useCart } from '../lib/cart-store';
+import { useCart } from '../lib/cart-store';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Trash2, Plus, Minus, CreditCard, Wallet, Banknote, QrCode,
@@ -90,7 +90,7 @@ export function Home() {
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [selectedModifierIds, setSelectedModifierIds] = useState<string[]>([]);
   const checkoutAttemptRef = useRef<{ fingerprint: string; key: string } | null>(null);
-  const cart = useCart();
+  const { cart, cartStore } = useCart(establishmentId);
 
   // Queries — preservadas integralmente
   const { data: products = [], isLoading: loadingProducts } = useQuery({
@@ -246,7 +246,8 @@ export function Home() {
     setConfiguringProduct(null);
   };
 
-  const whatsappUrl = `https://wa.me/${settings?.whatsappNumero ?? '5511999999999'}`;
+  const whatsappNumber = settings?.whatsappNumero?.replace(/\D/g, '');
+  const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber}` : null;
   const menuPrimary = settings?.menuPrimaryColor ?? '#ff6600';
   const menuBackground = settings?.menuBackgroundColor ?? '#f7f3ed';
   const menuTemplate = getMenuTemplate(menuPrimary, menuBackground);
@@ -426,12 +427,10 @@ export function Home() {
 
           {/* Nome + tagline */}
           <div className="min-w-0">
-            <p className="truncate text-base font-black tracking-tight text-foreground sm:text-xl">
+            <h1 className="truncate text-base font-black tracking-tight text-foreground sm:text-xl">
               {settings?.nomeLoja || 'Seu estabelecimento'}
-            </p>
-            <p className="text-[10px] font-extrabold uppercase tracking-[.2em] text-primary sm:text-xs">
-              Seu momento. Seu sabor.
-            </p>
+            </h1>
+
           </div>
         </div>
 
@@ -450,8 +449,14 @@ export function Home() {
                 exit={{ opacity: 0, scale: .9 }}
                 className="flex gap-2"
               >
+                {establishmentMenuUrl && (
+                  <button type="button" aria-label="Ampliar QR code do cardápio" onClick={() => setMenuQrOpen(true)}
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-foreground sm:hidden">
+                    <QrCode className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                )}
                 {/* WhatsApp */}
-                <motion.button
+                {whatsappUrl && <motion.button
                   whileHover={{ scale: 1.08 }}
                   whileTap={{ scale: .92 }}
                   onClick={() => setWhatsappOpen(true)}
@@ -459,7 +464,7 @@ export function Home() {
                   className={`flex h-11 w-11 items-center justify-center rounded-full border border-border shadow-sm sm:h-12 sm:w-12 ${isDarkTheme ? 'bg-[#1b2028] text-emerald-400' : 'bg-card text-emerald-600'}`}
                 >
                   <MessageCircle className="h-5 w-5" />
-                </motion.button>
+                </motion.button>}
 
                 {/* Carrinho */}
                 <motion.button
@@ -538,7 +543,7 @@ export function Home() {
             <motion.section
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
-              className="menu-hero relative mb-8 mt-5 overflow-hidden rounded-[2rem] border border-border bg-card shadow-[0_20px_60px_rgba(0,0,0,.12)] sm:rounded-[2.5rem]"
+              className="menu-hero relative hidden sm:block mb-8 mt-5 overflow-hidden rounded-[2rem] border border-border bg-card shadow-[0_20px_60px_rgba(0,0,0,.12)] sm:rounded-[2.5rem]"
             >
               {/* Accent blob */}
               <div className="menu-hero-accent pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full blur-3xl opacity-[.14]" />
@@ -547,16 +552,6 @@ export function Home() {
 
               <div className="relative z-10 flex flex-col gap-6 px-6 py-7 sm:flex-row sm:items-end sm:justify-between sm:px-10 sm:py-9">
                 <div className="max-w-2xl">
-                  <motion.p
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: .08 }}
-                    className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[.2em] text-primary"
-                  >
-                    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-primary" />
-                    Cardápio digital
-                  </motion.p>
-
                   <motion.h2
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -566,15 +561,6 @@ export function Home() {
                     O que vamos{' '}
                     <span className="text-primary">pedir hoje?</span>
                   </motion.h2>
-
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: .18 }}
-                    className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base"
-                  >
-                    Confira nossas opções, escolha seus favoritos e faça seu pedido com praticidade.
-                  </motion.p>
 
                   <motion.button
                     initial={{ opacity: 0, y: 6 }}
@@ -615,15 +601,13 @@ export function Home() {
             </motion.section>
 
             {/* Título da seção + busca */}
-            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="mt-4 mb-4 flex flex-col gap-3 sm:mt-0 sm:mb-6 sm:gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[.28em] text-primary">CARDÁPIO</p>
-                <h3 className="mt-2 font-display text-3xl font-black uppercase tracking-tight text-foreground sm:text-5xl">
+                <h2 className="font-display text-2xl font-black tracking-tight text-foreground sm:text-4xl">
                   {categoryFilter === 'todos'
-                    ? 'Descubra o cardápio'
+                    ? 'Cardápio'
                     : CATEGORY_TABS.find((tab) => tab.key === categoryFilter)?.label}
-                </h3>
-                <p className="mt-1.5 text-sm text-muted-foreground">Encontre seu próximo favorito.</p>
+                </h2>
               </div>
 
               {/* Busca */}
@@ -841,7 +825,7 @@ export function Home() {
                       <button
                         type="button"
                         onClick={() => { setCategoryFilter('todos'); setSearchTerm(''); }}
-                        className="mt-5 rounded-full border border-primary/30 bg-primary/10 px-5 py-2.5 text-xs font-black text-primary transition-colors hover:bg-primary hover:text-white"
+                        className="mt-5 rounded-full border border-primary/30 bg-primary/10 px-5 py-2.5 text-xs font-black text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
                       >
                         {searchTerm.trim() ? 'Limpar busca' : 'Ver todo o cardápio'}
                       </button>
@@ -1066,7 +1050,7 @@ export function Home() {
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: .97 }}
                 onClick={() => { setCreatedOrder(null); setTelefone(''); setView('menu'); }}
-                className="w-full sm:w-auto bg-primary text-white px-10 sm:px-16 py-5 sm:py-6 rounded-2xl sm:rounded-3xl font-black text-xl sm:text-2xl hover:brightness-95 transition-all shadow-xl"
+                className="w-full sm:w-auto bg-primary text-primary-foreground px-10 sm:px-16 py-5 sm:py-6 rounded-2xl sm:rounded-3xl font-black text-xl sm:text-2xl hover:brightness-95 transition-all shadow-xl"
               >
                 Fazer Novo Pedido
               </motion.button>
@@ -1110,7 +1094,7 @@ export function Home() {
 
       {/* ── MODAL WHATSAPP ────────────────────────────────────────────────── */}
       <AnimatePresence>
-        {whatsappOpen && (
+        {whatsappOpen && whatsappUrl && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -1123,7 +1107,7 @@ export function Home() {
               exit={{ scale: .9, opacity: 0, y: 20 }}
               className={`relative rounded-[2rem] p-8 sm:p-10 max-w-sm w-full text-center shadow-2xl z-10 border border-border ${isDarkTheme ? 'bg-[#1b2028] text-white' : 'bg-card text-foreground'}`}
             >
-              <button onClick={() => setWhatsappOpen(false)} className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors">
+              <button aria-label="Fechar contato" onClick={() => setWhatsappOpen(false)} className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors">
                 <X className="w-5 h-5" />
               </button>
               <div className={`w-18 h-18 rounded-full flex items-center justify-center mx-auto mb-6 ${isDarkTheme ? 'bg-emerald-400/10 text-emerald-300' : 'bg-emerald-100 text-emerald-600'}`}>
@@ -1162,6 +1146,7 @@ export function Home() {
                 <div className="flex items-center gap-2">
                   {cart.length > 0 && (
                     <button
+                      aria-label="Limpar carrinho"
                       onClick={() => cartStore.clear()}
                       className="text-muted-foreground hover:text-red-500 font-bold px-3 py-2 rounded-full hover:bg-red-500/10 transition-colors flex items-center gap-1.5 text-sm"
                     >
@@ -1170,6 +1155,7 @@ export function Home() {
                     </button>
                   )}
                   <button
+                    aria-label="Fechar carrinho"
                     onClick={() => setCartOpen(false)}
                     className={`w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center rounded-full border border-border transition-colors ${isDarkTheme ? 'bg-[#242a33] hover:bg-[#2e3540]' : 'bg-card hover:bg-muted'} text-muted-foreground hover:text-foreground`}
                   >
@@ -1190,7 +1176,7 @@ export function Home() {
                     <button
                       type="button"
                       onClick={() => { setCartOpen(false); document.getElementById('menu-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
-                      className="mt-5 min-h-11 rounded-full bg-primary px-6 text-sm font-extrabold text-white transition hover:brightness-95"
+                      className="mt-5 min-h-11 rounded-full bg-primary px-6 text-sm font-extrabold text-primary-foreground transition hover:brightness-95"
                     >
                       Explorar produtos
                     </button>
@@ -1285,7 +1271,7 @@ export function Home() {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: .97 }}
                     onClick={() => { setCartOpen(false); setView('payment'); }}
-                    className="w-full bg-primary text-white py-4.5 sm:py-5 rounded-2xl font-black text-lg sm:text-xl shadow-lg shadow-primary/25 hover:brightness-95 transition-all"
+                    className="w-full bg-primary text-primary-foreground py-4.5 sm:py-5 rounded-2xl font-black text-lg sm:text-xl shadow-lg shadow-primary/25 hover:brightness-95 transition-all"
                   >
                     Escolher Pagamento →
                   </motion.button>
@@ -1370,7 +1356,7 @@ export function Home() {
                 whileTap={{ scale: .93 }}
                 disabled={!configurationValid || !canAddToCart(configuringProduct.id)}
                 onClick={confirmProductConfiguration}
-                className="min-h-12 rounded-full bg-primary px-7 text-sm font-black text-white shadow-lg shadow-primary/25 disabled:cursor-not-allowed disabled:opacity-40 transition-all hover:brightness-95"
+                className="min-h-12 rounded-full bg-primary px-7 text-sm font-black text-primary-foreground shadow-lg shadow-primary/25 disabled:cursor-not-allowed disabled:opacity-40 transition-all hover:brightness-95"
               >
                 Adicionar
               </motion.button>

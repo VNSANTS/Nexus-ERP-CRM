@@ -274,8 +274,9 @@ export function SolicitarEstabelecimento() {
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">Nome completo</label>
+            <label htmlFor="nome" className="mb-1 block text-sm font-medium text-neutral-700">Nome completo</label>
             <input
+              id="nome"
               type="text"
               value={form.nome}
               onChange={(e) => updateField('nome', e.target.value)}
@@ -286,8 +287,9 @@ export function SolicitarEstabelecimento() {
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">E-mail</label>
+              <label htmlFor="email" className="mb-1 block text-sm font-medium text-neutral-700">E-mail</label>
               <input
+                id="email"
                 type="email"
                 value={form.email}
                 onChange={(e) => {
@@ -329,8 +331,9 @@ export function SolicitarEstabelecimento() {
               )}
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">Telefone</label>
+              <label htmlFor="telefone" className="mb-1 block text-sm font-medium text-neutral-700">Telefone</label>
               <input
+                id="telefone"
                 type="tel"
                 value={form.telefone}
                 onChange={(e) => updateField('telefone', e.target.value)}
@@ -342,8 +345,9 @@ export function SolicitarEstabelecimento() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">CPF ou CNPJ</label>
+            <label htmlFor="cpfCnpj" className="mb-1 block text-sm font-medium text-neutral-700">CPF ou CNPJ</label>
             <input
+              id="cpfCnpj"
               type="text"
               value={form.cpfCnpj}
               onChange={(e) => updateField('cpfCnpj', formatCpfCnpj(e.target.value))}
@@ -358,8 +362,9 @@ export function SolicitarEstabelecimento() {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-[160px_1fr]">
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700">CEP</label>
+                <label htmlFor="enderecoCep" className="mb-1 block text-sm font-medium text-neutral-700">CEP</label>
                 <input
+                  id="enderecoCep"
                   type="text"
                   value={form.enderecoCep}
                   onChange={(e) => handleCepChange(e.target.value)}
@@ -371,8 +376,9 @@ export function SolicitarEstabelecimento() {
                 {cepLoading && <p className="mt-1 text-xs text-neutral-400">Buscando endereço...</p>}
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700">Logradouro</label>
+                <label htmlFor="enderecoLogradouro" className="mb-1 block text-sm font-medium text-neutral-700">Logradouro</label>
                 <input
+                  id="enderecoLogradouro"
                   type="text"
                   value={form.enderecoLogradouro}
                   onChange={(e) => updateField('enderecoLogradouro', e.target.value)}
@@ -384,8 +390,9 @@ export function SolicitarEstabelecimento() {
 
             <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700">Número</label>
+                <label htmlFor="enderecoNumero" className="mb-1 block text-sm font-medium text-neutral-700">Número</label>
                 <input
+                  id="enderecoNumero"
                   ref={numeroRef}
                   type="text"
                   value={form.enderecoNumero}
@@ -395,8 +402,9 @@ export function SolicitarEstabelecimento() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700">Complemento (opcional)</label>
+                <label htmlFor="enderecoComplemento" className="mb-1 block text-sm font-medium text-neutral-700">Complemento (opcional)</label>
                 <input
+                  id="enderecoComplemento"
                   type="text"
                   value={form.enderecoComplemento}
                   onChange={(e) => updateField('enderecoComplemento', e.target.value)}
@@ -407,8 +415,9 @@ export function SolicitarEstabelecimento() {
 
             <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[1fr_1fr_80px]">
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700">Bairro</label>
+                <label htmlFor="enderecoBairro" className="mb-1 block text-sm font-medium text-neutral-700">Bairro</label>
                 <input
+                  id="enderecoBairro"
                   type="text"
                   value={form.enderecoBairro}
                   onChange={(e) => updateField('enderecoBairro', e.target.value)}
@@ -417,8 +426,9 @@ export function SolicitarEstabelecimento() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700">Cidade</label>
+                <label htmlFor="enderecoCidade" className="mb-1 block text-sm font-medium text-neutral-700">Cidade</label>
                 <input
+                  id="enderecoCidade"
                   type="text"
                   value={form.enderecoCidade}
                   onChange={(e) => updateField('enderecoCidade', e.target.value)}
@@ -427,8 +437,9 @@ export function SolicitarEstabelecimento() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700">UF</label>
+                <label htmlFor="enderecoUf" className="mb-1 block text-sm font-medium text-neutral-700">UF</label>
                 <input
+                  id="enderecoUf"
                   type="text"
                   value={form.enderecoUf}
                   onChange={(e) => updateField('enderecoUf', e.target.value.toUpperCase().slice(0, 2))}

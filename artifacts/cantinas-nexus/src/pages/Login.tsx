@@ -241,11 +241,12 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
     <div className="nexus-noise flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="nexus-surface w-full max-w-md rounded-2xl bg-white p-6 md:p-8">
         <h1 className="text-center font-display text-3xl font-black tracking-tight text-foreground">Nexus</h1>
-        <p className="mt-1 text-center text-sm text-muted-foreground">{ownerMode ? 'Acesso administrativo do estabelecimento' : 'Entre para continuar'}</p>
+        <p className="mt-1 text-center text-sm text-muted-foreground">{ownerMode ? 'Acesso administrativo do estabelecimento' : mode === 'signup' ? 'Crie sua conta' : 'Entre para continuar'}</p>
 
         {!ownerMode && <div className="mt-6 flex rounded-xl bg-muted p-1">
           <button
             type="button"
+            aria-pressed={mode === 'login'}
             onClick={() => setMode('login')}
             className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
               mode === 'login' ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground'
@@ -255,6 +256,7 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
           </button>
           <button
             type="button"
+            aria-pressed={mode === 'signup'}
             onClick={() => setMode('signup')}
             className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
               mode === 'signup' ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground'
@@ -272,17 +274,19 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
             <span className="mt-1 block text-xs text-neutral-600">{account.email}</span>
             {account.accountId === authenticatedAccountId && <span className="mt-1 block text-xs font-semibold text-emerald-700">Autenticada agora</span>}
           </button>)}
-          {accountSwitchNeedsPassword && <div><label className="mb-1 block text-sm font-semibold text-neutral-800">Senha da conta selecionada</label><PasswordField autoComplete="current-password" value={accountSwitchPassword} onChange={(event) => setAccountSwitchPassword(event.target.value)} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm" /></div>}
+          {accountSwitchNeedsPassword && <div><label htmlFor="account-password" className="mb-1 block text-sm font-semibold text-neutral-800">Senha da conta selecionada</label><PasswordField id="account-password" autoComplete="current-password" value={accountSwitchPassword} onChange={(event) => setAccountSwitchPassword(event.target.value)} className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm" /></div>}
         </section>}
 
         {postLoginAccounts.length === 0 && mode === 'login' && (
           <form onSubmit={handleLogin} className="mt-6 space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">
+              <label htmlFor="login-identifier" className="mb-1 block text-sm font-medium text-neutral-700">
                 {ownerMode ? 'E-mail do responsável' : 'E-mail, usuário, telefone ou CPF'}
               </label>
               <input
                 type="text"
+                id="login-identifier"
+                autoComplete="username"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 placeholder={ownerMode ? 'responsavel@estabelecimento.com' : 'E-mail, usuário, telefone ou CPF'}
@@ -291,8 +295,10 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">Senha</label>
+              <label htmlFor="login-password" className="mb-1 block text-sm font-medium text-neutral-700">Senha</label>
               <PasswordField
+                id="login-password"
+                autoComplete="current-password"
                 value={loginSenha}
                 onChange={(e) => setLoginSenha(e.target.value)}
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
@@ -322,9 +328,11 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
         {!ownerMode && mode === 'signup' && !signupSent && (
           <form onSubmit={handleSignup} className="mt-6 space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">E-mail</label>
+              <label htmlFor="signup-email" className="mb-1 block text-sm font-medium text-neutral-700">E-mail</label>
               <input
                 type="email"
+                id="signup-email"
+                autoComplete="email"
                 value={signupEmail}
                 onChange={(e) => {
                   setSignupEmail(e.target.value);
@@ -365,8 +373,10 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
               )}
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">Senha</label>
+              <label htmlFor="signup-password" className="mb-1 block text-sm font-medium text-neutral-700">Senha</label>
               <PasswordField
+                id="signup-password"
+                autoComplete="new-password"
                 value={signupSenha}
                 onChange={(e) => setSignupSenha(e.target.value)}
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
@@ -375,8 +385,10 @@ export function Login({ onKitchenLogin, ownerMode = false }: { onKitchenLogin?: 
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">Confirmar senha</label>
+              <label htmlFor="signup-confirm" className="mb-1 block text-sm font-medium text-neutral-700">Confirmar senha</label>
               <PasswordField
+                id="signup-confirm"
+                autoComplete="new-password"
                 value={signupSenhaConfirm}
                 onChange={(e) => setSignupSenhaConfirm(e.target.value)}
                 className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"

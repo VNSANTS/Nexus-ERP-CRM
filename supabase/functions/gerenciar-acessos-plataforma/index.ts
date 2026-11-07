@@ -1,4 +1,5 @@
 ﻿import { adminClient, corsHeaders, errorResponse, jsonResponse } from '../_shared/helpers.ts';
+import { withCors } from '../_shared/helpers.ts';
 
 const ACCESS_FIELDS: Record<string, string> = {
   acessoCozinha: 'acesso_cozinha', acessoCaixa: 'acesso_caixa', acessoAdm: 'acesso_adm',

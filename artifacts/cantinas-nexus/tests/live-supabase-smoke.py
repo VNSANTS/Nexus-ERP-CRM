@@ -1,6 +1,6 @@
 """Real browser -> Edge Function -> Postgres -> pickup smoke on disposable Supabase.
-No production credentials or hosts are ever contacted. GitHub Pages requests
-are fulfilled from the freshly built local dist, preserving production Origin.
+No production credentials or hosts are ever contacted. GitHub Pages assets are fulfilled from the local dist under a loopback origin.
+This avoids Chrome public-origin to loopback restrictions without hitting production.
 """
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
@@ -20,7 +20,7 @@ assert API in ('http://127.0.0.1:54321', 'http://localhost:54321'), API
 fixture = json.loads(fixture_path.read_text())
 root = Path('artifacts/cantinas-nexus/dist/public')
 assert (root / 'index.html').is_file()
-BASE = 'https://vnsants.github.io/Nexus-ERP-CRM'
+BASE = 'http://127.0.0.1:8766/Nexus-ERP-CRM'
 errors = []
 
 
@@ -37,7 +37,7 @@ def edge(action, **body):
 
 def local_only_route(route):
     parsed = urlparse(route.request.url)
-    if parsed.hostname == 'vnsants.github.io' and parsed.path.startswith('/Nexus-ERP-CRM'):
+    if parsed.hostname == '127.0.0.1' and parsed.port == 8766 and parsed.path.startswith('/Nexus-ERP-CRM'):
         relative = parsed.path.removeprefix('/Nexus-ERP-CRM').lstrip('/')
         file = root / relative
         if not file.is_file():

@@ -10,6 +10,7 @@
 //
 // Body esperado: { codigo, senha }
 
+import { withCors } from '../_shared/helpers.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse } from '../_shared/helpers.ts';
 import { getClientIp, checkRateLimit } from '../_shared/security.ts';
@@ -34,7 +35,7 @@ async function verifyPassword(password: string, stored: string): Promise<boolean
   return computedHex === hashHex;
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve((req: Request) => withCors(req, async () => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const ip = getClientIp(req);
@@ -103,4 +104,4 @@ Deno.serve(async (req: Request) => {
     console.error(err);
     return errorResponse('Erro interno ao processar login.', 500);
   }
-});
+}));

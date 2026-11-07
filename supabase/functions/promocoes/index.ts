@@ -8,10 +8,11 @@
 //
 // Body esperado: { action: 'list' | 'create' | 'update' | 'delete', ... }
 
+import { withCors } from '../_shared/helpers.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse, uid, requireEmployee, hasEmployeeAccess, hasFeatureAccess } from '../_shared/helpers.ts';
 
-Deno.serve(async (req: Request) => {
+Deno.serve((req: Request) => withCors(req, async () => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const caller = await requireEmployee(req);
@@ -72,4 +73,4 @@ Deno.serve(async (req: Request) => {
     console.error(err);
     return errorResponse('Erro interno ao gerenciar promoções.', 500);
   }
-});
+}));

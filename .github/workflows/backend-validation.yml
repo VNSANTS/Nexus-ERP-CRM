@@ -10,6 +10,19 @@ on:
 permissions:
   contents: read
 jobs:
+  cors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Verify Cloudflare and GitHub browser origins are isolated
+        run: deno test supabase/tests/cors.test.ts
+      - name: Typecheck all Supabase Edge Functions
+        run: deno check --node-modules-dir=auto supabase/functions/*/index.ts
+
   postgres:
     runs-on: ubuntu-latest
     services:

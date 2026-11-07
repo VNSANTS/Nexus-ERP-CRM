@@ -14,28 +14,13 @@ import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 // caso aqui), mas facilita exfiltração de dados por um site malicioso caso
 // um token vaze por outro vetor (XSS, extensão de navegador comprometida).
 // Restringir a origem fecha essa superfície extra sem custo de UX real.
-const ALLOWED_ORIGINS = [
-  'https://vnsants.github.io',
-  'http://localhost:5173', // dev local (Vite)
-  'http://localhost:3000',
-];
-
-export function buildCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') ?? '';
-  const allowOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, PATCH, DELETE, OPTIONS',
-    Vary: 'Origin',
-  };
-}
+export { buildCorsHeaders, withCors } from './cors.ts';
 
 // Mantido por compatibilidade com código que ainda importa `corsHeaders`
 // como objeto estático (sem Origin dinâmico) — usado só no preflight
 // genérico quando a request ainda não está disponível no escopo.
 export const corsHeaders = {
-  'Access-Control-Allow-Origin': ALLOWED_ORIGINS[0],
+  'Access-Control-Allow-Origin': 'https://vnsants.github.io',
   'Access-Control-Allow-Headers':
     'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, PATCH, DELETE, OPTIONS',

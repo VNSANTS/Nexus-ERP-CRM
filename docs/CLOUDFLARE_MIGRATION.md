@@ -1,53 +1,54 @@
-# Nexus ERP/CRM — migração para Cloudflare (staging)
+# Nexus ERP/CRM — Cloudflare migration handoff
 
-## Status em 2026-11-07
+Updated: 2026-11-07. Current stage: **frontend staging online; backend production release gated**.
 
-- Branch isolada: `deploy/cloudflare-workers`. O site atual na `main` e o GitHub Pages não foram alterados.
-- Conta Cloudflare confirmada, sem projetos Workers/Pages anteriores.
-- Projeto Cloudflare Pages **`nexus-erp-crm-staging` criado**, com GitHub conectado ao repositório e branch `deploy/cloudflare-workers`. A primeira tentativa de criar havia falhado com `8000011`, mas foi resolvida após a autorização do GitHub pelo proprietário.
-- Variáveis de build públicas configuradas: `NODE_VERSION=22`, `BASE_PATH=/`, `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (chave `publishable`, sem credencial de serviço). O staging usa a API do Supabase principal; testes mutáveis exigem dados sintéticos e planejamento.
-- Endereço do staging: https://nexus-erp-crm-staging.pages.dev/ — publicação e comportamento dependem de confirmação por deploy e testes.
-- O Cloudflare Pages é o primeiro destino por integrar builds Vite de um repositório GitHub privado; Workers Static Assets continua uma alternativa futura.
-- Migração do Supabase `20261106184508_atomic_order_transitions_and_inventory.sql` pendente em produção. **Não migrar a base sem backup privado restaurado/testado**.
-- Pagamentos devem continuar presenciais, com seleção do método no cardápio e confirmação manual pelo caixa. Nenhum gateway bancário.
+## Hosting already configured
 
-## Configuração para conectar Git (sem credenciais privilegiadas)
+- Cloudflare Pages project: `nexus-erp-crm-staging`
+- URL: https://nexus-erp-crm-staging.pages.dev/
+- Source: GitHub `VNSANTS/Nexus-ERP-CRM`, branch `deploy/cloudflare-workers`
+- Build root: repository root
+- Build command: `pnpm --filter @workspace/cantinas-nexus run build`
+- Build output: `artifacts/cantinas-nexus/dist/public`
+- Environment: `NODE_VERSION=22`, `BASE_PATH=/`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (Supabase **publishable**, safe for a public frontend; no service key). Turnstile site key must be configured for any new hostname if that feature is enabled.
+- No additional paid Cloudflare product or extra Supabase project has been created.
+- Cloudflare's automatic production-branch builds were paused temporarily while editing the Edge Functions to avoid unnecessary build runs; restore when preparing the final release.
+- Existing GitHub Pages and `main` remain unchanged; **do not merge this branch prematurely** because it removes the GitHub-specific `404.html` workaround.
 
-1. Na conta Cloudflare, abrir **Workers & Pages > Create application > Pages > Connect to Git**.
-2. Autorizar o aplicativo oficial **Cloudflare Workers and Pages** no GitHub, concedendo acesso ao repositório `VNSANTS/Nexus-ERP-CRM`. A conexão do ChatGPT com GitHub é independente dessa instalação.
-3. Projeto **`nexus-erp-crm-staging`** já criado e conectado à branch **`deploy/cloudflare-workers`**; manter o acesso restrito a essa branch enquanto o backend não está homologado em produção.
-4. Root directory: raiz do repositório. Build command:
-   ```sh
-   npm install -g pnpm@11 && pnpm install --frozen-lockfile && pnpm --filter @workspace/cantinas-nexus run build
-   ```
-5. Build output directory: `artifacts/cantinas-nexus/dist/public`.
-6. Build environment variables (produção do **projeto de staging**, não da loja real):
-   - `NODE_VERSION=22`
-   - `BASE_PATH=/`
-   - `VITE_SUPABASE_URL`: URL pública do projeto Supabase.
-   - `VITE_SUPABASE_ANON_KEY`: chave **publishable** (`sb_publishable_...`), jamais a `service_role` ou `sb_secret`.
-   - `VITE_TURNSTILE_SITE_KEY`: somente se o CAPTCHA estiver habilitado e o hostname de staging autorizado.
-7. Manter preview deployments desabilitados até validar segurança e ambiente. Não expor segredos a builds de PR.
-8. Configurar no Supabase Auth as URLs de retorno exatas do novo hostname HTTPS, caso haja login/callback. Verificar regras de CORS das Edge Functions.
-9. Testar diretamente no hostname Cloudflare: `/`, `/cozinha`, `/acompanhar/:token`, login, cardápio, pedido, caixa e confirmação de pagamento. Usar dados sintéticos; não efetuar pedidos de produção sem plano.
-10. Antes de substituir a hospedagem real: backup restaurado e verificado, migração pendente e Edge Functions implantadas, testes de regressão aprovados, privacidade e logs validados.
+The first Cloudflare deployment failed because its build command tried to reinstall pnpm globally where it already existed. After removing the duplicate install, the deployment completed and uploaded 51 files with valid `_headers` rules.
 
-## Roteamento e segurança
+## Verified (real GitHub Actions evidence)
 
-- O arquivo `public/404.html` era um redirecionador específico do GitHub Pages e foi retirado **somente nesta branch**. O Cloudflare Pages resolve rotas de SPA servindo `index.html` se não houver `404.html` na raiz.
-- `public/_headers` adiciona cabeçalhos defensivos e `X-Robots-Tag: noindex, nofollow` no staging. Remover `noindex` na publicação definitiva.
-- O frontend usa `BASE_PATH=/` no Cloudflare; o build legado do GitHub Pages usa `/Nexus-ERP-CRM/`. Não misturar os dois.
-- Tornar o repositório privado **somente depois** de confirmar o build Cloudflare e a independência do GitHub Pages. Código JavaScript enviado ao navegador continua inspecionável mesmo com o repositório privado; a segurança depende de autenticação, RLS, autorização, chaves privadas no servidor e controles de acesso.
+- [Live Cloudflare HTTPS routes and security headers](https://github.com/VNSANTS/Nexus-ERP-CRM/actions/runs/42374983671): pass. Direct routes `/`, `/cozinha`, `/acompanhar/...` and module assets served. Staging `noindex`, `nosniff`, `X-Frame-Options: DENY` checked.
+- [Real Chromium browser against hosted Cloudflare frontend](https://github.com/VNSANTS/Nexus-ERP-CRM/actions/runs/42376414571): pass. Menu, payment-at-cashier UX, order screen, cashier and administrative UI tested with **synthetic intercepted API responses**. No production data modified.
+- [Backend integrity and strict CORS middleware](https://github.com/VNSANTS/Nexus-ERP-CRM/actions/runs/42376043818): pass. PostgreSQL integrity, 6 origin/preflight tests and Deno typecheck of all 25 Edge Functions.
+- [Disposable local Supabase Auth/HTTP/E2E](https://github.com/VNSANTS/Nexus-ERP-CRM/actions/runs/42376043828): pass. Not a substitute for a controlled production migration.
 
-## Cutover (não executar antes dos gates)
+## CORS security
 
-1. Preparar backup e restauração de teste.
-2. Atualizar Supabase em janela controlada; verificar funções, Edge, ACLs e operações reais.
-3. Aprovar build, redirecionamentos, autenticação e testes no Cloudflare.
-4. Desativar publicação GitHub Pages, tornar o repositório privado, publicar hostname definitivo e fazer smoke pós-deploy.
-5. Documentar rollback de frontend e do banco; nunca usar `supabase db reset --linked` em produção.
+- `supabase/functions/_shared/cors.ts` defines exact allowed browser origins: legacy GitHub Pages, Cloudflare staging and designated local development/test origins. No `*` and no arbitrary `*.pages.dev` or attacker-controlled origin reflection.
+- All 25 Edge Functions use `withCors(req, handler)`. It returns origin-specific CORS headers even on authentication errors; preflight from unknown origins is rejected; legacy hard-coded GitHub origin headers are removed from final responses.
+- CORS is **not authorization**. JWT, tenant-level access control, API rate limiting and RLS must be preserved. Never expose `service_role` or `sb_secret_...` to the browser.
+- The **deployed production Edge Functions still contain the old origin policy**. Until the source changes are deployed, browser requests from Cloudflare may be blocked even though the frontend and its mocked browser smoke pass.
 
-Referências:
+## Gates before switching customers to Cloudflare
+
+1. Save a private schema-and-data backup of the actual Supabase production database; inspect the archive and **prove restoration in a separate isolated PostgreSQL instance**. Never commit a dump, credentials, Auth users or customer data.
+2. Confirm production migration history (16 applied), take a recovery checkpoint and apply **only** pending migration `20261106184508_atomic_order_transitions_and_inventory.sql` after backup verification. Do not reset the linked database or mark migrations applied without verifying effects.
+3. Deploy the compatible Edge Functions with strict CORS, preserving each function's existing `verify_jwt` behavior, secrets and ownership rules. Perform synthetic, authorized smoke checks of store separation, orders, inventory, kitchen and cashier. Do not disable authorization to fix CORS.
+4. Confirm Supabase Auth redirect allowlist, Turnstile settings and any public hostname configuration. Test browser login, requests, tracking and manual payment confirmation using synthetic data. Remove `noindex` only after readiness.
+5. Enable production deployment to the final Cloudflare hostname and verify it. **Then** retire GitHub Pages and change GitHub repo visibility to private (test continued Cloudflare Git access first); do not remove the last working site before cutover.
+6. Monitor after cutover; preserve the previous Cloudflare release and recovery plan. Frontend rollback does not revert schema or transaction history.
+
+### Hosting / confidentiality notes
+
+- Cloudflare Pages supports private GitHub repositories. Hiding GitHub source prevents public cloning of your repository, but browser-delivered JavaScript remains inspectable and does not constitute a security boundary.
+- The staging environment currently points to the production Supabase URL with a **public publishable key**, so don't submit real transactions as test data until a controlled production rehearsal is approved. CI browser tests intercept all Supabase requests and operate on synthetic fixtures.
+- The new API key model and the `verify_jwt` compatibility must be checked against current Supabase documentation before changing function settings: do not assume an API key alone establishes user authentication.
+- Keep costs at R$0 and do not enable any paid service.
+
+Official references:
 - https://developers.cloudflare.com/pages/configuration/serving-pages/
-- https://developers.cloudflare.com/pages/configuration/git-integration/github-integration/
-- https://developers.cloudflare.com/workers/ci-cd/builds/
+- https://developers.cloudflare.com/pages/configuration/git-integration/
+- https://developers.cloudflare.com/pages/platform/limits/
+- https://supabase.com/docs/guides/functions/auth-headers

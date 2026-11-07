@@ -38,7 +38,7 @@ jobs:
               req = urllib.request.Request(base + path, headers={'User-Agent':'NexusERP-Staging-ReadOnlySmoke/1.0'})
               with urllib.request.urlopen(req, timeout=15) as response:
                   body = response.read(3_000_000)
-                  return response.status, dict(response.headers), body
+                  return response.status, {k.lower():v for k,v in response.headers.items()}, body
 
           def retry(path):
               for i in range(6):
@@ -53,9 +53,9 @@ jobs:
           assert status == 200, ('root response', status)
           assert b'id="root"' in root, 'Root React mount point missing'
           assert b'Content-Security-Policy' in root, 'CSP metadata missing'
-          assert 'noindex' in headers.get('X-Robots-Tag', '').lower(), 'Staging must be noindex'
-          assert headers.get('X-Content-Type-Options', '').lower() == 'nosniff', 'Missing nosniff'
-          assert headers.get('X-Frame-Options', '').upper() == 'DENY', 'Missing clickjacking header'
+          assert 'noindex' in headers.get('x-robots-tag', '').lower(), 'Staging must be noindex'
+          assert headers.get('x-content-type-options', '').lower() == 'nosniff', 'Missing nosniff'
+          assert headers.get('x-frame-options', '').upper() == 'DENY', 'Missing clickjacking header'
 
           for path in ['/cozinha', '/acompanhar/qa-not-a-real-token', '/configuracoes']:
               status, _h, body = retry(path)

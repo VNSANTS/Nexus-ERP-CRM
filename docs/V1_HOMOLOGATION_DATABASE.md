@@ -77,3 +77,21 @@ Consultas de catálogo e Supabase Security Advisors executadas no projeto princi
 - Histórico remoto confirmado novamente: 16 versões, terminando em `20261103114052`; migração `20261106184508` continua ausente.
 
 **Decisão:** não alterar Auth nem aplicar migração ao banco principal nesta auditoria. A aprovação de release exige revisão da fixture completa, comparação de privilégios restantes, estratégia de backup/restauração e ensaio de rollback em banco descartável. Os testes de CI aprovados não substituem esses gates.
+
+## Conferência direta do Supabase principal — 2026-11-07
+
+Consulta somente leitura: 27 tabelas public com RLS habilitada; 25 sem políticas explícitas. ACLs das tabelas coincidem com as grants de CI: service_role amplo, authenticated SELECT/UPDATE em customer_accounts e SELECT em platform_admins. Ainda não foi comprovada equivalência completa de ACLs de sequências, funções e schemas.
+
+Quatro funções public presentes: checkout_order_atomic, cleanup_rate_limit_log, customer_insights, save_product_options. Todas restringem EXECUTE a postgres e service_role. cleanup_rate_limit_log é SECURITY DEFINER; as demais são SECURITY INVOKER. A assinatura de checkout_order_atomic e a expressão antiga de lpad correspondem à pré-condição da migração nova.
+
+Advisor: 25 achados informativos rls_enabled_no_policy; um aviso auth_leaked_password_protection (proteção contra senhas vazadas desativada). Avaliar configuração de Auth separadamente.
+
+### Plano proposto de backup, implantação e rollback (não executado)
+
+1. Obter backup restaurável antes do deploy e testar a restauração em ambiente isolado. Não presumir PITR no plano gratuito.
+2. Preservar com segurança DDL anterior, ACLs e inventário de migrações; conferir definição/assinatura antes de executar.
+3. Após aprovação, aplicar somente a migração 20261106184508; nunca executar a fixture em produção ou editar histórico manualmente.
+4. Validar funções, grants, checkout idempotente, estoque, transições, isolamento entre lojas e retirada. Em falha, bloquear a nova rota, revisar migração compensatória e avaliar recuperação de backup com aprovação explícita.
+5. Publicar frontend e Edge Functions somente após compatibilidade e aprovação; executar smoke test e monitorar erros.
+
+Gate de produção permanece FECHADO: backup/restauração não foram ensaiados, e a equivalência completa de ACLs ainda requer revisão. Nenhuma alteração remota foi realizada.

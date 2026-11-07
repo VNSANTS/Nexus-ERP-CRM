@@ -238,4 +238,39 @@ assert scalar('SELECT status FROM orders WHERE id=%s', (thousandth['id'],)) == '
 assert scalar('SELECT status FROM orders WHERE id=%s', (next_order['id'],)) == 'pronto'
 print('PASS ambiguous pickup rejects P0003 without changing either order')
 
+# SQL injection regression: adversarial strings must remain data, never SQL.
+# The database is disposable and all SQL inputs are bound as parameters.
+attack = "x'); DROP TABLE public.orders; --"
+reset_quantity(1)
+with connection() as db:
+    db.execute('SET ROLE service_role')
+    injected_order = db.execute(
+        'SELECT checkout_order_atomic(%s,%s,%s,%s,%s,%s,%s)',
+        (A, Jsonb([{'productId': 'last-unit', 'qty': 1}]), 'dinheiro',
+         attack, attack, 'pendente', str(uuid4())),
+    ).fetchone()[0]
+assert scalar('SELECT observacoes FROM orders WHERE id=%s', (injected_order['id'],)) == attack
+assert scalar("SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='orders'") == 1
+assert scalar('SELECT count(*) FROM orders WHERE id=%s', (injected_order['id'],)) == 1
+reset_quantity(1)
+with connection() as db:
+    db.execute('SET ROLE service_role')
+    injected_stock = db.execute(
+        'SELECT move_inventory_atomic(%s,%s,%s,%s,%s)',
+        (A, 'last-unit', 'entry', 1, attack),
+    ).fetchone()[0]
+assert injected_stock['motivo'] == attack
+assert scalar('SELECT count(*) FROM stock_history WHERE id=%s', (injected_stock['id'],)) == 1
+assert scalar('SELECT count(*) FROM information_schema.tables WHERE table_schema=%s AND table_name=%s', ('public', 'orders')) == 1
+# An injected product identifier must not match a valid product or change stock.
+previous_quantity = quantity(A)
+def inject_product_id():
+    with connection() as db:
+        db.execute('SET ROLE service_role')
+        db.execute('SELECT move_inventory_atomic(%s,%s,%s,%s,%s)',
+                   (A, attack, 'entry', 1, 'synthetic test'))
+expect_error('STOCK_NOT_FOUND', inject_product_id)
+assert quantity(A) == previous_quantity
+print('PASS SQL injection payloads are stored literally or rejected; schema and stock unchanged')
+
 print('ALL POSTGRESQL INTEGRITY TESTS PASSED')

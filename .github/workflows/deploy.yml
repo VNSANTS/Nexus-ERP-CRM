@@ -123,7 +123,9 @@ jobs:
           "$RUNNER_TEMP/nexus-webkit/bin/python" artifacts/cantinas-nexus/tests/menu-smoke.py
 
   deploy:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    # The frontend requires migration 20261106184508 and compatible Edge Functions.
+    # Do not publish on merge until production backup, migration and functions are verified.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
       pages: write

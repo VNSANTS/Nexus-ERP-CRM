@@ -36,7 +36,7 @@ O teste `supabase/tests/homologation-http.mjs` inclui login Auth por senha e JWT
 
 O teste se recusa a rodar fora de `http://localhost:54321`/`http://127.0.0.1:54321`. Não usa conexão, token, senha, URL ou secret de produção.
 
-**Limitações:** a exportação com `--no-privileges` não inclui GRANT/REVOKE reais, apenas políticas RLS. ACLs de CI são aproximações documentadas e devem ser comparadas separadamente ao catálogo do banco principal. O fluxo HTTP testa a Edge API; os testes Playwright existentes cobrem o navegador, mas a automação navegador → backend real ainda requer execução própria. Tampouco substitui replay integral das 18 migrações a partir de uma baseline histórica verdadeira.
+**Limitações:** a exportação com `--no-privileges` não inclui GRANT/REVOKE reais, apenas políticas RLS. ACLs de CI são aproximações documentadas e devem ser comparadas separadamente ao catálogo do banco principal. O fluxo HTTP testa a Edge API; os testes Playwright existentes cobrem o navegador, mas a automação navegador → backend real ainda requer execução própria. O workflow também executa `live-supabase-smoke.py`, cobrindo navegador Chromium → frontend local → Edge → banco → retirada com dados sintéticos. Isso não substitui teste em dispositivo físico nem replay integral das migrações a partir de uma baseline histórica verdadeira.
 
 ## Condições para integrar/publicar
 
@@ -48,3 +48,20 @@ O teste se recusa a rodar fora de `http://localhost:54321`/`http://127.0.0.1:543
 - [ ] PR #10 revisada e somente então integrada ao `main`.
 
 **Proibido:** rodar `supabase db reset --linked` ou executar a fixture de CI no banco real.
+
+## Revisão complementar de 2026-11-07 (sem deploy)
+
+- A execução 42327252068 foi conferida pela API de jobs do GitHub: `local-auth-http` concluiu `success`; inicialização, testes HTTP/JWT e limpeza concluíram `success`.
+- O teste de navegador intercepta o domínio publicado e serve os arquivos compilados localmente; chamadas à API só são permitidas para `localhost:54321`. Isso valida o fluxo integrado sem atingir produção.
+- **Risco residual de confidencialidade:** embora o dump seja `schema-only`, contém definições internas de funções e políticas. Uma fixture versionada não deve ser tratada como automaticamente sanitizada apenas por não conter linhas de dados. Antes de compartilhar fora do repositório, revisar comentários, literais, funções, grants e políticas.
+- **Risco residual de fidelidade:** o dump foi produzido com `--no-privileges`, e os ACLs de CI são sintéticos; a equivalência com os privilégios reais do banco principal ainda precisa de comparação de catálogo somente leitura.
+- **Risco residual de implantação:** a migração nova modifica funções transacionais e redefine dinamicamente `checkout_order_atomic` por substituição textual. Antes de aplicar, validar assinatura/definição no banco de destino, plano de backup, rollback testado e janela de implantação. Não aplicar automaticamente.
+- **Proteção de CI:** não disponibilizar segredos de produção a eventos `pull_request`; o workflow de homologação deve permanecer restrito a credenciais locais efêmeras.
+
+### Gate de liberação
+
+1. Comparar privilégios reais (`pg_class`, `pg_proc`, `pg_namespace`, `pg_policy` e ACLs) em modo somente leitura com a configuração de CI.
+2. Revisar a fixture integralmente para conteúdo sensível ou desnecessário, mantendo o arquivo exclusivamente para CI descartável.
+3. Confirmar estado atual da migração pendente e compatibilidade da definição de `checkout_order_atomic` no destino.
+4. Preparar e validar backup e rollback antes de qualquer migração de produção.
+5. Só depois aprovar merge, implantação e smoke tests pós-deploy. Nenhum destes passos é autorização para alterar produção.

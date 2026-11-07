@@ -12,7 +12,7 @@ Updated: 2026-11-07. Current stage: **frontend staging online; backend productio
 - Build output: `artifacts/cantinas-nexus/dist/public`
 - Environment: `NODE_VERSION=22`, `BASE_PATH=/`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (Supabase **publishable**, safe for a public frontend; no service key). Turnstile site key must be configured for any new hostname if that feature is enabled.
 - No additional paid Cloudflare product or extra Supabase project has been created.
-- Cloudflare's automatic production-branch builds were paused temporarily while editing the Edge Functions to avoid unnecessary build runs; restore when preparing the final release.
+- Cloudflare automatic builds are enabled for the **isolated staging branch** `deploy/cloudflare-workers` only. The final production release stays gated behind backup and backend migration.
 - Existing GitHub Pages and `main` remain unchanged; **do not merge this branch prematurely** because it removes the GitHub-specific `404.html` workaround.
 
 The first Cloudflare deployment failed because its build command tried to reinstall pnpm globally where it already existed. After removing the duplicate install, the deployment completed and uploaded 51 files with valid `_headers` rules.

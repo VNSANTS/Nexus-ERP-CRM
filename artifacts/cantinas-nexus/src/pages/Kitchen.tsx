@@ -113,7 +113,7 @@ function OrderCard({ order, products, onAdvance, onCancel, onUpdateObs }: {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <PayIcon className="w-4 h-4 text-gray-400" />
-            <span className="text-sm font-bold text-gray-500">{PAYMENT_LABELS[order.paymentMethod] ?? order.paymentMethod}</span>
+            <span className="text-sm font-bold text-gray-500">No caixa · {PAYMENT_LABELS[order.paymentMethod] ?? order.paymentMethod}</span>
           </div>
         </div>
 

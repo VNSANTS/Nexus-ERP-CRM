@@ -72,3 +72,19 @@ jobs:
           print('PASS Vite JS asset', asset.split('/')[-1])
           print('PASS staging routes and security headers; no production data changed')
           PY
+
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Playwright
+        run: python -m pip install playwright==1.56.0
+      - name: Browser E2E against live Cloudflare, synthetic backend only
+        env:
+          CHECK_CLOUDFLARE: '1'
+          ESSENTIAL_ONLY: '1'
+        run: python artifacts/cantinas-nexus/tests/menu-smoke.py

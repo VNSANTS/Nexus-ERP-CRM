@@ -9,6 +9,7 @@
 // 'checkout' e 'manual' são públicos (o totem não tem login).
 // As demais ações exigem JWT de funcionário (painel da cozinha).
 
+import { withCors } from '../_shared/helpers.ts';
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse, requireEmployee, hasEmployeeAccess } from '../_shared/helpers.ts';
 import { getClientIp, checkRateLimit } from '../_shared/security.ts';
@@ -58,7 +59,7 @@ async function createOrder(
   return data;
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve((req: Request) => withCors(req, async () => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const supabase = createClient(
@@ -352,4 +353,4 @@ Deno.serve(async (req: Request) => {
     if (status === 500) console.error('Falha interna ao processar pedido.');
     return errorResponse(status === 500 ? 'Erro interno ao processar pedido.' : e.message ?? 'Não foi possível processar pedido.', status);
   }
-});
+}));

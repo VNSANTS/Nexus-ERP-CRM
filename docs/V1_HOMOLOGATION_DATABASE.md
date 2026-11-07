@@ -1,6 +1,6 @@
 # Nexus ERP/CRM V1 — homologação de banco (PR #10)
 
-> Estado: bloqueio de integração até um CI Supabase local **verde** e reconciliação explícita de versões. Este documento não autoriza deploy.
+> Estado: CI local Auth/JWT/HTTP aprovado; histórico de versões alinhado na branch. Produção não alterada. A integração ainda depende da validação de implantação e aprovação. Este documento não autoriza deploy.
 
 ## Evidência somente de leitura
 
@@ -10,16 +10,16 @@
 - A fixture representa o **estado atual** do banco, **não** o esquema legado anterior às migrações de outubro. Jamais executá-la num banco existente.
 - SQL de funções, views ou comentários ainda é código interno: revise antes de republicar a fixture para terceiros.
 
-## Divergências comprovadas no histórico
+## Divergências históricas e resolução na PR
 
-| Migração no GitHub | Histórico no banco | Situação |
+| Nome antigo na branch | Histórico no banco | Resolução no commit 9f556aa |
 | --- | --- | --- |
-| `20261030193000_establishment_feature_permissions.sql` | `20261030192212_establishment_feature_permissions` | Versões divergentes; verificar conteúdo/equivalência |
-| `20261103113600_reject_inactive_product_modifiers_and_bound_promotions.sql` | Sem entrada nessa versão; `20261103113614` consta no banco | Possível revisão intermediária; não reaplicar automaticamente |
-| `20261103114100_index_product_options_tenant_foreign_keys.sql` | `20261103114052_index_product_options_tenant_foreign_keys` | Versões divergentes; comparar definições dos índices |
+| `20261030193000_establishment_feature_permissions.sql` | `20261030192212_establishment_feature_permissions` | SQL equivalente conferido; arquivo renomeado para versão 20261030192212 |
+| `20261103113600_reject_inactive_product_modifiers_and_bound_promotions.sql` | Sem entrada nessa versão; `20261103113614` consta no banco | Definição SQL normalizada idêntica à versão 20261103113614; duplicata removida |
+| `20261103114100_index_product_options_tenant_foreign_keys.sql` | `20261103114052_index_product_options_tenant_foreign_keys` | SQL equivalente conferido; arquivo renomeado para versão 20261103114052 |
 | `20261106184508_atomic_order_transitions_and_inventory.sql` | Ausente | Alteração nova da PR #10; testar e aplicar só após aprovação |
 
-O registro `20261102031048` existe nos dois lados, mas o nome armazenado no remoto difere; **o identificador de versão** é a chave importante. Não confundir divergência de nome com migração pendente.
+**Após o ajuste**, o GitHub tem **17** versões e o remoto **16**; a única versão no GitHub ainda ausente do banco é **20261106184508**. O registro `20261102031048` existe nos dois lados, mas o nome armazenado no remoto difere; **o identificador de versão** é a chave importante. Não confundir divergência de nome com migração pendente.
 
 Também foi confirmado via `pg_proc` que `checkout_order_atomic` já existe no banco principal; `transition_order_atomic` e `move_inventory_atomic` ainda não existem.
 
@@ -40,10 +40,10 @@ O teste se recusa a rodar fora de `http://localhost:54321`/`http://127.0.0.1:543
 
 ## Condições para integrar/publicar
 
-- [ ] Workflow de Auth/JWT/HTTP executado com sucesso real no GitHub Actions, não apenas criado.
-- [ ] Evidências de isolamento entre lojas, RLS e pedido → retirada validadas.
-- [ ] Diferenças de versões reconciliadas por comparação SQL e catalogação dos efeitos já presentes; nenhuma marcação artificial sem aprovação.
-- [ ] Plano de backup e migração incrementais testado no ambiente descartável.
+- [x] Workflow de Auth/JWT/HTTP executado com sucesso real no GitHub Actions ([run 42327252068](https://github.com/VNSANTS/Nexus-ERP-CRM/actions/runs/42327252068)).
+- [x] Evidências HTTP de isolamento entre lojas, RLS e pedido → retirada validadas no stack local com dados sintéticos.
+- [x] Diferenças de versões reconciliadas **nos arquivos da PR**, sem executar DDL nem editar histórico no remoto.
+- [ ] Plano de backup/implantação e rollback revisado para execução em produção; migrar somente após aprovação.
 - [ ] Sem novos custos, sem branch paga Supabase, sem alteração no banco remoto antes de aprovação explícita.
 - [ ] PR #10 revisada e somente então integrada ao `main`.
 

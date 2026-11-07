@@ -55,7 +55,7 @@ def edge(action, **body):
 
 def local_only_route(route):
     parsed = urlparse(route.request.url)
-    if parsed.hostname == '127.0.0.1' and parsed.port == 8766 and parsed.path.startswith('/Nexus-ERP-CRM'):
+    if parsed.hostname == '127.0.0.1' and parsed.port == 8766:
         return route.continue_()
     if parsed.hostname in ('localhost', '127.0.0.1') and parsed.port == 54321:
         return route.continue_()

@@ -92,8 +92,13 @@ with sync_playwright() as pw:
                 expect(pg.get_by_role('dialog')).to_have_count(0)
             if not essential:
                 pg.screenshot(path=f'menu-screens/{width}-{id}.png', animations='disabled')
-            btn('Bebidas').click()
-            expect(pg.get_by_role('article')).to_have_count(1)
+            category_button = btn('Bebidas')
+            category_button.click()
+            expect(category_button).to_have_attribute('aria-pressed', 'true')
+            # Only products in the current filter count, not unrelated article elements.
+            visible_cards = pg.locator('#menu-products').get_by_role('article')
+            expect(visible_cards).to_have_count(1, timeout=15000)
+            expect(visible_cards.first).to_have_attribute('aria-label', 'Suco')
             btn('Favoritar Suco').click()
             expect(btn('Remover Suco dos favoritos')).to_have_attribute('aria-pressed', 'true')
             pg.locator('#menu-search').fill('inexistente')

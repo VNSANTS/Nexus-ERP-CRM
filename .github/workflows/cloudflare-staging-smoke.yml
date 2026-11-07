@@ -1,0 +1,74 @@
+name: Cloudflare staging smoke (read-only)
+on:
+  push:
+    branches: [deploy/cloudflare-workers]
+    paths:
+      - '.github/workflows/cloudflare-staging-smoke.yml'
+      - 'artifacts/cantinas-nexus/**'
+      - 'docs/CLOUDFLARE_MIGRATION.md'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/cloudflare-staging-smoke.yml'
+      - 'artifacts/cantinas-nexus/**'
+      - 'docs/CLOUDFLARE_MIGRATION.md'
+
+permissions:
+  contents: read
+
+jobs:
+  public-routes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Validate Cloudflare SPA and security headers without mutating data
+        env:
+          SITE: https://nexus-erp-crm-staging.pages.dev
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          base = os.environ['SITE'].rstrip('/')
+          def get(path):
+              req = urllib.request.Request(base + path, headers={'User-Agent':'NexusERP-Staging-ReadOnlySmoke/1.0'})
+              with urllib.request.urlopen(req, timeout=15) as response:
+                  body = response.read(3_000_000)
+                  return response.status, dict(response.headers), body
+
+          def retry(path):
+              for i in range(6):
+                  try:
+                      return get(path)
+                  except (urllib.error.URLError, TimeoutError):
+                      if i == 5:
+                          raise
+                      time.sleep(5)
+
+          status, headers, root = retry('/')
+          assert status == 200, ('root response', status)
+          assert b'id="root"' in root, 'Root React mount point missing'
+          assert b'Content-Security-Policy' in root, 'CSP metadata missing'
+          assert 'noindex' in headers.get('X-Robots-Tag', '').lower(), 'Staging must be noindex'
+          assert headers.get('X-Content-Type-Options', '').lower() == 'nosniff', 'Missing nosniff'
+          assert headers.get('X-Frame-Options', '').upper() == 'DENY', 'Missing clickjacking header'
+
+          for path in ['/cozinha', '/acompanhar/qa-not-a-real-token', '/configuracoes']:
+              status, _h, body = retry(path)
+              assert status == 200, (path, status)
+              assert b'id="root"' in body, (path, 'SPA root is missing')
+              assert b'spa-redirect-path' not in body, (path, 'Legacy GitHub Pages redirect found')
+              print('PASS SPA GET', path)
+
+          match = re.search(rb'<script[^>]+src="(/assets/[^"]+\.js)"', root)
+          assert match, 'Vite module asset not found'
+          asset = match.group(1).decode('utf-8')
+          status, _h, js = retry(asset)
+          assert status == 200 and len(js) > 1000, 'Main Vite JS missing or empty'
+          print('PASS Vite JS asset', asset.split('/')[-1])
+          print('PASS staging routes and security headers; no production data changed')
+          PY

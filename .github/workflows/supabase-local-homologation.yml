@@ -87,6 +87,11 @@ jobs:
           pnpm install --frozen-lockfile
           VITE_SUPABASE_URL="$API_URL" VITE_SUPABASE_ANON_KEY="$ANON_KEY" \
             BASE_PATH=/Nexus-ERP-CRM/ pnpm --filter @workspace/cantinas-nexus run build
+          # CI-only: locally built HTML needs permission to call local Supabase.
+          # Do not touch the checked-in production CSP.
+          sed -i 's@https://\\*\\.supabase\\.co@http://127.0.0.1:54321 https://*.supabase.co@' \\
+            artifacts/cantinas-nexus/dist/public/index.html
+          grep -F 'connect-src ' artifacts/cantinas-nexus/dist/public/index.html
           python3 -m venv "$RUNNER_TEMP/nexus-live-browser"
           "$RUNNER_TEMP/nexus-live-browser/bin/pip" install 'playwright==1.56.0'
           "$RUNNER_TEMP/nexus-live-browser/bin/python" artifacts/cantinas-nexus/tests/live-supabase-smoke.py

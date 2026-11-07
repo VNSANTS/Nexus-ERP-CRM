@@ -247,7 +247,7 @@ with connection() as db:
     injected_order = db.execute(
         'SELECT checkout_order_atomic(%s,%s,%s,%s,%s,%s,%s)',
         (A, Jsonb([{'productId': 'last-unit', 'qty': 1}]), 'dinheiro',
-         attack, attack, 'pendente', str(uuid4())),
+         attack, '11999999999', 'pendente', str(uuid4())),
     ).fetchone()[0]
 assert scalar('SELECT observacoes FROM orders WHERE id=%s', (injected_order['id'],)) == attack
 assert scalar("SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='orders'") == 1

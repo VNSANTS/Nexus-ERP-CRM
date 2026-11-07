@@ -3,11 +3,12 @@ from playwright.sync_api import sync_playwright, expect
 from pathlib import Path
 from urllib.parse import urlparse
 import re, json, mimetypes, shutil, os
-published = os.getenv('CHECK_PUBLISHED') == '1'
+cloudflare = os.getenv('CHECK_CLOUDFLARE') == '1'
+published = os.getenv('CHECK_PUBLISHED') == '1' or cloudflare
 essential = os.getenv('ESSENTIAL_ONLY') == '1'
 engine = os.getenv('BROWSER_ENGINE', 'chromium')
 device = os.getenv('TEST_DEVICE', 'iPhone 13')
-base = 'https://vnsants.github.io/Nexus-ERP-CRM' if published else 'https://nexus.test'
+base = 'https://nexus-erp-crm-staging.pages.dev' if cloudflare else ('https://vnsants.github.io/Nexus-ERP-CRM' if published else 'https://nexus.test')
 root = Path('artifacts/cantinas-nexus/dist/public')
 themes = re.findall("id: '([\\w-]+)', name: '([^']+)'.*?primary: '(#\\w+)', background: '(#\\w+)'", Path('artifacts/cantinas-nexus/src/lib/menu-templates.ts').read_text())
 products = [dict(id=i, name=n, categoria=c, description='Produto para teste local', price='10.00', disponivel=True, sazonal=False) for i, n, c in [('a', 'Sanduíche', 'lanche'), ('b', 'Suco', 'bebida'), ('c', 'Combo teste', 'combo')]]
@@ -27,6 +28,8 @@ def route(r):
     if engine != 'webkit' and u.hostname in ('nexus.test', 'vnsants.github.io') and '/assets/Kitchen-' in path and not failed_chunks:
         failed_chunks.append(path)
         return r.abort()
+    if cloudflare and u.hostname == 'nexus-erp-crm-staging.pages.dev' and r.request.method == 'GET':
+        return r.continue_()
     if published and u.hostname == 'vnsants.github.io' and path.startswith('/Nexus-ERP-CRM/') and r.request.method == 'GET':
         return r.continue_()
     if not published and u.hostname == 'nexus.test':

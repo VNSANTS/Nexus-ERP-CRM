@@ -220,9 +220,10 @@ export const api = {
       paymentMethod: string;
       telefone: string;
       observacoes: string;
+      idempotencyKey: string;
     }) => callFn<ApiOrder>('pedidos', { action: 'manual', ...data }),
     updateStatus: (id: string, status: string) => callFn<ApiOrder>('pedidos', { action: 'set-status', id, status }),
-    advance: (id: string) => callFn<ApiOrder>('pedidos', { action: 'advance', id }),
+    advance: (data: { id: string; expectedStatus: string }) => callFn<ApiOrder>('pedidos', { action: 'advance', ...data }),
     updateObservacoes: (id: string, observacoes: string) =>
       callFn<ApiOrder>('pedidos', { action: 'observacoes', id, observacoes }),
     confirmPickup: (code: string) =>

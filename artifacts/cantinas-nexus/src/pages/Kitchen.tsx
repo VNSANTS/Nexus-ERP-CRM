@@ -75,7 +75,7 @@ const PAYMENT_ICON: Record<string, typeof QrCode> = {
 function OrderCard({ order, products, onAdvance, onCancel, onUpdateObs }: {
   order: ApiOrder;
   products: ApiProduct[];
-  onAdvance: (id: string) => void;
+  onAdvance: (id: string, expectedStatus: string) => void;
   onCancel: (id: string) => void;
   onUpdateObs: (id: string, obs: string) => void;
 }) {
@@ -169,7 +169,7 @@ function OrderCard({ order, products, onAdvance, onCancel, onUpdateObs }: {
               </button>
             )}
             {canAdvance && (
-              <button onClick={() => onAdvance(order.id)}
+              <button onClick={() => onAdvance(order.id, order.status)}
                 className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-orange-600 transition-colors active:scale-95">
                 Avançar <ArrowRight className="w-4 h-4" />
               </button>
@@ -275,14 +275,31 @@ export function Kitchen() {
   const [manualTelefone, setManualTelefone] = useState('');
   const [manualObs, setManualObs] = useState('');
 
+  const manualAttemptRef = useRef<{ fingerprint: string; key: string } | null>(null);
+
   const manualMut = useMutation({
-    mutationFn: () => api.orders.manual({
-      items: Object.entries(manualItems).filter(([, q]) => q > 0).map(([productId, qty]) => ({ productId, qty })),
-      paymentMethod: manualPayment,
-      telefone: manualTelefone,
-      observacoes: manualObs,
-    }),
+    mutationFn: () => {
+      const payload = {
+        items: Object.entries(manualItems)
+          .filter(([, qty]) => qty > 0)
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([productId, qty]) => ({ productId, qty })),
+        paymentMethod: manualPayment,
+        telefone: manualTelefone,
+        observacoes: manualObs,
+      };
+      const fingerprint = JSON.stringify({
+        ...payload,
+        establishmentId: ownerEstablishment?.id,
+        employeeId: loggedEmployee?.id,
+      });
+      if (manualAttemptRef.current?.fingerprint !== fingerprint) {
+        manualAttemptRef.current = { fingerprint, key: crypto.randomUUID() };
+      }
+      return api.orders.manual({ ...payload, idempotencyKey: manualAttemptRef.current.key });
+    },
     onSuccess: (order) => {
+      manualAttemptRef.current = null;
       toast.success(`Pedido #${order.code} criado!`);
       setManualItems({});
       setManualTelefone('');
@@ -678,7 +695,7 @@ export function Kitchen() {
                     <AnimatePresence>
                       {statusOrders.map((o: ApiOrder) => (
                         <OrderCard key={o.id} order={o} products={products}
-                          onAdvance={(id) => advanceMut.mutate(id)}
+                          onAdvance={(id, expectedStatus) => advanceMut.mutate({ id, expectedStatus })}
                           onCancel={(id) => { if (confirm('Cancelar pedido?')) cancelMut.mutate(id); }}
                           onUpdateObs={(id, obs) => updateObsMut.mutate({ id, obs })} />
                       ))}
@@ -793,7 +810,7 @@ export function Kitchen() {
                             <Clock className="w-3 h-3" /> ETA: {eta.min}–{eta.max}min · {new Date(o.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>
-                        <button onClick={() => advanceMut.mutate(o.id)}
+                        <button onClick={() => advanceMut.mutate({ id: o.id, expectedStatus: o.status })}
                           className="bg-primary text-white px-4 py-3 rounded-xl font-black text-sm hover:bg-orange-600 transition-colors flex items-center gap-2 shrink-0">
                           {o.status === 'recebido' ? 'Iniciar' : o.status === 'preparo' ? 'Pronto' : 'Entregar'} <ArrowRight className="w-4 h-4" />
                         </button>

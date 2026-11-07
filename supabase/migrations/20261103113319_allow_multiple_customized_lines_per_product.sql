@@ -281,7 +281,7 @@ BEGIN
 
   RETURN v_existing;
 END;
-$function$
+$function$;
 ;
 
 REVOKE ALL ON FUNCTION public.checkout_order_atomic(uuid, jsonb, text, text, text, text, text) FROM PUBLIC, anon, authenticated;

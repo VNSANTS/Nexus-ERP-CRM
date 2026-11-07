@@ -1,0 +1,118 @@
+name: Supabase V1 local Auth and HTTP homologation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/supabase-local-homologation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-auth-http:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      QA_WORKDIR: /tmp/nexus-v1-homologation
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: latest
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Prepare disposable project from reviewed current-schema snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$QA_WORKDIR/supabase/migrations"
+          cp supabase/config.toml "$QA_WORKDIR/supabase/config.toml"
+          sed -i 's/project_id = "Nexus-ERP-CRM"/project_id = "nexus-v1-disposable-ci"/' "$QA_WORKDIR/supabase/config.toml"
+          cp -R supabase/functions "$QA_WORKDIR/supabase/functions"
+          # Fail closed if the reviewed schema snapshot changes without re-audit.
+          test "$(git hash-object supabase/tests/fixtures/current_public_schema.sql)" = "5323db9390515039ea9e5c2868b898e1cf08bf1b"
+          cp supabase/tests/fixtures/current_public_schema.sql \
+            "$QA_WORKDIR/supabase/migrations/20261106090000_schema_snapshot_before_pr10.sql"
+          # The only actual feature migration after the live-schema snapshot.
+          cp supabase/migrations/20261106184508_atomic_order_transitions_and_inventory.sql \
+            "$QA_WORKDIR/supabase/migrations/20261106184508_atomic_order_transitions_and_inventory.sql"
+          cat > "$QA_WORKDIR/supabase/migrations/20261106190000_ci_grants.sql" <<'SQL'
+          -- Test-only ACL matching the observed exposed-public schema posture.
+          -- Never deploy this migration or the snapshot to production.
+          REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC, anon, authenticated;
+          REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC, anon, authenticated;
+          REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon, authenticated;
+          GRANT USAGE ON SCHEMA public TO service_role;
+          GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+          GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
+          GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO service_role;
+          GRANT SELECT, UPDATE ON public.customer_accounts TO authenticated;
+          GRANT SELECT ON public.platform_admins TO authenticated;
+          SQL
+          # The application's original config references this missing dev seed.
+          # This empty seed exists ONLY inside the temporary CI project.
+          : > "$QA_WORKDIR/supabase/seed.sql"
+          test ! -e "$QA_WORKDIR/supabase/.temp/project-ref"
+          supabase --version
+
+      - name: Start local Supabase (Postgres 17, Auth, PostgREST, Edge runtime)
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start --workdir "$QA_WORKDIR" \
+            -x studio,imgproxy,realtime,storage-api,logflare,vector,supavisor,postgres-meta
+
+      - name: Run real HTTP/JWT tests against two synthetic tenants
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status --workdir "$QA_WORKDIR" -o env)"
+          export API_URL ANON_KEY SERVICE_ROLE_KEY
+          # Explicitly refuse to proceed if keys point to a remote instance.
+          [[ "$API_URL" == "http://127.0.0.1:54321" || "$API_URL" == "http://localhost:54321" ]]
+          supabase functions serve --workdir "$QA_WORKDIR" \
+            > "$RUNNER_TEMP/nexus-edge-serve.log" 2>&1 &
+          export NEXUS_E2E_OUTPUT="$QA_WORKDIR/browser-fixture.json"
+          node supabase/tests/homologation-http.mjs
+          pnpm install --frozen-lockfile
+          VITE_SUPABASE_URL="$API_URL" VITE_SUPABASE_ANON_KEY="$ANON_KEY" \
+            BASE_PATH=/Nexus-ERP-CRM/ pnpm --filter @workspace/cantinas-nexus run build
+          # CI-only: locally built HTML needs permission to call local Supabase.
+          # Do not touch the checked-in production CSP.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('artifacts/cantinas-nexus/dist/public/index.html')
+          content = p.read_text()
+          host = 'https://*.supabase.co'
+          assert host in content, 'Expected Supabase host missing from CSP'
+          p.write_text(content.replace(host, 'http://127.0.0.1:54321 ' + host, 1))
+          PY
+          grep -F 'connect-src ' artifacts/cantinas-nexus/dist/public/index.html
+          python3 -m venv "$RUNNER_TEMP/nexus-live-browser"
+          "$RUNNER_TEMP/nexus-live-browser/bin/pip" install 'playwright==1.56.0'
+          "$RUNNER_TEMP/nexus-live-browser/bin/python" artifacts/cantinas-nexus/tests/live-supabase-smoke.py
+
+      - name: Edge logs on failure
+        if: failure()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/nexus-edge-serve.log" ]; then
+            tail -n 100 "$RUNNER_TEMP/nexus-edge-serve.log"
+          fi
+
+      - name: Destroy disposable local stack
+        if: always()
+        shell: bash
+        run: supabase stop --workdir "$QA_WORKDIR" --no-backup || true

@@ -4,6 +4,9 @@ from pathlib import Path
 from urllib.parse import urlparse
 import re, json, mimetypes, shutil, os
 published = os.getenv('CHECK_PUBLISHED') == '1'
+essential = os.getenv('ESSENTIAL_ONLY') == '1'
+engine = os.getenv('BROWSER_ENGINE', 'chromium')
+device = os.getenv('TEST_DEVICE', 'iPhone 13')
 base = 'https://vnsants.github.io/Nexus-ERP-CRM' if published else 'https://nexus.test'
 root = Path('artifacts/cantinas-nexus/dist/public')
 themes = re.findall("id: '([\\w-]+)', name: '([^']+)'.*?primary: '(#\\w+)', background: '(#\\w+)'", Path('artifacts/cantinas-nexus/src/lib/menu-templates.ts').read_text())
@@ -21,7 +24,7 @@ errors = []
 def route(r):
     u = urlparse(r.request.url)
     path = u.path
-    if u.hostname in ('nexus.test', 'vnsants.github.io') and '/assets/Kitchen-' in path and not failed_chunks:
+    if engine != 'webkit' and u.hostname in ('nexus.test', 'vnsants.github.io') and '/assets/Kitchen-' in path and not failed_chunks:
         failed_chunks.append(path)
         return r.abort()
     if published and u.hostname == 'vnsants.github.io' and path.startswith('/Nexus-ERP-CRM/') and r.request.method == 'GET':
@@ -42,6 +45,8 @@ def route(r):
             result = dict(id='order-test', code='QA123', paymentCode='MOCK', trackingToken='fixture-token', paymentMethod='dinheiro')
         if act in ('manual', 'upsert'):
             staff_writes.append(body)
+            if act == 'manual' and len(staff_writes) == 1:
+                return r.abort()
             result = {'code':'STAFF-QA', 'ok':True}
         if act == 'get-settings':
             result = settings
@@ -58,15 +63,18 @@ def route(r):
         return r.fulfill(json=result, content_type='application/json', headers={'access-control-allow-origin': '*'})
     return r.abort()
 with sync_playwright() as pw:
-    browser = pw.chromium.launch(executable_path=shutil.which('google-chrome') or shutil.which('chromium'), args=['--no-sandbox'])
-    pg = browser.new_page()
+    browser = pw.webkit.launch() if engine == 'webkit' else pw.chromium.launch(executable_path=shutil.which('google-chrome') or shutil.which('chromium'), args=['--no-sandbox'])
+    pg = browser.new_page(**pw.devices[device], reduced_motion='reduce') if essential else browser.new_page()
     pg.route('**/*', route)
-    pg.set_default_timeout(4500)
+    pg.set_default_timeout(10000 if engine == 'webkit' else 4500)
     pg.on('pageerror', lambda e: (errors.append(str(e)), print('JS:', str(e), flush=True)))
     pg.add_init_script("sessionStorage.setItem('nexus:deviceToken','fixture');sessionStorage.setItem('nexus:establishmentId','store-test');localStorage.setItem('nexus-erp-crm:employee-token','fixture');localStorage.setItem('nexus-erp-crm:employee-profile'," + json.dumps(json.dumps(emp)) + ');')
     btn = lambda n: pg.get_by_role('button', name=n, exact=True)
     assert len(themes) == 6
-    for width, height in [(390, 844), (768, 1024), (1440, 900)]:
+    if essential:
+        themes = themes[:1]
+    viewports = [(pg.viewport_size['width'], pg.viewport_size['height'])] if essential else [(390, 844), (768, 1024), (1440, 900)]
+    for width, height in viewports:
         pg.set_viewport_size(dict(width=width, height=height))
         for id, name, color, bg in themes:
             settings.update(menuPrimaryColor=color, menuBackgroundColor=bg)
@@ -82,9 +90,15 @@ with sync_playwright() as pw:
                 expect(pg.get_by_role('dialog')).to_be_visible()
                 pg.get_by_role('dialog').get_by_role('button', name='Fechar', exact=True).click()
                 expect(pg.get_by_role('dialog')).to_have_count(0)
-            pg.screenshot(path=f'menu-screens/{width}-{id}.png', animations='disabled')
-            btn('Bebidas').click()
-            expect(pg.get_by_role('article')).to_have_count(1)
+            if not essential:
+                pg.screenshot(path=f'menu-screens/{width}-{id}.png', animations='disabled')
+            category_button = btn('Bebidas')
+            category_button.click()
+            expect(category_button).to_have_attribute('aria-pressed', 'true')
+            # Only products in the current filter count, not unrelated article elements.
+            visible_cards = pg.locator('#menu-products').get_by_role('article')
+            expect(visible_cards).to_have_count(1, timeout=15000)
+            expect(visible_cards.first).to_have_attribute('aria-label', 'Suco')
             btn('Favoritar Suco').click()
             expect(btn('Remover Suco dos favoritos')).to_have_attribute('aria-pressed', 'true')
             pg.locator('#menu-search').fill('inexistente')
@@ -108,13 +122,17 @@ with sync_playwright() as pw:
     assert len(orders) == 1 and orders[0]['establishmentId'] == 'store-test' and (orders[0]['cartItems'][0]['modifierIds'] == ['m'])
     print('mock checkout OK', flush=True)
     pg.goto(base + '/cozinha')
-    for label in ['Pedidos', 'Tarefas', 'Dashboard', 'Caixa Rápido', 'Estoque', 'CRM', 'Fornecedores', 'Produtos', 'Promoções', 'Funcionários', 'Relatórios', 'Configurações']:
+    pg.get_by_role('navigation').wait_for(state='visible', timeout=15000)
+    areas = ['Pedidos', 'Caixa Rápido', 'CRM', 'Produtos', 'Configurações'] if essential else ['Pedidos', 'Tarefas', 'Dashboard', 'Caixa Rápido', 'Estoque', 'CRM', 'Fornecedores', 'Produtos', 'Promoções', 'Funcionários', 'Relatórios', 'Configurações']
+    for label in areas:
         b = pg.locator('nav').get_by_role('button', name=label, exact=True)
         b.click()
         expect(b).to_have_attribute('aria-pressed', 'true')
         assert pg.locator('main').inner_text().strip()
         if label == 'Caixa Rápido':
             btn('Adicionar Suco').click()
+            btn('Confirmar Pedido').click()
+            expect(pg.get_by_text('Erro ao criar pedido.', exact=True)).to_be_visible()
             btn('Confirmar Pedido').click()
             expect(pg.get_by_text('Pedido #STAFF-QA criado!')).to_be_visible()
         if label == 'Produtos':
@@ -138,7 +156,9 @@ with sync_playwright() as pw:
         expect(b).to_have_attribute('aria-pressed', 'true')
         expect(b).to_be_enabled()
     assert [(s['menuPrimaryColor'], s['menuBackgroundColor']) for s in saved] == [(t[2], t[3]) for t in themes]
-    assert [entry['action'] for entry in staff_writes] == ['manual', 'upsert']
-    assert len(failed_chunks) == 1
+    assert [entry['action'] for entry in staff_writes] == ['manual', 'manual', 'upsert']
+    assert staff_writes[0]['idempotencyKey'] == staff_writes[1]['idempotencyKey']
+    assert len(staff_writes[0]['idempotencyKey']) >= 16
+    assert len(failed_chunks) == (0 if engine == 'webkit' else 1)
     assert not errors, errors
     print('OK all')

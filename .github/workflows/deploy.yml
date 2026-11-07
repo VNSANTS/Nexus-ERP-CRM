@@ -19,8 +19,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -70,7 +68,16 @@ jobs:
           name: menu-screens
           path: menu-screens/
 
-      - name: Build do frontend (cantinas-nexus)
+      - name: Build isolado para PR (sem variáveis reais)
+        if: github.event_name == 'pull_request'
+        env:
+          VITE_SUPABASE_URL: https://fixture.supabase.co
+          VITE_SUPABASE_ANON_KEY: test-only
+          BASE_PATH: /Nexus-ERP-CRM/
+        run: pnpm --filter @workspace/cantinas-nexus run build
+
+      - name: Build de publicação (somente main)
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
@@ -83,9 +90,47 @@ jobs:
         with:
           path: artifacts/cantinas-nexus/dist/public
 
+  webkit:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        device: ['iPhone 13', 'iPad Pro 11']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Compila o frontend isolado
+        env:
+          VITE_SUPABASE_URL: https://fixture.supabase.co
+          VITE_SUPABASE_ANON_KEY: test-only
+        run: pnpm --filter @workspace/cantinas-nexus run build
+      - name: Valida fluxo essencial no WebKit
+        env:
+          ESSENTIAL_ONLY: '1'
+          BROWSER_ENGINE: webkit
+          TEST_DEVICE: ${{ matrix.device }}
+        run: |
+          python -m venv "$RUNNER_TEMP/nexus-webkit"
+          "$RUNNER_TEMP/nexus-webkit/bin/pip" install playwright==1.56.0
+          "$RUNNER_TEMP/nexus-webkit/bin/playwright" install --with-deps webkit
+          "$RUNNER_TEMP/nexus-webkit/bin/python" artifacts/cantinas-nexus/tests/menu-smoke.py
+
   deploy:
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    needs: build
+    # The frontend requires migration 20261106184508 and compatible Edge Functions.
+    # Do not publish on merge until production backup, migration and functions are verified.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    needs: [build, webkit]
     runs-on: ubuntu-latest
     environment:
       name: github-pages

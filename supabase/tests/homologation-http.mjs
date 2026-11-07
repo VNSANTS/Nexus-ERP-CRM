@@ -2,6 +2,7 @@
 // Creates fake tenants and users via local Auth; never connects to production.
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { writeFileSync } from 'node:fs';
 
 const url = process.env.API_URL || process.env.SUPABASE_URL;
 const anon = process.env.ANON_KEY || process.env.SUPABASE_ANON_KEY;
@@ -82,7 +83,7 @@ for (const [label, tenant, employee] of [['a', tenantA, a], ['b', tenantB, b]]) 
   const productId = 'ci-' + run + '-' + label;
   await rest('products', {
     id: productId, establishment_id: tenant, name: 'Test item ' + label,
-    price: 10, emoji: '🍞', categoria: 'teste', disponivel: true,
+    price: 10, emoji: '🍞', categoria: 'lanche', disponivel: true,
   });
   await rest('stock', { establishment_id: tenant, product_id: productId, name: 'Test item', quantidade: 5 });
 }
@@ -139,3 +140,9 @@ const finalOrders = good(await edge({ action: 'list' }, a.token), 200, 'final li
 assert.equal(finalOrders.find((order) => order.id === created.id)?.status, 'retirado');
 console.log('PASS HTTP checkout → JWT kitchen → DB transition → tenant-safe pickup');
 console.log('ALL LOCAL AUTH / HTTP / JWT / TENANT TESTS PASSED');
+if (process.env.NEXUS_E2E_OUTPUT) {
+  // Ephemeral CI artifact only, never stored or uploaded to the repository.
+  writeFileSync(process.env.NEXUS_E2E_OUTPUT, JSON.stringify({
+    tenantA, employeeTokenA: a.token, alreadyCreatedOrderId: created.id,
+  }), { mode: 0o600 });
+}

@@ -860,6 +860,10 @@ export function Home() {
                       loading="lazy"
                       className="absolute inset-0 h-full w-full object-contain p-5 transition-transform duration-700 group-hover:scale-105 sm:p-8"
                     />
+                  ) : featuredCombo.emoji?.trim() ? (
+                    <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center">
+                      <span className="select-none text-8xl sm:text-9xl">{featuredCombo.emoji}</span>
+                    </div>
                   ) : (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-primary/70">
                       <ShoppingCart className="h-16 w-16" strokeWidth={1.2} aria-hidden="true" />

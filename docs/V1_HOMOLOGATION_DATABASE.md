@@ -65,3 +65,15 @@ O teste se recusa a rodar fora de `http://localhost:54321`/`http://127.0.0.1:543
 3. Confirmar estado atual da migração pendente e compatibilidade da definição de `checkout_order_atomic` no destino.
 4. Preparar e validar backup e rollback antes de qualquer migração de produção.
 5. Só depois aprovar merge, implantação e smoke tests pós-deploy. Nenhum destes passos é autorização para alterar produção.
+
+## Auditoria remota de privilégios (2026-11-07; somente leitura)
+
+Consultas de catálogo e Supabase Security Advisors executadas no projeto principal, sem alterações de DDL/DML:
+
+- 27 tabelas `public` com RLS habilitada. As ACLs observadas concedem controle a `postgres` e `service_role`; apenas `customer_accounts` possui `authenticated=rw` e `platform_admins` possui `authenticated=r`. Nenhuma tabela retornou concessão explícita a `anon`.
+- Quatro funções existentes (`checkout_order_atomic`, `cleanup_rate_limit_log`, `customer_insights`, `save_product_options`) apresentam ACL `postgres=X` e `service_role=X`, sem execução explícita para `anon` ou `authenticated`.
+- Os ACLs de CI para tabelas e funções reproduzem o acesso essencial observado, mas não equivalem a uma comparação integral de `information_schema.role_table_grants`, ACLs de sequências, `default privileges` e privilégios de esquema; essa verificação aprofundada permanece necessária antes do deploy.
+- Security Advisors: 25 avisos INFO de RLS habilitada sem política, coerentes com o modelo de acesso fechado via Edge/service role; não interpretar como exposição por si só. Um WARN: proteção contra senhas vazadas desativada. Ver [documentação oficial](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+- Histórico remoto confirmado novamente: 16 versões, terminando em `20261103114052`; migração `20261106184508` continua ausente.
+
+**Decisão:** não alterar Auth nem aplicar migração ao banco principal nesta auditoria. A aprovação de release exige revisão da fixture completa, comparação de privilégios restantes, estratégia de backup/restauração e ensaio de rollback em banco descartável. Os testes de CI aprovados não substituem esses gates.

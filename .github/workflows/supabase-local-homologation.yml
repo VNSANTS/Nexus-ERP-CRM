@@ -25,6 +25,14 @@ jobs:
         with:
           version: latest
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
       - name: Prepare disposable project from reviewed current-schema snapshot
         shell: bash
         run: |
@@ -74,7 +82,14 @@ jobs:
           [[ "$API_URL" == "http://127.0.0.1:54321" || "$API_URL" == "http://localhost:54321" ]]
           supabase functions serve --workdir "$QA_WORKDIR" \
             > "$RUNNER_TEMP/nexus-edge-serve.log" 2>&1 &
+          export NEXUS_E2E_OUTPUT="$QA_WORKDIR/browser-fixture.json"
           node supabase/tests/homologation-http.mjs
+          pnpm install --frozen-lockfile
+          VITE_SUPABASE_URL="$API_URL" VITE_SUPABASE_ANON_KEY="$ANON_KEY" \
+            BASE_PATH=/Nexus-ERP-CRM/ pnpm --filter @workspace/cantinas-nexus run build
+          python3 -m venv "$RUNNER_TEMP/nexus-live-browser"
+          "$RUNNER_TEMP/nexus-live-browser/bin/pip" install 'playwright==1.56.0'
+          "$RUNNER_TEMP/nexus-live-browser/bin/python" artifacts/cantinas-nexus/tests/live-supabase-smoke.py
 
       - name: Edge logs on failure
         if: failure()

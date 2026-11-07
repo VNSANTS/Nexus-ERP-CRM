@@ -930,7 +930,7 @@ export function Home() {
             </button>
 
             <h2 className="text-3xl sm:text-5xl font-display font-extrabold text-foreground mb-4 text-center px-4 tracking-tight">
-              Como você quer pagar?
+              Como deseja pagar no caixa?
             </h2>
             <div className={`text-primary text-2xl sm:text-3xl font-black px-8 py-4 rounded-full shadow-lg mb-8 sm:mb-12 border border-border ${isDarkTheme ? 'bg-[#1b2028]' : 'bg-card'}`}>
               Total: {formatCurrency(totalCart)}
@@ -945,12 +945,16 @@ export function Home() {
               </div>
             )}
 
+            <p className="mb-6 max-w-2xl px-5 text-center text-sm font-medium text-muted-foreground sm:text-base">
+              Selecione somente a forma de pagamento para avisar o caixa. Nenhum valor será cobrado pelo site.
+            </p>
+
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full px-4 sm:px-0">
               {[
-                { id: 'pix', label: 'Pix', sub: 'Confirmar com a equipe', icon: QrCode, color: isDarkTheme ? 'text-teal-300' : 'text-teal-600', bg: isDarkTheme ? 'bg-teal-400/10' : 'bg-teal-50', hover: 'hover:border-teal-500/60' },
-                { id: 'credito', label: 'Crédito', sub: 'Na maquininha', icon: CreditCard, color: isDarkTheme ? 'text-blue-300' : 'text-blue-600', bg: isDarkTheme ? 'bg-blue-400/10' : 'bg-blue-50', hover: 'hover:border-blue-500/60' },
-                { id: 'debito', label: 'Débito', sub: 'Na maquininha', icon: Wallet, color: isDarkTheme ? 'text-indigo-300' : 'text-indigo-600', bg: isDarkTheme ? 'bg-indigo-400/10' : 'bg-indigo-50', hover: 'hover:border-indigo-500/60' },
-                { id: 'dinheiro', label: PAYMENT_LABELS.dinheiro, sub: 'No balcão', icon: Banknote, color: isDarkTheme ? 'text-emerald-300' : 'text-emerald-600', bg: isDarkTheme ? 'bg-emerald-400/10' : 'bg-emerald-50', hover: 'hover:border-emerald-500/60' },
+                { id: 'pix', label: 'Pix', sub: 'Pagar no caixa', icon: QrCode, color: isDarkTheme ? 'text-teal-300' : 'text-teal-600', bg: isDarkTheme ? 'bg-teal-400/10' : 'bg-teal-50', hover: 'hover:border-teal-500/60' },
+                { id: 'credito', label: 'Crédito', sub: 'Pagar no caixa', icon: CreditCard, color: isDarkTheme ? 'text-blue-300' : 'text-blue-600', bg: isDarkTheme ? 'bg-blue-400/10' : 'bg-blue-50', hover: 'hover:border-blue-500/60' },
+                { id: 'debito', label: 'Débito', sub: 'Pagar no caixa', icon: Wallet, color: isDarkTheme ? 'text-indigo-300' : 'text-indigo-600', bg: isDarkTheme ? 'bg-indigo-400/10' : 'bg-indigo-50', hover: 'hover:border-indigo-500/60' },
+                { id: 'dinheiro', label: PAYMENT_LABELS.dinheiro, sub: 'Pagar no caixa', icon: Banknote, color: isDarkTheme ? 'text-emerald-300' : 'text-emerald-600', bg: isDarkTheme ? 'bg-emerald-400/10' : 'bg-emerald-50', hover: 'hover:border-emerald-500/60' },
               ].map((method) => {
                 const Icon = method.icon;
                 return (
@@ -1011,11 +1015,9 @@ export function Home() {
             <div className={`mb-8 flex w-full max-w-2xl items-start gap-4 rounded-2xl border p-5 text-left sm:p-6 ${isDarkTheme ? 'border-amber-400/20 bg-amber-400/8' : 'border-amber-200 bg-amber-50'}`}>
               <Info className={`mt-0.5 h-5 w-5 shrink-0 ${isDarkTheme ? 'text-amber-300' : 'text-amber-700'}`} />
               <div>
-                <h3 className={`font-black ${isDarkTheme ? 'text-amber-200' : 'text-amber-900'}`}>Pagamento pendente de confirmação</h3>
+                <h3 className={`font-black ${isDarkTheme ? 'text-amber-200' : 'text-amber-900'}`}>Pague no caixa para concluir</h3>
                 <p className={`mt-1 text-sm leading-relaxed ${isDarkTheme ? 'text-amber-100/80' : 'text-amber-800'}`}>
-                  {createdOrder.paymentMethod === 'pix'
-                    ? 'O sistema ainda não gera cobrança Pix. Peça a chave ao atendente e aguarde a confirmação do pagamento.'
-                    : 'Faça o pagamento no balcão ou na maquininha. A equipe confirmará o recebimento no painel.'}
+                  {`Dirija-se ao caixa e informe o pedido #${createdOrder.code}. Forma escolhida: ${PAYMENT_LABELS[createdOrder.paymentMethod] ?? createdOrder.paymentMethod}. O estabelecimento recebe o pagamento por seus próprios meios e confirma o recebimento no painel.`}
                 </p>
               </div>
             </div>

@@ -11,10 +11,11 @@
 // expiração fora de hora. Agora exige o mesmo CRON_SECRET usado pelo
 // agendador (pg_cron ou chamada manual autorizada).
 
+import { withCors } from '../_shared/helpers.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse } from '../_shared/helpers.ts';
 
-Deno.serve(async (req: Request) => {
+Deno.serve((req: Request) => withCors(req, async () => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const expectedSecret = Deno.env.get('CRON_SECRET');
@@ -41,4 +42,4 @@ Deno.serve(async (req: Request) => {
   }
 
   return jsonResponse({ ok: true, expiradas: data?.length ?? 0 });
-});
+}));

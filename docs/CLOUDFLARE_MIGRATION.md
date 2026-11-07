@@ -4,7 +4,9 @@
 
 - Branch isolada: `deploy/cloudflare-workers`. O site atual na `main` e o GitHub Pages não foram alterados.
 - Conta Cloudflare confirmada, sem projetos Workers/Pages anteriores.
-- Tentativa de criar o Pages conectado ao GitHub via API **bloqueada**: HTTP 401, Cloudflare code `8000011`, problema da instalação Git da Cloudflare. **Nenhum projeto foi criado**.
+- Projeto Cloudflare Pages **`nexus-erp-crm-staging` criado**, com GitHub conectado ao repositório e branch `deploy/cloudflare-workers`. A primeira tentativa de criar havia falhado com `8000011`, mas foi resolvida após a autorização do GitHub pelo proprietário.
+- Variáveis de build públicas configuradas: `NODE_VERSION=22`, `BASE_PATH=/`, `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (chave `publishable`, sem credencial de serviço). O staging usa a API do Supabase principal; testes mutáveis exigem dados sintéticos e planejamento.
+- Endereço do staging: https://nexus-erp-crm-staging.pages.dev/ — publicação e comportamento dependem de confirmação por deploy e testes.
 - O Cloudflare Pages é o primeiro destino por integrar builds Vite de um repositório GitHub privado; Workers Static Assets continua uma alternativa futura.
 - Migração do Supabase `20261106184508_atomic_order_transitions_and_inventory.sql` pendente em produção. **Não migrar a base sem backup privado restaurado/testado**.
 - Pagamentos devem continuar presenciais, com seleção do método no cardápio e confirmação manual pelo caixa. Nenhum gateway bancário.
@@ -13,7 +15,7 @@
 
 1. Na conta Cloudflare, abrir **Workers & Pages > Create application > Pages > Connect to Git**.
 2. Autorizar o aplicativo oficial **Cloudflare Workers and Pages** no GitHub, concedendo acesso ao repositório `VNSANTS/Nexus-ERP-CRM`. A conexão do ChatGPT com GitHub é independente dessa instalação.
-3. Criar projeto **`nexus-erp-crm-staging`**, conectando o repositório à branch **`deploy/cloudflare-workers`**.
+3. Projeto **`nexus-erp-crm-staging`** já criado e conectado à branch **`deploy/cloudflare-workers`**; manter o acesso restrito a essa branch enquanto o backend não está homologado em produção.
 4. Root directory: raiz do repositório. Build command:
    ```sh
    npm install -g pnpm@11 && pnpm install --frozen-lockfile && pnpm --filter @workspace/cantinas-nexus run build

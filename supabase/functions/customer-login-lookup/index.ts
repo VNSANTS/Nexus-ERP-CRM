@@ -1,5 +1,6 @@
 // Autentica clientes por e-mail, telefone ou CPF sem revelar o e-mail
 // associado ao identificador enviado.
+import { withCors } from '../_shared/helpers.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse } from '../_shared/helpers.ts';
 import { getClientIp, checkRateLimit } from '../_shared/security.ts';
@@ -20,7 +21,7 @@ function isValidCpf(value: string): boolean {
   return digit(9) === Number(cpf[9]) && digit(10) === Number(cpf[10]);
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve((req: Request) => withCors(req, async () => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -152,4 +153,4 @@ Deno.serve(async (req: Request) => {
     console.error('Falha na autenticação de cliente:', err instanceof Error ? err.name : 'erro desconhecido');
     return errorResponse('Não foi possível entrar. Tente novamente.', 500);
   }
-});
+}));

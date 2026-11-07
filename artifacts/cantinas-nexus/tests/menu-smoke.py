@@ -25,7 +25,7 @@ errors = []
 def route(r):
     u = urlparse(r.request.url)
     path = u.path
-    if engine != 'webkit' and u.hostname in ('nexus.test', 'vnsants.github.io') and '/assets/Kitchen-' in path and not failed_chunks:
+    if engine != 'webkit' and u.hostname in ('nexus.test', 'vnsants.github.io', 'nexus-erp-crm-staging.pages.dev') and '/assets/Kitchen-' in path and not failed_chunks:
         failed_chunks.append(path)
         return r.abort()
     if cloudflare and u.hostname == 'nexus-erp-crm-staging.pages.dev' and r.request.method == 'GET':

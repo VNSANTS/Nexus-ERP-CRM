@@ -21,7 +21,7 @@ jobs:
       - name: Verify Cloudflare and GitHub browser origins are isolated
         run: deno test supabase/tests/cors.test.ts
       - name: Typecheck all Supabase Edge Functions
-        run: deno check supabase/functions/*/index.ts
+        run: deno check --node-modules-dir=auto supabase/functions/*/index.ts
 
   postgres:
     runs-on: ubuntu-latest

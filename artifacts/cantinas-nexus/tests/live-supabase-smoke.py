@@ -59,7 +59,10 @@ with sync_playwright() as pw:
     assert chrome, 'Chrome or Chromium required on disposable runner'
     browser = pw.chromium.launch(executable_path=chrome, args=['--no-sandbox'])
     page = browser.new_page(viewport={'width': 390, 'height': 844}, reduced_motion='reduce')
-    page.on('pageerror', lambda exc: errors.append(str(exc)))
+    page.on('pageerror', lambda exc: errors.append('PAGEERROR ' + str(exc)))
+    page.on('console', lambda msg: errors.append('CONSOLE ' + msg.text) if msg.type == 'error' else None)
+    page.on('requestfailed', lambda req: errors.append('REQUESTFAIL ' + req.url.split('?')[0] + ' ' + str(req.failure)))
+    page.on('response', lambda resp: errors.append('HTTP ' + str(resp.status) + ' ' + resp.url.split('?')[0]) if resp.status >= 400 else None)
     page.route('**/*', local_only_route)
     page.add_init_script(
         "sessionStorage.setItem('nexus:deviceToken','qa-device');"
@@ -68,7 +71,13 @@ with sync_playwright() as pw:
     )
     page.goto(BASE + '/cardapio-tablet', wait_until='domcontentloaded')
     card = page.get_by_role('article', name='Test item a', exact=True)
-    expect(card).to_be_visible(timeout=20000)
+    try:
+        expect(card).to_be_visible(timeout=20000)
+    except AssertionError:
+        print('BROWSER URL:', page.url, flush=True)
+        print('BROWSER TEXT:', page.locator('body').inner_text(timeout=3000)[:1000], flush=True)
+        print('BROWSER ERRORS:', json.dumps(errors[-24:], ensure_ascii=False), flush=True)
+        raise
     card.get_by_role('button', name='Adicionar', exact=True).click()
     page.get_by_role('button', name='Abrir carrinho', exact=True).click()
     page.get_by_role('button', name='Escolher Pagamento →', exact=True).click()

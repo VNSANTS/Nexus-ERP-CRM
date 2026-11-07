@@ -45,7 +45,13 @@ def local_only_route(route):
         return route.fulfill(path=file, content_type=mimetypes.guess_type(file)[0] or 'text/html')
     if parsed.hostname in ('localhost', '127.0.0.1') and parsed.port == 54321:
         return route.continue_()
-    raise AssertionError('Browser attempted unexpected remote request: ' + route.request.url)
+    # Never fetch remote fonts: deterministic, network-isolated typography fallback.
+    if parsed.hostname == 'fonts.googleapis.com':
+        return route.fulfill(body='', content_type='text/css', status=200)
+    if parsed.hostname == 'fonts.gstatic.com':
+        return route.abort()
+    errors.append('Blocked unexpected remote request: ' + route.request.url)
+    return route.abort()
 
 
 with sync_playwright() as pw:

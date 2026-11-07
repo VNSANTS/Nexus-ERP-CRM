@@ -1,0 +1,8 @@
+# Cloudflare Pages staging only. Remove X-Robots-Tag after production cutover.
+# Vite copies this file from public/ to the build output.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  X-Robots-Tag: noindex, nofollow

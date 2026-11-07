@@ -10,6 +10,7 @@
 // senha. Rate limit por IP (e também por username, para não deixar um IP
 // rotativo contornar o limite tentando o mesmo usuário repetidamente).
 
+import { withCors } from '../_shared/helpers.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse, adminClient, usernameToEmail } from '../_shared/helpers.ts';
 import { getClientIp, checkRateLimit } from '../_shared/security.ts';
@@ -18,7 +19,7 @@ const RATE_LIMIT_MAX_PER_IP = 20; // por hora, por IP
 const RATE_LIMIT_MAX_PER_USER = 10; // por hora, por username tentado
 const RATE_LIMIT_WINDOW_MIN = 60;
 
-Deno.serve(async (req: Request) => {
+Deno.serve((req: Request) => withCors(req, async () => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const ip = getClientIp(req);
@@ -131,4 +132,4 @@ Deno.serve(async (req: Request) => {
     console.error(err);
     return errorResponse('Erro interno ao processar login.', 500);
   }
-});
+}));

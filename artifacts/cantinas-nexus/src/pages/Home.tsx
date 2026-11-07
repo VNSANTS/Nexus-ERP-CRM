@@ -680,7 +680,8 @@ export function Home() {
                         layout
                         initial={{ opacity: 0, scale: 0.95, y: 8 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
+                        // Remove filtered items immediately; exiting articles stayed accessible
+                        // during WebKit layout transitions and broke the category filter contract.
                         key={product.id}
                         aria-label={product.name}
                         data-disabled={disabled || undefined}

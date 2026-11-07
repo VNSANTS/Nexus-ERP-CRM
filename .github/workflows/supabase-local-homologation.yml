@@ -41,6 +41,8 @@ jobs:
           cp supabase/config.toml "$QA_WORKDIR/supabase/config.toml"
           sed -i 's/project_id = "Nexus-ERP-CRM"/project_id = "nexus-v1-disposable-ci"/' "$QA_WORKDIR/supabase/config.toml"
           cp -R supabase/functions "$QA_WORKDIR/supabase/functions"
+          # Fail closed if the reviewed schema snapshot changes without re-audit.
+          test "$(git hash-object supabase/tests/fixtures/current_public_schema.sql)" = "5323db9390515039ea9e5c2868b898e1cf08bf1b"
           cp supabase/tests/fixtures/current_public_schema.sql \
             "$QA_WORKDIR/supabase/migrations/20261106090000_schema_snapshot_before_pr10.sql"
           # The only actual feature migration after the live-schema snapshot.
@@ -89,8 +91,14 @@ jobs:
             BASE_PATH=/Nexus-ERP-CRM/ pnpm --filter @workspace/cantinas-nexus run build
           # CI-only: locally built HTML needs permission to call local Supabase.
           # Do not touch the checked-in production CSP.
-          sed -i 's@https://\\*\\.supabase\\.co@http://127.0.0.1:54321 https://*.supabase.co@' \\
-            artifacts/cantinas-nexus/dist/public/index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('artifacts/cantinas-nexus/dist/public/index.html')
+          content = p.read_text()
+          host = 'https://*.supabase.co'
+          assert host in content, 'Expected Supabase host missing from CSP'
+          p.write_text(content.replace(host, 'http://127.0.0.1:54321 ' + host, 1))
+          PY
           grep -F 'connect-src ' artifacts/cantinas-nexus/dist/public/index.html
           python3 -m venv "$RUNNER_TEMP/nexus-live-browser"
           "$RUNNER_TEMP/nexus-live-browser/bin/pip" install 'playwright==1.56.0'

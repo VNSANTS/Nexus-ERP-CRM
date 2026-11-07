@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      QA_WORKDIR: ${{ runner.temp }}/nexus-v1-homologation
+      QA_WORKDIR: /tmp/nexus-v1-homologation
     steps:
       - uses: actions/checkout@v4
 

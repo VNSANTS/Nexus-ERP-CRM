@@ -1,4 +1,4 @@
-import { buildCorsHeaders, withCors } from '../functions/_shared/cors.ts';
+import { buildCorsHeaders, getPublicAppUrl, withCors } from '../functions/_shared/cors.ts';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -7,6 +7,22 @@ function assert(condition: unknown, message: string): asserts condition {
 const url = 'https://project.supabase.co/functions/v1/pedidos';
 const gh = 'https://vnsants.github.io';
 const cf = 'https://nexus-erp-crm-staging.pages.dev';
+
+Deno.test('auth and admin links resolve to the requesting allowlisted environment', () => {
+  const legacy = new Request(url, { headers: { Origin: gh } });
+  const staging = new Request(url, { headers: { Origin: cf } });
+  assert(getPublicAppUrl(legacy) === `${gh}/Nexus-ERP-CRM/`, 'Legacy callback should use the Pages base path');
+  assert(getPublicAppUrl(legacy, 'nxs') === `${gh}/Nexus-ERP-CRM/nxs`, 'Legacy admin route should include the Pages base path');
+  assert(getPublicAppUrl(staging) === `${cf}/`, 'Cloudflare callback should use the site root');
+  assert(getPublicAppUrl(staging, 'nxs') === `${cf}/nxs`, 'Cloudflare admin route should use the SPA route');
+});
+
+Deno.test('public app links reject untrusted origins without an explicit environment URL', () => {
+  const req = new Request(url, { headers: { Origin: 'https://evil.example' } });
+  let rejected = false;
+  try { getPublicAppUrl(req); } catch { rejected = true; }
+  assert(rejected, 'Untrusted origin must not become an auth redirect');
+});
 
 Deno.test('allowed sites receive exact CORS origin, never a wildcard', () => {
   for (const origin of [gh, cf, 'http://127.0.0.1:8766']) {

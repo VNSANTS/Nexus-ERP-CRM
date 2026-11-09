@@ -31,6 +31,24 @@ The first Cloudflare deployment failed because its build command tried to reinst
 - CORS is **not authorization**. JWT, tenant-level access control, API rate limiting and RLS must be preserved. Never expose `service_role` or `sb_secret_...` to the browser.
 - The **deployed production Edge Functions still contain the old origin policy**. Until the source changes are deployed, browser requests from Cloudflare may be blocked even though the frontend and its mocked browser smoke pass.
 
+## Supabase Auth redirects
+
+- Frontend recovery and signup callbacks use the current browser origin plus Vite's `BASE_URL`. Keep the Pages build base at `/Nexus-ERP-CRM/` and the Cloudflare Pages base at `/`.
+- Owner invitations and recovery callbacks from Edge Functions use the requesting origin only when it exactly matches the shared CORS allowlist. GitHub Pages receives its repository base path; Cloudflare receives `/`. The public establishment request email links to the actual `/nxs` admin route.
+- In Supabase **Authentication → URL Configuration**, add exact redirect URLs for each active environment (currently `https://vnsants.github.io/Nexus-ERP-CRM/` and `https://nexus-erp-crm-staging.pages.dev/`). Do not use broad wildcard domains. Keep the Site URL on the currently approved canonical site until the production hostname is selected and cutover is approved.
+- If a trusted server-to-server caller needs an Auth link without an `Origin` header, configure `NEXUS_PUBLIC_APP_URL` in the Edge Function secrets to an origin already present in the shared allowlist. Do not use a user-supplied URL. Add a future production origin to the allowlist and Auth redirect list only as part of the approved cutover.
+- Owner invitation callbacks return to the app root. The app captures the Supabase `type=invite` callback before the Auth client consumes it and routes the session to `/estabelecimento/onboarding`.
+
+## Continuity checkpoint — 2026-11-09
+
+- Updated references from GitHub. `origin/main` is `7d5697e`; PR #10 is closed and PR #11 remains open. The PR branch is `deploy/cloudflare-workers` at `50ab5c9`, has `main` as an ancestor, and was clean and up to date before this checkpoint. Local Playwright work and the two pre-existing uncommitted files on `codex/auditoria-playwright` remain untouched.
+- Auth callback and admin notification links now follow the allowlisted request origin and the active Vite base path. Added regression cases for GitHub Pages, Cloudflare staging and rejecting an untrusted origin. The `/nxs` route still requires a live Auth session plus a `platform_admins` row; sensitive Edge Function actions check the same table.
+- Validation on this Windows host: frontend TypeScript check passed using the existing compiler; Cloudflare root build passed; 8 CORS/redirect cases passed using Node 24. Local Deno is unavailable, so the all-functions Deno typecheck must be confirmed by CI after this branch update. No authenticated production-browser smoke test was run.
+- Supabase read-only inventory: PostgreSQL `17.6.1.166`; 16 applied migrations versus 17 versioned locally, with `20261106184508_atomic_order_transitions_and_inventory.sql` still pending. Auth has 3 users; Storage has 1 bucket and 1 object. `pg_cron` and `supabase_vault` are installed; one cron job exists and the Vault secrets table has zero records. These counts do not include Edge Function secret values, Auth configuration, or the physical Storage object contents.
+- `order_items_id_seq` and `rate_limit_log_id_seq` currently grant USAGE to `anon` and `authenticated`. This must be reviewed and corrected in the approved production release plan; this checkpoint made no database change.
+- **Backup and restore remain blocked.** No archive with restore evidence was found in the repository or examined common folders. `psql`, `pg_dump`, `pg_restore`, Docker and Deno are not installed/on PATH. A PostgreSQL 18.6 installer exists locally, but it is not PostgreSQL 17 and was not run. No private production dump, Storage object copy, checksum set or isolated restore has been produced.
+- No migration, Edge Function deployment, Supabase Auth setting, Cloudflare production change, Pages retirement, repository visibility change or merge was performed. The PR #11 production gates remain closed until backup and isolated restore are proven.
+
 ## Gates before switching customers to Cloudflare
 
 1. Save a private schema-and-data backup of the actual Supabase production database; inspect the archive and **prove restoration in a separate isolated PostgreSQL instance**. Never commit a dump, credentials, Auth users or customer data.

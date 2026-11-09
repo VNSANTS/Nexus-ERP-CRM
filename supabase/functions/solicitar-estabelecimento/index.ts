@@ -11,7 +11,7 @@
 // ele recebe um link por e-mail (Supabase Auth) para definir a própria
 // senha. Isso evita transitar/guardar senha em texto puro nesta function.
 
-import { withCors } from '../_shared/helpers.ts';
+import { getPublicAppUrl, withCors } from '../_shared/helpers.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse } from '../_shared/helpers.ts';
 import { getClientIp, checkRateLimit, verifyTurnstile } from '../_shared/security.ts';
@@ -229,7 +229,7 @@ Deno.serve((req: Request) => withCors(req, async () => {
               (CEP ${escapeHtml(enderecoCep.trim())})</p>
             <p><strong>Prazo para decisão:</strong> 90 dias a partir de agora.</p>
             <p>ID da solicitação: ${escapeHtml(requestId)}</p>
-            <p><a href="https://vnsants.github.io/Nexus-ERP-CRM/painel-raiz">Abrir painel de aprovação</a></p>
+            <p><a href="${escapeHtml(getPublicAppUrl(req, 'nxs'))}">Abrir painel de aprovação</a></p>
           `,
         });
       } catch (emailErr) {

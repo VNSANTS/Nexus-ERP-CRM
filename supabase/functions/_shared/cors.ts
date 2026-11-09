@@ -12,6 +12,33 @@ const ALLOWED_ORIGINS = new Set([
   'http://127.0.0.1:8766',                  // isolated browser E2E
 ]);
 
+const GITHUB_PAGES_ORIGIN = 'https://vnsants.github.io';
+
+/** Build app URLs only for known origins, accounting for the Pages repository path. */
+export function getPublicAppUrl(req: Request, route = ''): string {
+  const requestOrigin = req.headers.get('Origin');
+  let base: URL;
+
+  if (requestOrigin && ALLOWED_ORIGINS.has(requestOrigin)) {
+    const basePath = requestOrigin === GITHUB_PAGES_ORIGIN ? '/Nexus-ERP-CRM/' : '/';
+    base = new URL(basePath, requestOrigin);
+  } else {
+    const configuredUrl = Deno.env.get('NEXUS_PUBLIC_APP_URL');
+    if (!configuredUrl) throw new Error('No allowed public app origin is available for this request.');
+
+    const configured = new URL(configuredUrl);
+    if (
+      !ALLOWED_ORIGINS.has(configured.origin) ||
+      configured.username || configured.password || configured.search || configured.hash
+    ) {
+      throw new Error('NEXUS_PUBLIC_APP_URL must use an explicitly allowed app origin.');
+    }
+    base = new URL(configured.pathname.endsWith('/') ? configured.pathname : `${configured.pathname}/`, configured.origin);
+  }
+
+  return new URL(route.replace(/^\/+/, ''), base).toString();
+}
+
 export function buildCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('Origin');
   return {

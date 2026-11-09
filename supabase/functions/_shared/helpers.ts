@@ -14,7 +14,7 @@ import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 // caso aqui), mas facilita exfiltração de dados por um site malicioso caso
 // um token vaze por outro vetor (XSS, extensão de navegador comprometida).
 // Restringir a origem fecha essa superfície extra sem custo de UX real.
-export { buildCorsHeaders, withCors } from './cors.ts';
+export { buildCorsHeaders, getPublicAppUrl, withCors } from './cors.ts';
 
 // Mantido por compatibilidade com código que ainda importa `corsHeaders`
 // como objeto estático (sem Origin dinâmico) — usado só no preflight

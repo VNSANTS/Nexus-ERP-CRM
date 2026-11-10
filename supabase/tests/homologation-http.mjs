@@ -94,7 +94,19 @@ const inviteRedirect = 'http://127.0.0.1:8766/Nexus-ERP-CRM/estabelecimento/onbo
 const invited = good(await request('/auth/v1/invite?redirect_to=' + encodeURIComponent(inviteRedirect), {
   key: service, method: 'POST', body: { email: invitedEmail },
 }), 200, 'local Auth invitation');
-assert.ok(invited.id || invited.user?.id, 'local Auth invitation returned no user ID');
+const invitedUserId = invited.id || invited.user?.id;
+assert.ok(invitedUserId, 'local Auth invitation returned no user ID');
+const invitedEstablishmentId = randomUUID();
+await rest('establishments', {
+  id: invitedEstablishmentId, nome_completo: 'Synthetic Invitation Test',
+  apelido: 'invite-' + run, email: invitedEmail, cpf_cnpj: 'synthetic-invite-' + run,
+  status: 'ativo',
+});
+await rest('establishment_owners', {
+  id: invitedUserId, establishment_id: invitedEstablishmentId,
+  nome_completo: 'Synthetic Invited Owner', email: invitedEmail,
+  telefone: 'synthetic-' + run, cpf_cnpj: 'synthetic-invite-' + run,
+});
 console.log('PASS local Auth admin creation, password login and two synthetic tenants');
 
 const menuA = good(await edge({ action: 'menu', establishmentId: tenantA }), 200, 'menu A');

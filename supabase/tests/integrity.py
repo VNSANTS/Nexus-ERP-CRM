@@ -102,6 +102,35 @@ with connection() as db:
         '20261106184508_atomic_order_transitions_and_inventory.sql',
     ):
         db.execute((ROOT / 'supabase/migrations' / name).read_text())
+    # Verify effective sequence ACLs, not only the grant statements in migrations.
+    # PUBLIC is represented by grantee OID 0 in the expanded ACL; it is not a
+    # regular role accepted by has_sequence_privilege().
+    sequences = db.execute("""
+        SELECT format('%I.%I', n.nspname, c.relname)
+        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relkind = 'S'
+        ORDER BY 1
+    """).fetchall()
+    assert sequences, 'Expected the synthetic identity sequence in public'
+    for (sequence_name,) in sequences:
+        public_acl = scalar("""
+            SELECT COALESCE(bool_or(grantee = 0 AND privilege_type IN ('USAGE','SELECT','UPDATE')), false)
+            FROM pg_class c
+            CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('S', c.relowner))) acl
+            WHERE c.oid = %s::regclass
+        """, (sequence_name,))
+        assert not public_acl, f'PUBLIC has an effective ACL entry on {sequence_name}'
+        for role in ('anon', 'authenticated'):
+            for privilege in ('USAGE', 'SELECT', 'UPDATE'):
+                allowed = scalar('SELECT has_sequence_privilege(%s, %s::regclass, %s)',
+                                 (role, sequence_name, privilege))
+                assert not allowed, f'{role} unexpectedly has {privilege} on {sequence_name}'
+        for privilege in ('USAGE', 'SELECT', 'UPDATE'):
+            allowed = scalar('SELECT has_sequence_privilege(%s, %s::regclass, %s)',
+                             ('service_role', sequence_name, privilege))
+            assert allowed, f'service_role lacks {privilege} on {sequence_name}'
+    print(f'PASS effective sequence ACLs: PUBLIC/anon/authenticated denied; service_role granted ({len(sequences)} sequence(s))')
+
     db.execute('INSERT INTO establishments VALUES (%s,\'ativo\'),(%s,\'ativo\')', (A, B))
     for store in (A, B):
         db.execute("INSERT INTO products(id,establishment_id,name,price) VALUES ('last-unit',%s,'Synthetic product',10)", (store,))

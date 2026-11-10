@@ -123,7 +123,7 @@ with sync_playwright() as pw:
     recovery_page.route('**/*', local_only_route)
     recovery_page.goto(BASE + '/nxs', wait_until='domcontentloaded')
     expect(recovery_page.get_by_role('heading', name='Acesso restrito')).to_be_visible(timeout=15000)
-    recovery_page.get_by_role('textbox').fill('admin.synthetic@example.test')
+    recovery_page.locator('input[type="email"]').fill('admin.synthetic@example.test')
     recovery_page.get_by_role('button', name='Esqueci minha senha').click()
     expect(recovery_page.get_by_text(re.compile('Se o e-mail estiver cadastrado'))).to_be_visible(timeout=10000)
     assert len(recovery_requests) == 1, recovery_requests

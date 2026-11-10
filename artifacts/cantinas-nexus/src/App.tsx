@@ -136,7 +136,7 @@ function App() {
                   <Router />
                 </Suspense>
               </WouterRouter>
-              <Toaster position="top-center" />
+              <Toaster position="top-center" toastOptions={{ className: 'pointer-events-none' }} />
             </OwnerAuthProvider>
           </AdminAuthProvider>
         </CustomerAuthProvider>

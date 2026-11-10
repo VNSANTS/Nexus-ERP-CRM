@@ -66,6 +66,16 @@ async function person(label) {
 }
 
 await waitForEdge();
+// This function is a public login entry point (verify_jwt=false in the live
+// project). A random nonexistent username must reach its handler without a
+// user JWT; a gateway-level 401 indicates the local config drifted.
+const employeeLoginProbe = await request('/functions/v1/cozinha-login', {
+  method: 'POST', body: { username: 'missing-' + randomUUID(), password: 'Synthetic-Invalid-Only' },
+});
+good(employeeLoginProbe, 404, 'public employee login reaches local handler without user JWT');
+assert.equal(employeeLoginProbe.data?.code, 'not_employee');
+console.log('PASS employee login function keeps verify_jwt=false and rejects synthetic unknown username');
+
 const tenantA = randomUUID();
 const tenantB = randomUUID();
 const [a, b] = await Promise.all([person('a'), person('b')]);

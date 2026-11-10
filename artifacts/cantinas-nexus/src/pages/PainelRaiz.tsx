@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { Building2, Users, Clock3, ShieldCheck, RefreshCw, LogOut, KeyRound } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAdminAuth } from '../lib/admin-auth';
-import { isValidCpfCnpj, formatCpfCnpj, isValidCep, formatCep, lookupCep } from '../lib/validators';
+import { isValidCpfCnpj, formatCpfCnpj, isValidCep, formatCep, isValidEmail, lookupCep } from '../lib/validators';
 import { AcessosPlataforma } from './AcessosPlataforma';
 import { PasswordField } from '../components/PasswordField';
 
@@ -103,6 +103,7 @@ function AdminLogin({ deniedAccess }: { deniedAccess: boolean }) {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [recoverySubmitting, setRecoverySubmitting] = useState(false);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -121,6 +122,31 @@ function AdminLogin({ deniedAccess }: { deniedAccess: boolean }) {
       toast.error('Erro inesperado ao entrar.');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handlePasswordRecovery() {
+    const emailNorm = email.trim().toLowerCase();
+    if (!isValidEmail(emailNorm)) {
+      toast.error('Digite um e-mail válido para receber o link de redefinição.');
+      return;
+    }
+
+    setRecoverySubmitting(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(emailNorm, {
+        redirectTo: new URL(import.meta.env.BASE_URL, window.location.origin).toString(),
+      });
+      if (error) {
+        toast.error('Não foi possível enviar o link. Tente novamente em alguns minutos.');
+        return;
+      }
+      toast.success('Se o e-mail estiver cadastrado, enviaremos um link para redefinir a senha.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro inesperado ao solicitar a redefinição de senha.');
+    } finally {
+      setRecoverySubmitting(false);
     }
   }
 
@@ -163,6 +189,16 @@ function AdminLogin({ deniedAccess }: { deniedAccess: boolean }) {
             {submitting ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
+        <div className="mt-3 text-right">
+          <button
+            type="button"
+            onClick={() => void handlePasswordRecovery()}
+            disabled={recoverySubmitting}
+            className="text-sm font-medium text-neutral-700 underline decoration-neutral-300 underline-offset-4 hover:text-neutral-950 disabled:opacity-60"
+          >
+            {recoverySubmitting ? 'Enviando link...' : 'Esqueci minha senha'}
+          </button>
+        </div>
       </div>
     </div>
   );

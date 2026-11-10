@@ -6,7 +6,7 @@ from pathlib import Path
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from playwright.sync_api import sync_playwright, expect
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 import json
 import os
@@ -23,6 +23,7 @@ root = Path('artifacts/cantinas-nexus/dist/public').resolve()
 assert (root / 'index.html').is_file()
 BASE = 'http://127.0.0.1:8766/Nexus-ERP-CRM'
 errors = []
+recovery_requests = []
 
 # Serve a real loopback origin: a route.fulfill() page has no actual local
 # network endpoint, so modern Chromium can classify it as public and deny
@@ -58,6 +59,12 @@ def local_only_route(route):
     if parsed.hostname == '127.0.0.1' and parsed.port == 8766:
         return route.continue_()
     if parsed.hostname in ('localhost', '127.0.0.1') and parsed.port == 54321:
+        if parsed.path == '/auth/v1/recover' and route.request.method == 'POST':
+            recovery_requests.append({
+                'url': route.request.url,
+                'body': json.loads(route.request.post_data or '{}'),
+            })
+            return route.fulfill(status=200, content_type='application/json', body='{}')
         return route.continue_()
     # Never fetch remote fonts: deterministic, network-isolated typography fallback.
     if parsed.hostname == 'fonts.googleapis.com':
@@ -110,6 +117,20 @@ with sync_playwright() as pw:
     expect(page.get_by_text(new_order['code'], exact=True)).to_be_visible(timeout=15000)
     assert not errors, errors
     print('PASS REAL CHROME -> FRONTEND -> EDGE -> POSTGRES CHECKOUT', flush=True)
+
+    # Verify admin recovery UX against local Auth without sending email.
+    recovery_page = browser.new_page(viewport={'width': 390, 'height': 844}, reduced_motion='reduce')
+    recovery_page.route('**/*', local_only_route)
+    recovery_page.goto(BASE + '/nxs', wait_until='domcontentloaded')
+    expect(recovery_page.get_by_role('heading', name='Acesso restrito')).to_be_visible(timeout=15000)
+    recovery_page.get_by_role('textbox').fill('admin.synthetic@example.test')
+    recovery_page.get_by_role('button', name='Esqueci minha senha').click()
+    expect(recovery_page.get_by_text(re.compile('Se o e-mail estiver cadastrado'))).to_be_visible(timeout=10000)
+    assert len(recovery_requests) == 1, recovery_requests
+    assert recovery_requests[0]['body']['email'] == 'admin.synthetic@example.test'
+    redirect_to = parse_qs(urlparse(recovery_requests[0]['url']).query).get('redirect_to')
+    assert redirect_to == [BASE + '/'], redirect_to
+    print('PASS /nxs password recovery uses local Auth and the current app base URL', flush=True)
     browser.close()
 
 assert edge('advance', id=new_order['id'], expectedStatus='recebido')['status'] == 'preparo'

@@ -77,8 +77,9 @@ The first Cloudflare deployment failed because its build command tried to reinst
 
 ## V1.0 publication checklist (status at 2026-11-10)
 
-- [x] Frontend build, layout/responsive menu, browser checkout smoke and Cloudflare staging routes/headers pass on `e5802bb`; staging stays `noindex`.
-- [ ] Synthetic local Auth browser flow is extended to cover `/nxs` admin login and authorization, local Mailpit password-recovery link/callback/password update, and invited-user link/callback/onboarding password. Mark complete only after the new disposable CI run passes. It uses `.invalid` synthetic addresses and never delivers externally.
+- [x] Frontend build, layout/responsive menu, browser checkout smoke and Cloudflare staging routes/headers pass on the deployed frontend commit `e5802bb`; staging stays `noindex`.
+- [x] Synthetic local Auth browser flow covers `/nxs` admin login and authorization, local Mailpit password-recovery link/callback/password update, and invited-user link/callback/onboarding password. [Disposable Supabase CI #55](https://github.com/VNSANTS/Nexus-ERP-CRM/actions/runs/42906177458) passed against synthetic `.invalid` accounts; emails were captured locally and never delivered externally.
+- [x] [Backend integrity #64](https://github.com/VNSANTS/Nexus-ERP-CRM/actions/runs/42906177562) passed (Postgres integrity, CORS and Edge Function typecheck); [Cloudflare staging smoke #48](https://github.com/VNSANTS/Nexus-ERP-CRM/actions/runs/42906177646) passed with a synthetic backend.
 - [x] Preserve GitHub Pages, keep PR #11 Draft/unmerged, and keep the production Supabase endpoint out of authenticated tests.
 - [ ] Reconcile migration history and finish isolated real-backup restore validation. Current evidence is partial and `pg_cron`, `pg_net`, and `supabase_vault` remain unrestored; synthetic Postgres 17 CI is not a restore proof. The pending atomic order/inventory migration passed only against the reviewed synthetic schema.
 - [ ] Obtain the owner's explicit recovery-risk decision before requesting a separate authorization to apply the pending production migration. After approval, capture pre-migration state, apply once, confirm history/functions/grants/RLS/sequences/tenant isolation, then deploy matching Edge Functions preserving each `verify_jwt` setting.

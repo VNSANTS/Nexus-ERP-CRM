@@ -40,6 +40,9 @@ jobs:
           mkdir -p "$QA_WORKDIR/supabase/migrations"
           cp supabase/config.toml "$QA_WORKDIR/supabase/config.toml"
           sed -i 's/project_id = "Nexus-ERP-CRM"/project_id = "nexus-v1-disposable-ci"/' "$QA_WORKDIR/supabase/config.toml"
+          # Exact callback URLs are confined to this disposable loopback app.
+          sed -i 's|site_url = "http://127.0.0.1:3000"|site_url = "http://127.0.0.1:8766/Nexus-ERP-CRM/"|' "$QA_WORKDIR/supabase/config.toml"
+          sed -i 's|additional_redirect_urls = \["https://127.0.0.1:3000"\]|additional_redirect_urls = ["http://127.0.0.1:8766/Nexus-ERP-CRM/", "http://127.0.0.1:8766/Nexus-ERP-CRM/estabelecimento/onboarding"]|' "$QA_WORKDIR/supabase/config.toml"
           cp -R supabase/functions "$QA_WORKDIR/supabase/functions"
           # Fail closed if the reviewed schema snapshot changes without re-audit.
           test "$(git hash-object supabase/tests/fixtures/current_public_schema.sql)" = "5323db9390515039ea9e5c2868b898e1cf08bf1b"

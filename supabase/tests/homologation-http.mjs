@@ -62,7 +62,7 @@ async function person(label) {
     method: 'POST', body: { email, password },
   }), 200, 'local Auth password login ' + label);
   assert.ok(session.access_token && session.access_token !== anon);
-  return { id: user.id, token: session.access_token };
+  return { id: user.id, token: session.access_token, email, password };
 }
 
 await waitForEdge();
@@ -87,6 +87,14 @@ for (const [label, tenant, employee] of [['a', tenantA, a], ['b', tenantB, b]]) 
   });
   await rest('stock', { establishment_id: tenant, product_id: productId, name: 'Test item', quantidade: 5 });
 }
+const admin = await person('platform-admin');
+await rest('platform_admins', { id: admin.id, nome: 'Synthetic Platform Admin', is_super_admin: true });
+const invitedEmail = 'v1-ci-' + run + '-invite@example.invalid';
+const inviteRedirect = 'http://127.0.0.1:8766/Nexus-ERP-CRM/estabelecimento/onboarding';
+const invited = good(await request('/auth/v1/invite?redirect_to=' + encodeURIComponent(inviteRedirect), {
+  key: service, method: 'POST', body: { email: invitedEmail },
+}), 200, 'local Auth invitation');
+assert.ok(invited.id || invited.user?.id, 'local Auth invitation returned no user ID');
 console.log('PASS local Auth admin creation, password login and two synthetic tenants');
 
 const menuA = good(await edge({ action: 'menu', establishmentId: tenantA }), 200, 'menu A');
@@ -144,5 +152,7 @@ if (process.env.NEXUS_E2E_OUTPUT) {
   // Ephemeral CI artifact only, never stored or uploaded to the repository.
   writeFileSync(process.env.NEXUS_E2E_OUTPUT, JSON.stringify({
     tenantA, employeeTokenA: a.token, alreadyCreatedOrderId: created.id,
+    adminEmail: admin.email, adminPassword: admin.password,
+    invitedEmail, inviteRedirect,
   }), { mode: 0o600 });
 }

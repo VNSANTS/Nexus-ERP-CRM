@@ -75,6 +75,18 @@ The first Cloudflare deployment failed because its build command tried to reinst
 - The new API key model and the `verify_jwt` compatibility must be checked against current Supabase documentation before changing function settings: do not assume an API key alone establishes user authentication.
 - Keep costs at R$0 and do not enable any paid service.
 
+## V1.0 publication checklist (status at 2026-11-10)
+
+- [x] Frontend build, layout/responsive menu, browser checkout smoke and Cloudflare staging routes/headers pass on `e5802bb`; staging stays `noindex`.
+- [ ] Synthetic local Auth browser flow is extended to cover `/nxs` admin login and authorization, local Mailpit password-recovery link/callback/password update, and invited-user link/callback/onboarding password. Mark complete only after the new disposable CI run passes. It uses `.invalid` synthetic addresses and never delivers externally.
+- [x] Preserve GitHub Pages, keep PR #11 Draft/unmerged, and keep the production Supabase endpoint out of authenticated tests.
+- [ ] Reconcile migration history and finish isolated real-backup restore validation. Current evidence is partial and `pg_cron`, `pg_net`, and `supabase_vault` remain unrestored; synthetic Postgres 17 CI is not a restore proof. The pending atomic order/inventory migration passed only against the reviewed synthetic schema.
+- [ ] Obtain the owner's explicit recovery-risk decision before requesting a separate authorization to apply the pending production migration. After approval, capture pre-migration state, apply once, confirm history/functions/grants/RLS/sequences/tenant isolation, then deploy matching Edge Functions preserving each `verify_jwt` setting.
+- [ ] Review production Auth Site URL and exact redirect allowlist in Supabase: active Pages callback `/Nexus-ERP-CRM/`, Cloudflare callback `/`, and owner onboarding callbacks `/Nexus-ERP-CRM/estabelecimento/onboarding` or `/estabelecimento/onboarding` only while those hosts are active. Keep the current canonical Site URL until the production hostname is chosen. Configure and test real SMTP separately; local CI uses Mailpit only.
+- [ ] Approve final hostname, Cloudflare Pages custom-domain attachment, DNS record/TTL and certificate status. Add that exact HTTPS origin to the shared Edge Function CORS allowlist and Auth redirect allowlist before cutover; verify routes, login, invite/recovery, CORS preflight and security headers on the selected host.
+- [ ] Rollback readiness: retain Pages and its known-good release; retain the previous Cloudflare deployment and DNS values/TTL. Roll back frontend/DNS first if needed. SQL rollback is a reviewed forward corrective migration based on the saved prior function definition; do not overwrite live data with a backup as automatic rollback.
+- [ ] Perform cutover only after all technical gates and separate explicit authorizations for production SQL, Edge Functions, Auth settings and DNS/canonical hostname. Keep Pages available until Cloudflare is verified and retirement is separately authorized.
+
 Official references:
 - https://developers.cloudflare.com/pages/configuration/serving-pages/
 - https://developers.cloudflare.com/pages/configuration/git-integration/

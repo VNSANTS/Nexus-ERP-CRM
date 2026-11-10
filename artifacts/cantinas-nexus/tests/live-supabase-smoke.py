@@ -3,6 +3,7 @@ No production credentials or hosts are ever contacted. GitHub Pages assets are f
 This avoids Chrome public-origin to loopback restrictions without hitting production.
 """
 from pathlib import Path
+from html import unescape
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from playwright.sync_api import sync_playwright, expect
@@ -23,7 +24,7 @@ root = Path('artifacts/cantinas-nexus/dist/public').resolve()
 assert (root / 'index.html').is_file()
 BASE = 'http://127.0.0.1:8766/Nexus-ERP-CRM'
 errors = []
-recovery_requests = []
+MAIL = 'http://127.0.0.1:54324'
 
 # Serve a real loopback origin: a route.fulfill() page has no actual local
 # network endpoint, so modern Chromium can classify it as public and deny
@@ -59,12 +60,8 @@ def local_only_route(route):
     if parsed.hostname == '127.0.0.1' and parsed.port == 8766:
         return route.continue_()
     if parsed.hostname in ('localhost', '127.0.0.1') and parsed.port == 54321:
-        if parsed.path == '/auth/v1/recover' and route.request.method == 'POST':
-            recovery_requests.append({
-                'url': route.request.url,
-                'body': json.loads(route.request.post_data or '{}'),
-            })
-            return route.fulfill(status=200, content_type='application/json', body='{}')
+        return route.continue_()
+    if parsed.hostname in ('localhost', '127.0.0.1') and parsed.port == 54324:
         return route.continue_()
     # Never fetch remote fonts: deterministic, network-isolated typography fallback.
     if parsed.hostname == 'fonts.googleapis.com':
@@ -73,6 +70,40 @@ def local_only_route(route):
         return route.abort()
     errors.append('Blocked unexpected remote request: ' + route.request.url)
     return route.abort()
+
+
+def local_mail_link(recipient, timeout=30):
+    """Read only the disposable local Mailpit inbox and return its Auth verify URL."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        req = Request(MAIL + '/api/v1/messages?limit=50')
+        with urlopen(req, timeout=5) as response:
+            messages = json.load(response).get('messages', [])
+        match = next((message for message in messages if recipient.lower() in json.dumps(message).lower()), None)
+        if match:
+            message_id = match.get('ID') or match.get('id')
+            assert message_id, 'Mailpit message has no ID'
+            with urlopen(Request(MAIL + '/api/v1/message/' + message_id), timeout=5) as response:
+                detail = json.load(response)
+            body = unescape(json.dumps(detail))
+            links = re.findall(r'https?://[^\s"<>\\]+', body)
+            verify = next((link.rstrip('),.;') for link in links if '/auth/v1/verify?' in link), None)
+            if verify:
+                assert urlparse(verify).hostname in ('127.0.0.1', 'localhost')
+                assert urlparse(verify).port == 54321
+                return verify
+        time.sleep(0.5)
+    raise AssertionError('No local Auth email/verify link arrived in Mailpit for synthetic recipient')
+
+
+def local_password_login(email, password):
+    payload = json.dumps({'email': email, 'password': password}).encode()
+    req = Request(API + '/auth/v1/token?grant_type=password', data=payload, headers={
+        'apikey': ANON, 'Content-Type': 'application/json',
+    }, method='POST')
+    with urlopen(req, timeout=10) as response:
+        session = json.load(response)
+    assert session.get('access_token'), 'Auth local password login did not return a session'
 
 
 with sync_playwright() as pw:
@@ -118,19 +149,49 @@ with sync_playwright() as pw:
     assert not errors, errors
     print('PASS REAL CHROME -> FRONTEND -> EDGE -> POSTGRES CHECKOUT', flush=True)
 
-    # Verify admin recovery UX against local Auth without sending email.
+    # Exercise /nxs login, the real local recovery email, its callback, and password update.
     recovery_page = browser.new_page(viewport={'width': 390, 'height': 844}, reduced_motion='reduce')
     recovery_page.route('**/*', local_only_route)
     recovery_page.goto(BASE + '/nxs', wait_until='domcontentloaded')
     expect(recovery_page.get_by_role('heading', name='Acesso restrito')).to_be_visible(timeout=15000)
-    recovery_page.locator('input[type="email"]').fill('admin.synthetic@example.test')
+    recovery_page.locator('input[type="email"]').fill(fixture['adminEmail'])
+    recovery_page.locator('input[type="password"]').fill(fixture['adminPassword'])
+    recovery_page.get_by_role('button', name='Entrar', exact=True).click()
+    expect(recovery_page.get_by_role('heading', name='Solicitações recentes')).to_be_visible(timeout=20000)
+    recovery_page.get_by_role('button', name='Sair', exact=True).click()
+    expect(recovery_page.get_by_role('heading', name='Acesso restrito')).to_be_visible(timeout=15000)
+    recovery_page.locator('input[type="email"]').fill(fixture['adminEmail'])
     recovery_page.get_by_role('button', name='Esqueci minha senha').click()
     expect(recovery_page.get_by_text(re.compile('Se o e-mail estiver cadastrado'))).to_be_visible(timeout=10000)
-    assert len(recovery_requests) == 1, recovery_requests
-    assert recovery_requests[0]['body']['email'] == 'admin.synthetic@example.test'
-    redirect_to = parse_qs(urlparse(recovery_requests[0]['url']).query).get('redirect_to')
-    assert redirect_to == [BASE + '/'], redirect_to
-    print('PASS /nxs password recovery uses local Auth and the current app base URL', flush=True)
+    recovery_link = local_mail_link(fixture['adminEmail'])
+    recovery_redirect = parse_qs(urlparse(recovery_link).query).get('redirect_to')
+    assert recovery_redirect == [BASE + '/'], recovery_redirect
+    recovery_page.goto(recovery_link, wait_until='domcontentloaded')
+    expect(recovery_page.get_by_role('heading', name='Redefinir senha')).to_be_visible(timeout=20000)
+    changed_password = 'LocalReset-' + os.urandom(10).hex() + '-A9!'
+    password_fields = recovery_page.locator('input[type="password"]')
+    password_fields.nth(0).fill(changed_password)
+    password_fields.nth(1).fill(changed_password)
+    recovery_page.get_by_role('button', name='Salvar nova senha', exact=True).click()
+    expect(recovery_page.get_by_text('Senha atualizada. Faça login com a nova senha.')).to_be_visible(timeout=15000)
+    local_password_login(fixture['adminEmail'], changed_password)
+    print('PASS /nxs synthetic admin login, local recovery email/callback and password change', flush=True)
+
+    # Exercise the real invitation email, callback routing, onboarding password form,
+    # and resulting local Auth credentials; no SMTP leaves this disposable stack.
+    invite_link = local_mail_link(fixture['invitedEmail'])
+    invite_redirect = parse_qs(urlparse(invite_link).query).get('redirect_to')
+    assert invite_redirect == [fixture['inviteRedirect']], invite_redirect
+    recovery_page.goto(invite_link, wait_until='domcontentloaded')
+    expect(recovery_page.get_by_role('heading', name='Conclua seu cadastro')).to_be_visible(timeout=20000)
+    invite_password = 'LocalInvite-' + os.urandom(10).hex() + '-B7!'
+    password_fields = recovery_page.locator('input[type="password"]')
+    password_fields.nth(0).fill(invite_password)
+    password_fields.nth(1).fill(invite_password)
+    recovery_page.get_by_role('button', name='Definir senha e continuar', exact=True).click()
+    expect(recovery_page.get_by_text('Senha definida. Vamos configurar seu estabelecimento.')).to_be_visible(timeout=15000)
+    local_password_login(fixture['invitedEmail'], invite_password)
+    print('PASS local invitation email/callback, onboarding password and Auth login', flush=True)
     browser.close()
 
 assert edge('advance', id=new_order['id'], expectedStatus='recebido')['status'] == 'preparo'

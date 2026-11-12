@@ -237,7 +237,10 @@ const cashierDenied = await fn('pedidos', {
 assert.equal(cashierDenied.status, 403, 'kitchen-only profile must not create cashier orders');
 for (const paymentMethod of ['dinheiro', 'pix', 'credito', 'debito']) {
   const manualOrder = good(await fn('pedidos', {
-    action: 'manual', items: [{ productId: menuA.products[0].id, qty: 1 }],
+    action: 'manual', items: [{
+      productId: menuA.products[0].id, qty: 1,
+      variantId: variant.id, modifierIds: [modifier.id],
+    }],
     paymentMethod, idempotencyKey: randomUUID(),
   }, a.token), 201, 'manual in-person order ' + paymentMethod);
   const manualTx = good(await request(

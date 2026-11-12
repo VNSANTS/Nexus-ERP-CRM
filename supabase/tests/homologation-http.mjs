@@ -190,6 +190,15 @@ const customizedOrder = good(await edge({
   paymentMethod: 'pix', idempotencyKey: randomUUID(),
 }), 201, 'checkout with variant and modifier');
 assert.equal(Number(customizedOrder.total), 17, 'checkout total must include base, variant and modifier prices');
+const invalidOrderTransition = await edge({ action: 'set-status', id: customizedOrder.id, status: 'retirado' }, a.token);
+assert.equal(invalidOrderTransition.status, 409, 'order cannot skip kitchen states');
+const canceledPendingOrder = good(await edge({ action: 'set-status', id: customizedOrder.id, status: 'cancelado' }, a.token), 200, 'cancel pending synthetic order');
+assert.equal(canceledPendingOrder.status, 'cancelado');
+const canceledPendingTransactions = good(await request(
+  '/rest/v1/transactions?select=status&order_id=eq.' + encodeURIComponent(customizedOrder.id),
+  { key: service },
+), 200, 'verify canceled pending payment');
+assert.equal(canceledPendingTransactions[0].status, 'cancelado');
 console.log('PASS inactive menu filtering, variant/modifier selection and calculated order total');
 
 const listA = good(await edge({ action: 'list' }, a.token), 200, 'list A');
@@ -251,6 +260,16 @@ for (const paymentMethod of ['dinheiro', 'pix', 'credito', 'debito']) {
   assert.equal(manualTx[0].method, paymentMethod);
   assert.equal(manualTx[0].status, 'confirmado');
 }
+const canceledPaidOrder = good(await fn('pedidos', {
+  action: 'manual', items: [{ productId: menuA.products[0].id, qty: 1, variantId: variant.id, modifierIds: [modifier.id] }],
+  paymentMethod: 'dinheiro', idempotencyKey: randomUUID(),
+}, a.token), 201, 'create paid order for cancellation test');
+good(await edge({ action: 'set-status', id: canceledPaidOrder.id, status: 'cancelado' }, a.token), 200, 'cancel confirmed synthetic payment');
+const reversedTransactions = good(await request(
+  '/rest/v1/transactions?select=status&order_id=eq.' + encodeURIComponent(canceledPaidOrder.id),
+  { key: service },
+), 200, 'verify canceled confirmed payment');
+assert.equal(reversedTransactions[0].status, 'estornado', 'confirmed payment must be reversed on cancellation');
 console.log('PASS cashier-only payment confirmation, duplicate prevention and amount integrity');
 
 // Inventory operations use the atomic RPC; overspending and cross-tenant
@@ -266,6 +285,8 @@ const movedOut = await fn('estoque', { action: 'waste', productId: menuA.product
 good(movedOut, 201, 'inventory waste');
 const excessiveWaste = await fn('estoque', { action: 'waste', productId: menuA.products[0].id, quantidade: 999, motivo: 'CI insufficient stock' }, a.token);
 assert.equal(excessiveWaste.status, 409, 'insufficient stock must be rejected');
+const inventoryDenied = await fn('estoque', { action: 'entry', productId: menuA.products[0].id, quantidade: 1, motivo: 'CI permission denial' }, kitchenOnly.token);
+assert.equal(inventoryDenied.status, 403, 'profile without inventory access must be denied');
 const foreignStock = await fn('estoque', { action: 'entry', productId: menuB.products[0].id, quantidade: 1, motivo: 'CI cross-tenant' }, a.token);
 assert.equal(foreignStock.status, 404, 'cross-tenant stock movement must be hidden');
 const remainingStock = good(await request(
@@ -291,7 +312,12 @@ assert.ok([200, 401, 403].includes(noDirectB.status));
 if (noDirectB.status === 200) assert.deepEqual(noDirectB.data, []);
 console.log('PASS RLS/data API do not expose orders to anon or foreign employee');
 
-good(await edge({ action: 'advance', id: created.id, expectedStatus: 'recebido' }, a.token), 200, 'advance to preparo');
+const concurrentAdvances = await Promise.all([
+  edge({ action: 'advance', id: created.id, expectedStatus: 'recebido' }, a.token),
+  edge({ action: 'advance', id: created.id, expectedStatus: 'recebido' }, a.token),
+]);
+assert.ok(concurrentAdvances.every((response) => response.status === 200));
+assert.ok(concurrentAdvances.every((response) => response.data.status === 'preparo'), 'concurrent advance must apply exactly one state transition');
 good(await edge({ action: 'advance', id: created.id, expectedStatus: 'preparo' }, a.token), 200, 'advance to pronto');
 good(await edge({ action: 'confirm-pickup', code: created.code }, b.token), 404, 'cross-store pickup');
 const pickup = good(await edge({ action: 'confirm-pickup', code: created.code }, a.token), 200, 'pickup A');

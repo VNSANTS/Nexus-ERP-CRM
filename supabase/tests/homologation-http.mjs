@@ -271,8 +271,9 @@ const remainingStock = good(await request(
 ), 200, 'read balance before concurrent waste');
 const available = remainingStock[0].quantidade;
 assert.ok(available > 0);
+const concurrentWasteQuantity = Math.max(1, available - 2); // Preserve a small balance for the browser E2E that follows.
 const concurrentWaste = await Promise.all(Array.from({ length: 3 }, () => fn('estoque', {
-  action: 'waste', productId: menuA.products[0].id, quantidade: available,
+  action: 'waste', productId: menuA.products[0].id, quantidade: concurrentWasteQuantity,
   motivo: 'CI concurrent atomicity',
 }, a.token)));
 assert.equal(concurrentWaste.filter((response) => response.status === 201).length, 1, 'only one concurrent full-balance waste may succeed');

@@ -121,6 +121,7 @@ with sync_playwright() as pw:
         "sessionStorage.setItem('nexus:establishmentId'," +
         json.dumps(fixture['tenantA']) + ");"
     )
+    existing_order_ids = {order['id'] for order in edge('list')}
     page.goto(BASE + '/cardapio-tablet', wait_until='domcontentloaded')
     card = page.get_by_role('article', name='Test item a', exact=True)
     try:
@@ -131,6 +132,11 @@ with sync_playwright() as pw:
         print('BROWSER ERRORS:', json.dumps(errors[-24:], ensure_ascii=False), flush=True)
         raise
     card.get_by_role('button', name='Adicionar', exact=True).click()
+    # The HTTP fixture configures a required variant and modifier; exercise the
+    # real product customization flow before adding it to the cart.
+    page.get_by_text('Synthetic large', exact=True).click()
+    page.get_by_text('Synthetic topping', exact=True).click()
+    page.get_by_role('dialog').get_by_role('button', name='Adicionar', exact=True).click()
     page.get_by_role('button', name='Abrir carrinho', exact=True).click()
     page.get_by_role('button', name='Escolher Pagamento →', exact=True).click()
     page.get_by_role('button', name=re.compile('Dinheiro', re.I)).click()
@@ -138,13 +144,14 @@ with sync_playwright() as pw:
     new_order = None
     for _ in range(30):
         orders = edge('list')
-        new_order = next((o for o in orders if o['id'] != fixture['alreadyCreatedOrderId']), None)
+        new_order = next((o for o in orders if o['id'] not in existing_order_ids), None)
         if new_order:
             break
         time.sleep(0.5)
     assert new_order is not None, 'Checkout from real browser did not create an order'
     assert new_order['establishmentId'] == fixture['tenantA']
     assert new_order['status'] == 'recebido'
+    assert float(new_order['total']) == 17.0, 'Browser variant/modifier pricing was not included in checkout total'
     expect(page.get_by_text(new_order['code'], exact=True)).to_be_visible(timeout=15000)
     assert not errors, errors
     print('PASS REAL CHROME -> FRONTEND -> EDGE -> POSTGRES CHECKOUT', flush=True)

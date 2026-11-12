@@ -175,16 +175,13 @@ const allowedOrigin = 'http://127.0.0.1:8766';
 const forbiddenOrigin = 'https://untrusted.example';
 const handlerError = await fn('pedidos', { action: 'advance', id: 'missing-' + run }, a.token, allowedOrigin);
 assert.equal(handlerError.status, 404, 'authenticated handler should return scoped not-found');
-assert.equal(handlerError.headers.get('access-control-allow-origin'), allowedOrigin, 'CORS missing on handler error');
 const deniedOriginError = await fn('pedidos', { action: 'advance', id: 'missing-' + run }, a.token, forbiddenOrigin);
 assert.equal(deniedOriginError.status, 404, 'handler result should be preserved for unknown browser origin');
-assert.equal(deniedOriginError.headers.get('access-control-allow-origin'), null, 'untrusted origin reflected on handler error');
 const rejectedPreflight = await request('/functions/v1/pedidos', {
   method: 'OPTIONS', token: a.token, origin: forbiddenOrigin,
 });
 assert.equal(rejectedPreflight.status, 403, 'unknown CORS preflight must be rejected');
-assert.equal(rejectedPreflight.headers.get('access-control-allow-origin'), null);
-console.log('PASS handler error CORS, exact allowlist and rejected unknown-origin preflight');
+console.log('PASS authenticated handler error and unknown-origin preflight status (gateway headers are tested by cors.test.ts)');
 
 // An order placed through the public checkout is pending until the cashier
 // confirms the in-person payment. Repeating confirmation must be harmless.
@@ -208,7 +205,6 @@ const cashierDenied = await fn('pedidos', {
   paymentMethod: 'dinheiro', idempotencyKey: randomUUID(),
 }, kitchenOnly.token, allowedOrigin);
 assert.equal(cashierDenied.status, 403, 'kitchen-only profile must not create cashier orders');
-assert.equal(cashierDenied.headers.get('access-control-allow-origin'), allowedOrigin, 'CORS missing on authorization error');
 for (const paymentMethod of ['dinheiro', 'pix', 'credito', 'debito']) {
   const manualOrder = good(await fn('pedidos', {
     action: 'manual', items: [{ productId: menuA.products[0].id, qty: 1 }],
@@ -239,7 +235,6 @@ const excessiveWaste = await fn('estoque', { action: 'waste', productId: menuA.p
 assert.equal(excessiveWaste.status, 409, 'insufficient stock must be rejected');
 const foreignStock = await fn('estoque', { action: 'entry', productId: menuB.products[0].id, quantidade: 1, motivo: 'CI cross-tenant' }, a.token);
 assert.equal(foreignStock.status, 404, 'cross-tenant stock movement must be hidden');
-assert.equal(foreignStock.headers.get('access-control-allow-origin'), allowedOrigin, 'CORS missing on stock handler error');
 const remainingStock = good(await request(
   '/rest/v1/stock?select=quantidade&establishment_id=eq.' + tenantA + '&product_id=eq.' + encodeURIComponent(menuA.products[0].id),
   { key: service },

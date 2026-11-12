@@ -100,7 +100,7 @@ for (const [label, tenant, employee] of [['a', tenantA, a], ['b', tenantB, b]]) 
     id: productId, establishment_id: tenant, name: 'Test item ' + label,
     price: 10, emoji: '🍞', categoria: 'lanche', disponivel: true,
   });
-  await rest('stock', { establishment_id: tenant, product_id: productId, name: 'Test item', quantidade: 5 });
+  await rest('stock', { establishment_id: tenant, product_id: productId, name: 'Test item', quantidade: 50 });
 }
 const kitchenOnly = await person('kitchen-only');
 await rest('employees', {
@@ -159,8 +159,38 @@ const afterCheckoutStock = good(await request(
   { key: service },
 ), 200, 'verify checkout stock deduction');
 assert.equal(afterCheckoutStock.length, 1);
-assert.equal(afterCheckoutStock[0].quantidade, 4, 'checkout must atomically deduct one item');
+assert.equal(afterCheckoutStock[0].quantidade, 49, 'checkout must atomically deduct one item');
 console.log('PASS checkout rejects foreign product and deduplicates public retries');
+
+const inactiveProductId = 'ci-inactive-' + run;
+await rest('products', {
+  id: inactiveProductId, establishment_id: tenantA, name: 'Synthetic inactive item',
+  price: 50, emoji: 'x', categoria: 'lanche', disponivel: false,
+});
+const variant = await rest('product_variants', {
+  establishment_id: tenantA, product_id: menuA.products[0].id,
+  name: 'Synthetic large', price_delta: 5, active: true,
+});
+const modifierGroup = await rest('product_modifier_groups', {
+  establishment_id: tenantA, product_id: menuA.products[0].id,
+  name: 'Synthetic extras', required: true, min_select: 1, max_select: 1, active: true,
+});
+const modifier = await rest('product_modifiers', {
+  establishment_id: tenantA, product_id: menuA.products[0].id,
+  group_id: modifierGroup.id, name: 'Synthetic topping', price_delta: 2, active: true,
+});
+const configuredMenu = good(await edge({ action: 'menu', establishmentId: tenantA }), 200, 'menu with variants and modifiers');
+assert.ok(!configuredMenu.products.some((product) => product.id === inactiveProductId), 'inactive product must not appear in public menu');
+const configuredProduct = configuredMenu.products.find((product) => product.id === menuA.products[0].id);
+assert.ok(configuredProduct?.variants?.some((item) => item.id === variant.id));
+assert.ok(configuredProduct?.modifierGroups?.some((group) => group.id === modifierGroup.id));
+const customizedOrder = good(await edge({
+  action: 'checkout', establishmentId: tenantA,
+  cartItems: [{ productId: menuA.products[0].id, qty: 1, variantId: variant.id, modifierIds: [modifier.id] }],
+  paymentMethod: 'pix', idempotencyKey: randomUUID(),
+}), 201, 'checkout with variant and modifier');
+assert.equal(Number(customizedOrder.total), 17, 'checkout total must include base, variant and modifier prices');
+console.log('PASS inactive menu filtering, variant/modifier selection and calculated order total');
 
 const listA = good(await edge({ action: 'list' }, a.token), 200, 'list A');
 const listB = good(await edge({ action: 'list' }, b.token), 200, 'list B');

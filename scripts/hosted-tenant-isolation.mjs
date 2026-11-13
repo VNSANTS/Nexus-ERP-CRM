@@ -7,7 +7,7 @@ const PROJECT_REF = "phckbsoygqdbkvuxgobr";
 const required = [
   "SUPABASE_URL", "SUPABASE_ANON_KEY",
   "QA_A_EMAIL", "QA_A_PASSWORD", "QA_B_EMAIL", "QA_B_PASSWORD",
-  "QA_A_PRODUCT_ID", "QA_A_ORDER_ID", "QA_A_STOCK_PRODUCT_ID",
+  "QA_A_PRODUCT_ID", "QA_B_PRODUCT_ID", "QA_A_ORDER_ID", "QA_A_STOCK_PRODUCT_ID",
 ];
 for (const name of required) {
   if (!process.env[name]) {

@@ -1,0 +1,39 @@
+name: Hosted tenant isolation (manual, synthetic QA only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hosted-tenant-isolation
+  cancel-in-progress: false
+
+jobs:
+  negative-http:
+    name: Authenticated cross-tenant write rejection
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    environment:
+      name: nexus-hosted-qa
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Syntax check
+        run: node --check scripts/hosted-tenant-isolation.mjs
+      - name: Run hosted QA probes
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          QA_A_EMAIL: ${{ secrets.QA_A_EMAIL }}
+          QA_A_PASSWORD: ${{ secrets.QA_A_PASSWORD }}
+          QA_B_EMAIL: ${{ secrets.QA_B_EMAIL }}
+          QA_B_PASSWORD: ${{ secrets.QA_B_PASSWORD }}
+          QA_A_PRODUCT_ID: ${{ secrets.QA_A_PRODUCT_ID }}
+          QA_A_ORDER_ID: ${{ secrets.QA_A_ORDER_ID }}
+          QA_A_STOCK_PRODUCT_ID: ${{ secrets.QA_A_STOCK_PRODUCT_ID }}
+          QA_B_PRODUCT_ID: ${{ secrets.QA_B_PRODUCT_ID }}
+        run: node scripts/hosted-tenant-isolation.mjs

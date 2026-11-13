@@ -21,6 +21,7 @@ if (base.protocol !== "https:" || base.hostname !== `${PROJECT_REF}.supabase.co`
   process.exit(2);
 }
 const anon = process.env.SUPABASE_ANON_KEY;
+let hadBlockedChecks = false;
 const output = (result, label) => {
   if (result === "PASS") console.log(`PASS ${label}`);
   else if (result === "BLOCKED") {
@@ -150,7 +151,7 @@ try {
   if (!stockA) throw new Error("Configured QA A stock fixture is missing.");
   const stocksB = await listStock(sessionB.token);
   if (stocksB.some((row) => row.product_id === stockA.product_id) ||
-      !(await listStock(sessionA.token)).some((row) => row.product_id === process.env.QA_B_PRODUCT_ID)) {
+      !stocksB.some((row) => row.product_id === process.env.QA_B_PRODUCT_ID)) {
     console.error("FAIL SECURITY: stock listing crossed tenant boundary or QA B stock fixture is missing; no further writes attempted.");
     process.exit(3);
   }

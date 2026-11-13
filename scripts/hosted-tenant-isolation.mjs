@@ -23,7 +23,10 @@ if (base.protocol !== "https:" || base.hostname !== `${PROJECT_REF}.supabase.co`
 const anon = process.env.SUPABASE_ANON_KEY;
 const output = (result, label) => {
   if (result === "PASS") console.log(`PASS ${label}`);
-  else if (result === "BLOCKED") console.log(`BLOCKED ${label}`);
+  else if (result === "BLOCKED") {
+    hadBlockedChecks = true;
+    console.log(`BLOCKED ${label}`);
+  }
 };
 async function json(response) {
   try { return await response.json(); } catch { return null; }

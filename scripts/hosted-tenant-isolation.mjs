@@ -22,11 +22,18 @@ if (base.protocol !== "https:" || base.hostname !== `${PROJECT_REF}.supabase.co`
 }
 const anon = process.env.SUPABASE_ANON_KEY;
 let hadBlockedChecks = false;
+class QaBlockedError extends Error {
+  constructor(message, kind = "BLOCKED_AUTH") {
+    super(message);
+    this.kind = kind;
+  }
+}
+class IsolationIntegrityError extends Error {}
 const output = (result, label) => {
-  if (result === "PASS") console.log(`PASS ${label}`);
-  else if (result === "BLOCKED") {
+  if (result === "PASS") console.log("PASS " + label);
+  else if (result.startsWith("BLOCKED")) {
     hadBlockedChecks = true;
-    console.log(`BLOCKED ${label}`);
+    console.log(result + " " + label);
   }
 };
 async function json(response) {
@@ -40,7 +47,7 @@ async function login(email, password) {
   });
   const payload = await json(response);
   if (!response.ok || !payload?.access_token || !payload?.user?.id) {
-    throw new Error(`Auth login failed (HTTP ${response.status}); no response body or credentials recorded.`);
+    throw new QaBlockedError("QA identity could not authenticate (HTTP " + response.status + "); response omitted.");
   }
   return { token: payload.access_token, userId: payload.user.id };
 }
@@ -57,12 +64,14 @@ async function fn(name, token, body) {
   return { status: response.status, payload: await json(response) };
 }
 function assertOk(result, label) {
-  if (result.status !== 200) throw new Error(`${label} could not be read (HTTP ${result.status}).`);
+  if (result.status === 401) throw new QaBlockedError(label + ": Auth session was rejected (HTTP 401).");
+  if (result.status === 403) throw new QaBlockedError(label + ": required module permission is missing (HTTP 403).", "BLOCKED_PERMISSION");
+  if (result.status !== 200) throw new Error(label + " read failed (HTTP " + result.status + "); response omitted.");
   return result.payload;
 }
 function sameFields(actual, expected, fields, label) {
   if (!actual || fields.some((field) => actual[field] !== expected[field])) {
-    throw new Error(`${label}: synthetic resource changed after cross-tenant request.`);
+    throw new IsolationIntegrityError(label + ": synthetic resource changed after cross-tenant request.");
   }
 }
 async function listProducts(token) {
@@ -79,14 +88,18 @@ async function listTransactions(token) {
 }
 async function negativeWrite({ label, request, expectedStatus, verify }) {
   const result = await request();
-  if (result.status === 200) {
+  if (result.status >= 200 && result.status < 300) {
     await verify();
     console.error(`FAIL SECURITY: ${label} accepted a cross-tenant write (HTTP 200). Further write probes stopped.`);
     process.exit(3);
   }
   await verify();
+  if (result.status === 401) {
+    output("BLOCKED_AUTH", label + ": QA B session was rejected (HTTP 401).");
+    return;
+  }
   if (result.status === 403) {
-    output("BLOCKED", `${label}: QA B lacks the required module permission (HTTP 403).`);
+    output("BLOCKED_PERMISSION", label + ": QA B lacks the required module permission (HTTP 403).");
     return;
   }
   if (result.status !== expectedStatus) {
@@ -112,7 +125,9 @@ try {
   if (!productA || !orderA || !Array.isArray(productsB) || !Array.isArray(ordersB)) {
     throw new Error("Configured QA A fixtures or required role access are missing.");
   }
-  if (productsB.some((row) => row.id === productA.id) || ordersB.some((row) => row.id === orderA.id)) {
+  if (productsB.some((row) => row.id === productA.id) ||
+      productsA.some((row) => row.id === productB.id) ||
+      ordersB.some((row) => row.id === orderA.id)) {
     console.error("FAIL SECURITY: another tenant's resource appeared in QA B list; no further writes attempted.");
     process.exit(3);
   }
@@ -147,12 +162,17 @@ try {
     },
   });
 
-  const stockA = (await listStock(sessionA.token)).find((row) => row.product_id === process.env.QA_A_STOCK_PRODUCT_ID);
+  const stocksA = await listStock(sessionA.token);
+  const stockA = stocksA.find((row) => row.product_id === process.env.QA_A_STOCK_PRODUCT_ID);
   if (!stockA) throw new Error("Configured QA A stock fixture is missing.");
   const stocksB = await listStock(sessionB.token);
-  if (stocksB.some((row) => row.product_id === stockA.product_id) ||
+  if (!stocksA.some((row) => row.product_id === process.env.QA_A_PRODUCT_ID) ||
       !stocksB.some((row) => row.product_id === process.env.QA_B_PRODUCT_ID)) {
-    console.error("FAIL SECURITY: stock listing crossed tenant boundary or QA B stock fixture is missing; no further writes attempted.");
+    throw new Error("Configured QA stock fixtures do not match the corresponding accounts.");
+  }
+  if (stocksB.some((row) => row.product_id === stockA.product_id) ||
+      stocksA.some((row) => row.product_id === process.env.QA_B_PRODUCT_ID)) {
+    console.error("FAIL SECURITY: stock listing crossed tenant boundary; no further writes attempted.");
     process.exit(3);
   }
   const stockSnapshot = { minimo: stockA.minimo, quantity: stockA.quantity, name: stockA.name };
@@ -186,10 +206,25 @@ try {
       },
     });
   }
-} catch (error) {
-  console.error(`FAIL: ${error instanceof Error ? error.message : "hosted QA test failed; details withheld"}`);
-  process.exitCode = 1;
+ } catch (error) {
+  if (error instanceof QaBlockedError) {
+    output(error.kind, error.message);
+    process.exitCode = 2;
+  } else if (error instanceof IsolationIntegrityError) {
+    console.error("FAIL SECURITY: " + error.message);
+    process.exitCode = 3;
+  } else {
+    console.error("FAIL TEST: " + (error instanceof Error ? error.message : "hosted QA test failed; details withheld"));
+    process.exitCode = 1;
+  }
 } finally {
   if (sessionA) sessionA.token = "";
   if (sessionB) sessionB.token = "";
+}
+
+if (hadBlockedChecks && process.exitCode === undefined) {
+  console.error("BLOCKED: hosted isolation verification incomplete; see blocked checks above.");
+  process.exitCode = 2;
+} else if (!hadBlockedChecks && process.exitCode === undefined) {
+  console.log("PASS all configured hosted isolation checks completed.");
 }

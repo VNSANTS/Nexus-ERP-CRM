@@ -319,7 +319,11 @@ Deno.serve((req: Request) => withCors(req, async () => {
       if (!id) return errorResponse('id é obrigatório.', 400);
       const { data, error } = await supabase
         .from('transactions')
-        .update({ status: 'confirmado' })
+        .update({
+          status: 'confirmado',
+          paid_at: new Date().toISOString(),
+          confirmed_by: caller.employeeId,
+        })
         .eq('establishment_id', caller.establishmentId)
         .eq('id', id)
         .eq('status', 'pendente')

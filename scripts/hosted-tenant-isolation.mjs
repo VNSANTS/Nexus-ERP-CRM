@@ -175,7 +175,7 @@ try {
     console.error("FAIL SECURITY: stock listing crossed tenant boundary; no further writes attempted.");
     process.exit(3);
   }
-  const stockSnapshot = { minimo: stockA.minimo, quantity: stockA.quantity, name: stockA.name, updated_at: stockA.updated_at };
+  const stockSnapshot = { minimo: stockA.minimo, quantidade: stockA.quantidade, name: stockA.name, updated_at: stockA.updated_at };
   await negativeWrite({
     label: "stock.set-minimo",
     request: () => fn("estoque", sessionB.token, {
@@ -184,7 +184,7 @@ try {
     expectedStatus: 404,
     verify: async () => {
       const current = (await listStock(sessionA.token)).find((row) => row.product_id === stockA.product_id);
-      sameFields(current, stockSnapshot, ["minimo", "quantity", "name", "updated_at"], "Stock");
+      sameFields(current, stockSnapshot, ["minimo", "quantidade", "name", "updated_at"], "Stock");
     },
   });
 

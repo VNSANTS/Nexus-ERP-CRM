@@ -14,10 +14,11 @@
 //   acessoCozinha, acessoCaixa, acessoAdm
 // }
 
+import { withCors } from '../_shared/helpers.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse } from '../_shared/helpers.ts';
 
-Deno.serve(async (req: Request) => {
+Deno.serve((req: Request) => withCors(req, async () => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const authHeader = req.headers.get('Authorization');
@@ -121,4 +122,4 @@ Deno.serve(async (req: Request) => {
     console.error(err);
     return errorResponse('Erro interno ao criar funcionário.', 500);
   }
-});
+}));

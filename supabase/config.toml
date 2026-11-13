@@ -4,6 +4,12 @@
 # working directory name when running `supabase init`.
 project_id = "Nexus-ERP-CRM"
 
+# Employee login is itself the authentication entry point; the function
+# validates credentials through Supabase Auth and applies IP/user rate limits.
+# Keep this explicit so local tests and future deploys preserve the live setting.
+[functions.cozinha-login]
+verify_jwt = false
+
 # Public login endpoint validates credentials internally and applies its own
 # IP rate limit; requests may carry a publishable key rather than a JWT.
 [functions.customer-login-lookup]

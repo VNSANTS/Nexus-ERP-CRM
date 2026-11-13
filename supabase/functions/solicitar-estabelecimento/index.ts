@@ -11,6 +11,7 @@
 // ele recebe um link por e-mail (Supabase Auth) para definir a própria
 // senha. Isso evita transitar/guardar senha em texto puro nesta function.
 
+import { getPublicAppUrl, withCors } from '../_shared/helpers.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse } from '../_shared/helpers.ts';
 import { getClientIp, checkRateLimit, verifyTurnstile } from '../_shared/security.ts';
@@ -92,7 +93,7 @@ async function domainReceivesEmail(domain: string): Promise<boolean> {
   }
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve((req: Request) => withCors(req, async () => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const ip = getClientIp(req);
@@ -228,7 +229,7 @@ Deno.serve(async (req: Request) => {
               (CEP ${escapeHtml(enderecoCep.trim())})</p>
             <p><strong>Prazo para decisão:</strong> 90 dias a partir de agora.</p>
             <p>ID da solicitação: ${escapeHtml(requestId)}</p>
-            <p><a href="https://vnsants.github.io/Nexus-ERP-CRM/painel-raiz">Abrir painel de aprovação</a></p>
+            <p><a href="${escapeHtml(getPublicAppUrl(req, 'nxs'))}">Abrir painel de aprovação</a></p>
           `,
         });
       } catch (emailErr) {
@@ -241,4 +242,4 @@ Deno.serve(async (req: Request) => {
     console.error(err);
     return errorResponse('Erro interno ao processar solicitação.', 500);
   }
-});
+}));

@@ -1,4 +1,5 @@
 ﻿import { adminClient, corsHeaders, errorResponse, jsonResponse } from '../_shared/helpers.ts';
+import { withCors } from '../_shared/helpers.ts';
 
 const ACCESS_FIELDS: Record<string, string> = {
   acessoCozinha: 'acesso_cozinha', acessoCaixa: 'acesso_caixa', acessoAdm: 'acesso_adm',
@@ -12,7 +13,7 @@ const OWNER_COLUMNS = 'id, establishment_id, nome_completo, email, acesso_cozinh
 function mapAccount(row: Record<string, any>) {
   return { id: row.id, establishmentId: row.establishment_id, nome: row.nome ?? row.nome_completo ?? '', nomeCompleto: row.nome_completo ?? row.nome ?? '', username: row.username ?? '', email: row.email ?? '', role: row.role ?? 'owner', ativo: row.ativo ?? true, ...Object.fromEntries(Object.entries(ACCESS_FIELDS).map(([key, column]) => [key, row[column] === true])) };
 }
-Deno.serve(async (req: Request) => {
+Deno.serve((req: Request) => withCors(req, async () => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   const authorization = req.headers.get('Authorization');
   if (!authorization?.startsWith('Bearer ')) return errorResponse('Nao autenticado.', 401);
@@ -62,4 +63,4 @@ Deno.serve(async (req: Request) => {
     console.error('Falha ao gerenciar acessos pela plataforma:', error);
     return errorResponse('Nao foi possivel gerenciar os acessos.', 500);
   }
-});
+}));

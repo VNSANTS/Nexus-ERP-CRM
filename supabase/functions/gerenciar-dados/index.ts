@@ -11,6 +11,7 @@
 //     'report-transactions' | 'report-waste' | 'report-loyalty' | 'report-stock-history'
 //   - 'clear-sales'
 
+import { withCors } from '../_shared/helpers.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse, requireEmployee, hasEmployeeAccess, hasFeatureAccess, type FeatureAccess } from '../_shared/helpers.ts';
 import { checkRateLimit } from '../_shared/security.ts';
@@ -37,7 +38,7 @@ function saoPauloDayStart(now = new Date()): Date {
   return new Date(localMidnightAsUtc - (representedLocalAsUtc - localMidnightAsUtc));
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve((req: Request) => withCors(req, async () => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const caller = await requireEmployee(req);
@@ -318,7 +319,11 @@ Deno.serve(async (req: Request) => {
       if (!id) return errorResponse('id é obrigatório.', 400);
       const { data, error } = await supabase
         .from('transactions')
-        .update({ status: 'confirmado' })
+        .update({
+          status: 'confirmado',
+          paid_at: new Date().toISOString(),
+          confirmed_by: caller.employeeId,
+        })
         .eq('establishment_id', caller.establishmentId)
         .eq('id', id)
         .eq('status', 'pendente')
@@ -404,4 +409,4 @@ Deno.serve(async (req: Request) => {
     console.error(err);
     return errorResponse('Erro interno.', 500);
   }
-});
+}));

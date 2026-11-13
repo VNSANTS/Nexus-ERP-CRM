@@ -17,6 +17,7 @@
 // - block: marca como rejeitado, avisa o solicitante, E impede que o mesmo
 //   CPF/CNPJ ou e-mail solicitem de novo (grava em blocked_identifiers).
 
+import { getPublicAppUrl, withCors } from '../_shared/helpers.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse, errorResponse } from '../_shared/helpers.ts';
 import { sendEmail } from '../_shared/email.ts';
@@ -51,7 +52,7 @@ function isValidCpfCnpj(value: string): boolean {
   return digits.length === 11 ? isValidCpf(value) : digits.length === 14 ? isValidCnpj(value) : false;
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve((req: Request) => withCors(req, async () => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const authHeader = req.headers.get('Authorization');
@@ -96,8 +97,6 @@ Deno.serve(async (req: Request) => {
     if (findErr) throw findErr;
     if (!reqRow) return errorResponse('Solicitação não encontrada.', 404);
 
-    const onboardingUrl = 'https://vnsants.github.io/Nexus-ERP-CRM/estabelecimento/onboarding';
-
     if (action === 'resend-setup-invite') {
       if (reqRow.status !== 'aprovado' || !reqRow.establishment_id) {
         return jsonResponse({ ok: false, message: 'O convite só pode ser enviado para estabelecimentos aprovados.' });
@@ -113,6 +112,8 @@ Deno.serve(async (req: Request) => {
       const { data: authData, error: authLookupErr } = await supabase.auth.admin.getUserById(owner.id);
       if (authLookupErr || !authData?.user) throw authLookupErr ?? new Error('Conta do responsável não encontrada.');
 
+      // Return to the app root; OwnerAuth routes invite sessions to onboarding.
+      const onboardingUrl = getPublicAppUrl(req);
       const { error: emailErr } = authData.user.email_confirmed_at
         ? await supabase.auth.signInWithOtp({
             email: owner.email,
@@ -455,6 +456,8 @@ Deno.serve(async (req: Request) => {
     if (usersErr) throw usersErr;
     const existingAuthUser = usersPage.users.find((user) => user.email?.toLowerCase() === reqRow.owner_email.toLowerCase());
 
+    // Resolve the callback host only for flows that send an Auth email.
+    const onboardingUrl = getPublicAppUrl(req);
     let ownerUserId: string;
     let emailErr: { message?: string } | null = null;
     if (existingAuthUser) {
@@ -505,4 +508,4 @@ Deno.serve(async (req: Request) => {
     console.error(err);
     return errorResponse('Erro interno ao decidir solicitação.', 500);
   }
-});
+}));

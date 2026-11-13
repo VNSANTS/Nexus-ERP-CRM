@@ -1,7 +1,8 @@
+import { withCors } from '../_shared/helpers.ts';
 import { corsHeaders, jsonResponse, errorResponse } from '../_shared/helpers.ts';
 import { adminClient } from '../_shared/helpers.ts';
 
-Deno.serve(async (req: Request) => {
+Deno.serve((req: Request) => withCors(req, async () => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   const auth = req.headers.get('Authorization');
   if (!auth?.startsWith('Bearer ')) return errorResponse('Não autenticado.', 401);
@@ -69,4 +70,4 @@ Deno.serve(async (req: Request) => {
     console.error(error);
     return errorResponse('Não foi possível gerenciar os usuários.', 500);
   }
-});
+}));

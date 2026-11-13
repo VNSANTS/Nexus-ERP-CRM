@@ -7,6 +7,7 @@
 //
 // Body esperado: { action: 'list' | 'create' | 'update' | 'delete', ... }
 
+import { withCors } from '../_shared/helpers.ts';
 import { corsHeaders, jsonResponse, errorResponse, requireEmployee, adminClient, usernameToEmail, hasEmployeeAccess, hasFeatureAccess } from '../_shared/helpers.ts';
 
 function validAccess(role: string, cozinha: boolean, caixa: boolean, adm: boolean): boolean {
@@ -15,7 +16,7 @@ function validAccess(role: string, cozinha: boolean, caixa: boolean, adm: boolea
   return role === 'funcionario' && (cozinha || caixa) && !adm;
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve((req: Request) => withCors(req, async () => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const caller = await requireEmployee(req);
@@ -180,4 +181,4 @@ Deno.serve(async (req: Request) => {
     console.error(err);
     return errorResponse('Erro interno ao gerenciar funcionários.', 500);
   }
-});
+}));

@@ -309,6 +309,33 @@ Deno.serve((req: Request) => withCors(req, async () => {
         transactionStatus: 'confirmado',
         idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
       });
+
+      // A cashier-created order is recorded as paid in person by the atomic
+      // checkout RPC. Persist the authenticated cashier and timestamp too.
+      // Keep this idempotent: retrying the same manual order must not rewrite
+      // its original confirmation time or actor.
+      const { data: transaction, error: transactionError } = await supabase
+        .from('transactions')
+        .select('id, paid_at, confirmed_by')
+        .eq('establishment_id', caller.establishmentId)
+        .eq('order_id', result.id)
+        .eq('status', 'confirmado')
+        .maybeSingle();
+      if (transactionError) throw transactionError;
+      if (!transaction) throw new Error('Transação do pedido manual não encontrada.');
+
+      const auditUpdate: { paid_at?: string; confirmed_by?: string } = {};
+      if (!transaction.paid_at) auditUpdate.paid_at = new Date().toISOString();
+      if (!transaction.confirmed_by) auditUpdate.confirmed_by = caller.employeeId;
+      if (Object.keys(auditUpdate).length > 0) {
+        const { error: auditError } = await supabase
+          .from('transactions')
+          .update(auditUpdate)
+          .eq('establishment_id', caller.establishmentId)
+          .eq('id', transaction.id)
+          .eq('status', 'confirmado');
+        if (auditError) throw auditError;
+      }
       return jsonResponse(result, 201);
     }
 

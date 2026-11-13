@@ -36,4 +36,5 @@ jobs:
           QA_A_ORDER_ID: ${{ secrets.QA_A_ORDER_ID }}
           QA_A_STOCK_PRODUCT_ID: ${{ secrets.QA_A_STOCK_PRODUCT_ID }}
           QA_B_PRODUCT_ID: ${{ secrets.QA_B_PRODUCT_ID }}
+          QA_B_PRODUCT_ID: ${{ secrets.QA_B_PRODUCT_ID }}
         run: node scripts/hosted-tenant-isolation.mjs

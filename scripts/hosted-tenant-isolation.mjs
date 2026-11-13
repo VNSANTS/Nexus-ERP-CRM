@@ -83,14 +83,14 @@ async function negativeWrite({ label, request, expectedStatus, verify }) {
     console.error(`FAIL SECURITY: ${label} accepted a cross-tenant write (HTTP 200). Further write probes stopped.`);
     process.exit(3);
   }
+  await verify();
   if (result.status === 403) {
     output("BLOCKED", `${label}: QA B lacks the required module permission (HTTP 403).`);
     return;
   }
   if (result.status !== expectedStatus) {
-    throw new Error(`${label}: expected HTTP ${expectedStatus}, received HTTP ${result.status}; response omitted.`);
+    throw new Error(`${label}: expected HTTP ${expectedStatus}, received HTTP ${result.status}; A state verified unchanged, response omitted.`);
   }
-  await verify();
   output("PASS", `${label}: cross-tenant write rejected and QA A state unchanged (HTTP ${expectedStatus}).`);
 }
 let sessionA;

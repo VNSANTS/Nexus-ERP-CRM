@@ -145,6 +145,12 @@ try {
 
   const stockA = (await listStock(sessionA.token)).find((row) => row.product_id === process.env.QA_A_STOCK_PRODUCT_ID);
   if (!stockA) throw new Error("Configured QA A stock fixture is missing.");
+  const stocksB = await listStock(sessionB.token);
+  if (stocksB.some((row) => row.product_id === stockA.product_id) ||
+      !(await listStock(sessionA.token)).some((row) => row.product_id === process.env.QA_B_PRODUCT_ID)) {
+    console.error("FAIL SECURITY: stock listing crossed tenant boundary or QA B stock fixture is missing; no further writes attempted.");
+    process.exit(3);
+  }
   const stockSnapshot = { minimo: stockA.minimo, quantity: stockA.quantity, name: stockA.name };
   await negativeWrite({
     label: "stock.set-minimo",

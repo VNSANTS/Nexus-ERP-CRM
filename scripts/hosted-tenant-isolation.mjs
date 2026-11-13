@@ -136,7 +136,7 @@ try {
   }
   output("PASS", "product and order listings do not disclose QA A fixtures to QA B.");
 
-  const productSnapshot = { name: productA.name, price: productA.price, disponivel: productA.disponivel };
+  const productSnapshot = { name: productA.name, price: productA.price, disponivel: productA.disponivel, updated_at: productA.updated_at };
   await negativeWrite({
     label: "products.update-product",
     request: () => fn("gerenciar-dados", sessionB.token, {
@@ -145,7 +145,7 @@ try {
     expectedStatus: 404,
     verify: async () => {
       const current = (await listProducts(sessionA.token)).find((row) => row.id === productA.id);
-      sameFields(current, productSnapshot, ["name", "price", "disponivel"], "Product");
+      sameFields(current, productSnapshot, ["name", "price", "disponivel", "updated_at"], "Product");
     },
   });
 
@@ -175,7 +175,7 @@ try {
     console.error("FAIL SECURITY: stock listing crossed tenant boundary; no further writes attempted.");
     process.exit(3);
   }
-  const stockSnapshot = { minimo: stockA.minimo, quantity: stockA.quantity, name: stockA.name };
+  const stockSnapshot = { minimo: stockA.minimo, quantity: stockA.quantity, name: stockA.name, updated_at: stockA.updated_at };
   await negativeWrite({
     label: "stock.set-minimo",
     request: () => fn("estoque", sessionB.token, {
@@ -184,7 +184,7 @@ try {
     expectedStatus: 404,
     verify: async () => {
       const current = (await listStock(sessionA.token)).find((row) => row.product_id === stockA.product_id);
-      sameFields(current, stockSnapshot, ["minimo", "quantity", "name"], "Stock");
+      sameFields(current, stockSnapshot, ["minimo", "quantity", "name", "updated_at"], "Stock");
     },
   });
 

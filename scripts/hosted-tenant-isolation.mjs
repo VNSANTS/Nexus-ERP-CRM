@@ -112,7 +112,7 @@ let sessionB;
 try {
   sessionA = await login(process.env.QA_A_EMAIL, process.env.QA_A_PASSWORD);
   sessionB = await login(process.env.QA_B_EMAIL, process.env.QA_B_PASSWORD);
-  if (sessionA.userId === sessionB.userId) throw new Error("QA identities are not independent.");
+  if (sessionA.userId === sessionB.userId) throw new QaBlockedError("QA identities are not independent.", "BLOCKED_AUTH");
   output("PASS", "distinct Auth identities issued sessions.");
 
   const [productsA, productsB, ordersA, ordersB] = await Promise.all([
@@ -123,7 +123,7 @@ try {
   const productB = productsB.find((row) => row.id === process.env.QA_B_PRODUCT_ID);
   const orderA = ordersA.find((row) => row.id === process.env.QA_A_ORDER_ID);
   if (!productA || !orderA || !Array.isArray(productsB) || !Array.isArray(ordersB)) {
-    throw new Error("Configured QA A fixtures or required role access are missing.");
+    throw new QaBlockedError("Configured QA A fixtures or required role access are missing.", "BLOCKED_FIXTURE");
   }
   if (productsB.some((row) => row.id === productA.id) ||
       productsA.some((row) => row.id === productB.id) ||
@@ -132,7 +132,7 @@ try {
     process.exit(3);
   }
   if (process.env.QA_B_PRODUCT_ID && !productB) {
-    throw new Error("Configured QA B product is not visible to QA B.");
+    throw new QaBlockedError("Configured QA B product is not visible to QA B.", "BLOCKED_FIXTURE");
   }
   output("PASS", "product and order listings do not disclose QA A fixtures to QA B.");
 
@@ -164,11 +164,11 @@ try {
 
   const stocksA = await listStock(sessionA.token);
   const stockA = stocksA.find((row) => row.product_id === process.env.QA_A_STOCK_PRODUCT_ID);
-  if (!stockA) throw new Error("Configured QA A stock fixture is missing.");
+  if (!stockA) throw new QaBlockedError("Configured QA A stock fixture is missing.", "BLOCKED_FIXTURE");
   const stocksB = await listStock(sessionB.token);
   if (!stocksA.some((row) => row.product_id === process.env.QA_A_PRODUCT_ID) ||
       !stocksB.some((row) => row.product_id === process.env.QA_B_PRODUCT_ID)) {
-    throw new Error("Configured QA stock fixtures do not match the corresponding accounts.");
+    throw new QaBlockedError("Configured QA stock fixtures do not match the corresponding accounts.", "BLOCKED_FIXTURE");
   }
   if (stocksB.some((row) => row.product_id === stockA.product_id) ||
       stocksA.some((row) => row.product_id === process.env.QA_B_PRODUCT_ID)) {

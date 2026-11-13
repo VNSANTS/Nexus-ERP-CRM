@@ -232,13 +232,23 @@ assert.equal(transactions.length, 1, 'checkout should create exactly one transac
 assert.equal(transactions[0].status, 'pendente');
 const paid = await fn('gerenciar-dados', { action: 'confirm-transaction', id: transactions[0].id }, a.token);
 good(paid, 200, 'cashier confirms in-person payment');
-good(await fn('gerenciar-dados', { action: 'confirm-transaction', id: transactions[0].id }, a.token), 409, 'duplicate cashier confirmation');
 const paymentRows = good(await request(
-  '/rest/v1/transactions?select=status,method,valor&order_id=eq.' + encodeURIComponent(created.id),
+  '/rest/v1/transactions?select=status,method,valor,paid_at,confirmed_by&order_id=eq.' + encodeURIComponent(created.id),
   { key: service },
 ), 200, 'verify synthetic payment');
 assert.equal(paymentRows[0].status, 'confirmado');
 assert.equal(Number(paymentRows[0].valor), 10);
+assert.ok(Number.isFinite(Date.parse(paymentRows[0].paid_at)), 'cashier confirmation must persist a valid paid_at timestamp');
+assert.equal(paymentRows[0].confirmed_by, a.id, 'cashier confirmation must persist the authenticated employee ID');
+const firstConfirmationAt = paymentRows[0].paid_at;
+good(await fn('gerenciar-dados', { action: 'confirm-transaction', id: transactions[0].id }, a.token), 409, 'duplicate cashier confirmation');
+const afterDuplicateConfirmation = good(await request(
+  '/rest/v1/transactions?select=status,paid_at,confirmed_by&order_id=eq.' + encodeURIComponent(created.id),
+  { key: service },
+), 200, 'verify duplicate confirmation did not alter audit metadata');
+assert.equal(afterDuplicateConfirmation[0].status, 'confirmado');
+assert.equal(afterDuplicateConfirmation[0].paid_at, firstConfirmationAt);
+assert.equal(afterDuplicateConfirmation[0].confirmed_by, a.id);
 const cashierDenied = await fn('pedidos', {
   action: 'manual', items: [{ productId: menuA.products[0].id, qty: 1 }],
   paymentMethod: 'dinheiro', idempotencyKey: randomUUID(),

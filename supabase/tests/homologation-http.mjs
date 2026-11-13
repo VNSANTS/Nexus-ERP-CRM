@@ -263,12 +263,15 @@ for (const paymentMethod of ['dinheiro', 'pix', 'credito', 'debito']) {
     paymentMethod, idempotencyKey: randomUUID(),
   }, a.token), 201, 'manual in-person order ' + paymentMethod);
   const manualTx = good(await request(
-    '/rest/v1/transactions?select=method,status,valor&order_id=eq.' + encodeURIComponent(manualOrder.id),
+    '/rest/v1/transactions?select=method,status,valor,paid_at,confirmed_by&order_id=eq.' + encodeURIComponent(manualOrder.id),
     { key: service },
   ), 200, 'verify manual payment ' + paymentMethod);
   assert.equal(manualTx.length, 1);
   assert.equal(manualTx[0].method, paymentMethod);
   assert.equal(manualTx[0].status, 'confirmado');
+  assert.equal(Number(manualTx[0].valor), 17);
+  assert.ok(Number.isFinite(Date.parse(manualTx[0].paid_at)), 'manual cashier order must persist paid_at');
+  assert.equal(manualTx[0].confirmed_by, a.id, 'manual cashier order must persist the authenticated cashier');
 }
 const canceledPaidOrder = good(await fn('pedidos', {
   action: 'manual', items: [{ productId: menuA.products[0].id, qty: 1, variantId: variant.id, modifierIds: [modifier.id] }],
